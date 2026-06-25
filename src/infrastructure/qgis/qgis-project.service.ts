@@ -116,6 +116,40 @@ export class QGISProjectService {
     return this.runPythonScript('clip_export.py', [projectPath, layerName, boundaryPath, outputPath]);
   }
 
+  async addRasterLayer(projectPath: string, rasterPath: string, layerName: string, stylePath?: string): Promise<PyQGISResult> {
+    const dir = path.dirname(projectPath);
+    if (!existsSync(dir)) await mkdir(dir, { recursive: true });
+    return this.runPythonScript('add_raster_layer.py', [projectPath, rasterPath, layerName, stylePath || 'none']);
+  }
+
+  async editLayerProperties(projectPath: string, layerName: string, properties: Record<string, unknown>): Promise<PyQGISResult> {
+    return this.runPythonScript('edit_layer_properties.py', [projectPath, layerName, JSON.stringify(properties)]);
+  }
+
+  async exportLayer(projectPath: string, layerName: string, outputPath: string, format: string): Promise<PyQGISResult> {
+    const dir = path.dirname(outputPath);
+    if (!existsSync(dir)) await mkdir(dir, { recursive: true });
+    return this.runPythonScript('export_layer.py', [projectPath, layerName, outputPath, format]);
+  }
+
+  async getLayerInfo(projectPath: string, layerName: string): Promise<PyQGISResult> {
+    return this.runPythonScript('get_layer_info.py', [projectPath, layerName]);
+  }
+
+  async setIconOnLayer(projectPath: string, layerName: string, iconPath: string, iconSize?: number, iconColor?: string): Promise<PyQGISResult> {
+    return this.runPythonScript('set_icon_on_layer.py', [projectPath, layerName, iconPath, String(iconSize ?? 8), iconColor ?? '#2196F3']);
+  }
+
+  async downloadData(projectPath: string, layerName: string, clipLayerPath: string, outputPath: string): Promise<PyQGISResult> {
+    const dir = path.dirname(outputPath);
+    if (!existsSync(dir)) await mkdir(dir, { recursive: true });
+    return this.runPythonScript('download_data.py', [projectPath, layerName, clipLayerPath, outputPath]);
+  }
+
+  async configureWFS(projectPath: string, layerNames: string[]): Promise<PyQGISResult> {
+    return this.runPythonScript('configure_wfs.py', [projectPath, JSON.stringify(layerNames)]);
+  }
+
   getWMSUrl(instanceSlug: string, thematicId?: string): string {
     const projectPath = this.getProjectPath(instanceSlug, thematicId);
     return `${this.qgisServerUrl}?map=${projectPath}`;
