@@ -40,6 +40,9 @@ import { catalogRoutes } from './presentation/routes/catalog.routes.js';
 import { mapCompositionRoutes } from './presentation/routes/map-composition.routes.js';
 import { documentRoutes } from './presentation/routes/document.routes.js';
 import { seoRoutes } from './presentation/routes/seo.routes.js';
+import { adressageRoutes } from './presentation/routes/adressage.routes.js';
+import { analysisRoutes } from './presentation/routes/analysis.routes.js';
+import { rasterRoutes } from './presentation/routes/raster.routes.js';
 import { createLayerImportProcessor } from './infrastructure/queue/workers/layer-import.worker.js';
 import { createExportProcessor } from './infrastructure/queue/workers/export.worker.js';
 
@@ -125,6 +128,9 @@ async function bootstrap(): Promise<void> {
   await app.register(mapCompositionRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/maps` });
   await app.register(documentRoutes, { prefix: `${appConfig.apiPrefix}/documents` });
   await app.register(seoRoutes, { prefix: `${appConfig.apiPrefix}/seo` });
+  await app.register(adressageRoutes, { prefix: `${appConfig.apiPrefix}/adressage` });
+  await app.register(analysisRoutes, { prefix: `${appConfig.apiPrefix}/analysis` });
+  await app.register(rasterRoutes, { prefix: `${appConfig.apiPrefix}/rasters` });
 
   await app.ready();
 

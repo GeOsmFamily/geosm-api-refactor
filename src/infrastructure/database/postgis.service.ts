@@ -399,6 +399,89 @@ export class PostGISService {
     }
   }
 
+  // Delete a column from a table
+  async deleteColumn(schema: string, table: string, column: string): Promise<void> {
+    const s = this.sanitizeIdentifier(schema);
+    const t = this.sanitizeIdentifier(table);
+    const c = this.sanitizeIdentifier(column);
+    await this.prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."${t}" DROP COLUMN IF EXISTS "${c}"`);
+    logger.info('Column deleted', { schema: s, table: t, column: c });
+  }
+
+  // Update (rename/alter type) a column
+  async updateColumn(schema: string, table: string, oldName: string, newName: string, newType?: string): Promise<void> {
+    const s = this.sanitizeIdentifier(schema);
+    const t = this.sanitizeIdentifier(table);
+    const oldCol = this.sanitizeIdentifier(oldName);
+    const newCol = this.sanitizeIdentifier(newName);
+
+    if (oldCol !== newCol) {
+      await this.prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."${t}" RENAME COLUMN "${oldCol}" TO "${newCol}"`);
+    }
+
+    if (newType) {
+      const validTypes = ['TEXT', 'INTEGER', 'BIGINT', 'DOUBLE PRECISION', 'BOOLEAN', 'TIMESTAMPTZ', 'JSONB', 'NUMERIC', 'VARCHAR', 'REAL'];
+      const safeType = validTypes.find(vt => vt === newType.toUpperCase()) ?? 'TEXT';
+      await this.prisma.$executeRawUnsafe(`ALTER TABLE "${s}"."${t}" ALTER COLUMN "${newCol}" TYPE ${safeType} USING "${newCol}"::${safeType}`);
+    }
+
+    logger.info('Column updated', { schema: s, table: t, oldName: oldCol, newName: newCol, newType });
+  }
+
+  // Set primary display field via column comment
+  async setPrimaryDisplayField(schema: string, table: string, column: string): Promise<void> {
+    const s = this.sanitizeIdentifier(schema);
+    const t = this.sanitizeIdentifier(table);
+    const c = this.sanitizeIdentifier(column);
+
+    // Remove existing primary display markers
+    const cols = await this.listColumns(s, t);
+    for (const col of cols) {
+      if (col.comment?.includes('PRIMARY_DISPLAY')) {
+        await this.prisma.$executeRawUnsafe(`COMMENT ON COLUMN "${s}"."${t}"."${col.name}" IS NULL`);
+      }
+    }
+
+    await this.prisma.$executeRawUnsafe(`COMMENT ON COLUMN "${s}"."${t}"."${c}" IS 'PRIMARY_DISPLAY'`);
+    logger.info('Primary display field set', { schema: s, table: t, column: c });
+  }
+
+  // List columns with names, types, constraints, and comments
+  async listColumns(schema: string, table: string): Promise<{ name: string; type: string; nullable: boolean; defaultValue: string | null; comment: string | null }[]> {
+    const safeSchema = schema.replace(/'/g, "''");
+    const safeTable = table.replace(/'/g, "''");
+
+    const rows = await this.prisma.$queryRawUnsafe<{
+      column_name: string;
+      data_type: string;
+      is_nullable: string;
+      column_default: string | null;
+      description: string | null;
+    }[]>(`
+      SELECT
+        c.column_name,
+        c.data_type,
+        c.is_nullable,
+        c.column_default,
+        pgd.description
+      FROM information_schema.columns c
+      LEFT JOIN pg_catalog.pg_statio_all_tables st
+        ON st.schemaname = c.table_schema AND st.relname = c.table_name
+      LEFT JOIN pg_catalog.pg_description pgd
+        ON pgd.objoid = st.relid AND pgd.objsubid = c.ordinal_position
+      WHERE c.table_schema = '${safeSchema}' AND c.table_name = '${safeTable}'
+      ORDER BY c.ordinal_position
+    `);
+
+    return rows.map(r => ({
+      name: r.column_name,
+      type: r.data_type,
+      nullable: r.is_nullable === 'YES',
+      defaultValue: r.column_default,
+      comment: r.description,
+    }));
+  }
+
   // Sanitize SQL identifiers to prevent injection
   private sanitizeIdentifier(name: string): string {
     return name.replace(/[^a-zA-Z0-9_-]/g, '');

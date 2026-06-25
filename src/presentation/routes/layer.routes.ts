@@ -11,6 +11,7 @@ import { GetLayerUseCase } from '../../application/use-cases/layers/get-layer.us
 import { CreateLayerUseCase } from '../../application/use-cases/layers/create-layer.use-case.js';
 import { UpdateLayerUseCase } from '../../application/use-cases/layers/update-layer.use-case.js';
 import { DeleteLayerUseCase } from '../../application/use-cases/layers/delete-layer.use-case.js';
+import { GetSourceFileUseCase } from '../../application/use-cases/layers/get-source-file.use-case.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -60,5 +61,13 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
     const { id } = parseBody(layerIdParamSchema, request.params);
     await deleteLayerUseCase.execute(id);
     return reply.send(successResponse(null));
+  });
+
+  // GET /:id/source-file — get the original source file from MinIO
+  const getSourceFileUseCase = app.diContainer.resolve<GetSourceFileUseCase>('getSourceFileUseCase');
+  app.get('/:id/source-file', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = parseBody(layerIdParamSchema, request.params);
+    const result = await getSourceFileUseCase.execute(id);
+    return reply.send(successResponse(result));
   });
 }

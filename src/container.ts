@@ -152,6 +152,35 @@ import { GetDashboardUseCase } from './application/use-cases/admin/get-dashboard
 import { ListJobsUseCase } from './application/use-cases/admin/list-jobs.use-case.js';
 import { GetSystemHealthUseCase } from './application/use-cases/admin/get-system-health.use-case.js';
 
+// Adressage
+import { AdressageService } from './infrastructure/database/adressage.service.js';
+import { GetAdresseUseCase } from './application/use-cases/adressage/get-adresse.use-case.js';
+import { GetPositionUseCase } from './application/use-cases/adressage/get-position.use-case.js';
+import { GetPointsUseCase } from './application/use-cases/adressage/get-points.use-case.js';
+import { SearchAdresseUseCase } from './application/use-cases/adressage/search-adresse.use-case.js';
+import { GetAdresseByClickUseCase } from './application/use-cases/adressage/get-adresse-by-click.use-case.js';
+import { CodeUsageUseCase } from './application/use-cases/adressage/code-usage.use-case.js';
+
+// Spatial Analysis
+import { SpatialAnalysisUseCase } from './application/use-cases/analysis/spatial-analysis.use-case.js';
+
+// Raster
+import { RasterService } from './infrastructure/gdal/raster.service.js';
+import { UploadRasterUseCase } from './application/use-cases/rasters/upload-raster.use-case.js';
+import { DownloadRasterUseCase } from './application/use-cases/rasters/download-raster.use-case.js';
+
+// SVG Icons
+import { SvgGeneratorService } from './infrastructure/utils/svg-generator.service.js';
+import { GenerateIconUseCase } from './application/use-cases/admin/generate-icon.use-case.js';
+
+// Niche use cases
+import { SaveCoordPdfUseCase } from './application/use-cases/maps/save-coord-pdf.use-case.js';
+import { ConfigDbUseCase } from './application/use-cases/admin/config-db.use-case.js';
+import { SearchLimitInTableUseCase } from './application/use-cases/geoportail/search-limit-in-table.use-case.js';
+import { CreateInstanceTemplateUseCase } from './application/use-cases/admin/create-instance-template.use-case.js';
+import { GetSourceFileUseCase } from './application/use-cases/layers/get-source-file.use-case.js';
+import { ManageSequenceUseCase } from './application/use-cases/admin/manage-sequence.use-case.js';
+
 // Phase 4: Layer Import Pipeline
 import { MinioStorageService } from './infrastructure/storage/minio.service.js';
 import { QueueService } from './infrastructure/queue/queue.service.js';
@@ -386,6 +415,30 @@ interface Cradle {
   geolocateIpUseCase: GeolocateIpUseCase;
   // SEO
   getSeoMetadataUseCase: GetSeoMetadataUseCase;
+  // Adressage
+  adressageService: AdressageService;
+  getAdresseUseCase: GetAdresseUseCase;
+  getPositionUseCase: GetPositionUseCase;
+  getPointsUseCase: GetPointsUseCase;
+  searchAdresseUseCase: SearchAdresseUseCase;
+  getAdresseByClickUseCase: GetAdresseByClickUseCase;
+  codeUsageUseCase: CodeUsageUseCase;
+  // Spatial Analysis
+  spatialAnalysisUseCase: SpatialAnalysisUseCase;
+  // Raster
+  rasterService: RasterService;
+  uploadRasterUseCase: UploadRasterUseCase;
+  downloadRasterUseCase: DownloadRasterUseCase;
+  // SVG
+  svgGeneratorService: SvgGeneratorService;
+  generateIconUseCase: GenerateIconUseCase;
+  // Niche
+  saveCoordPdfUseCase: SaveCoordPdfUseCase;
+  configDbUseCase: ConfigDbUseCase;
+  searchLimitInTableUseCase: SearchLimitInTableUseCase;
+  createInstanceTemplateUseCase: CreateInstanceTemplateUseCase;
+  getSourceFileUseCase: GetSourceFileUseCase;
+  manageSequenceUseCase: ManageSequenceUseCase;
 }
 
 export async function setupContainer(app: FastifyInstance): Promise<void> {
@@ -639,5 +692,34 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     // SEO
     getSeoMetadataUseCase: asFunction((c: Cradle) => new GetSeoMetadataUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+
+    // Adressage
+    adressageService: asFunction(() => new AdressageService(prisma), { lifetime: Lifetime.SINGLETON }),
+    getAdresseUseCase: asFunction((c: Cradle) => new GetAdresseUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
+    getPositionUseCase: asFunction((c: Cradle) => new GetPositionUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
+    getPointsUseCase: asFunction((c: Cradle) => new GetPointsUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
+    searchAdresseUseCase: asFunction((c: Cradle) => new SearchAdresseUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
+    getAdresseByClickUseCase: asFunction((c: Cradle) => new GetAdresseByClickUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
+    codeUsageUseCase: asFunction((c: Cradle) => new CodeUsageUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
+
+    // Spatial Analysis
+    spatialAnalysisUseCase: asFunction(() => new SpatialAnalysisUseCase(prisma), { lifetime: Lifetime.SCOPED }),
+
+    // Raster
+    rasterService: asFunction(() => new RasterService(), { lifetime: Lifetime.SINGLETON }),
+    uploadRasterUseCase: asFunction((c: Cradle) => new UploadRasterUseCase(c.rasterService, c.storageService), { lifetime: Lifetime.SCOPED }),
+    downloadRasterUseCase: asFunction((c: Cradle) => new DownloadRasterUseCase(c.rasterService), { lifetime: Lifetime.SCOPED }),
+
+    // SVG
+    svgGeneratorService: asFunction(() => new SvgGeneratorService(), { lifetime: Lifetime.SINGLETON }),
+    generateIconUseCase: asFunction((c: Cradle) => new GenerateIconUseCase(c.svgGeneratorService), { lifetime: Lifetime.SCOPED }),
+
+    // Niche
+    saveCoordPdfUseCase: asFunction(() => new SaveCoordPdfUseCase(prisma), { lifetime: Lifetime.SCOPED }),
+    configDbUseCase: asFunction(() => new ConfigDbUseCase(), { lifetime: Lifetime.SCOPED }),
+    searchLimitInTableUseCase: asFunction(() => new SearchLimitInTableUseCase(prisma), { lifetime: Lifetime.SCOPED }),
+    createInstanceTemplateUseCase: asFunction((c: Cradle) => new CreateInstanceTemplateUseCase(c.instanceRepository, prisma), { lifetime: Lifetime.SCOPED }),
+    getSourceFileUseCase: asFunction((c: Cradle) => new GetSourceFileUseCase(c.layerRepository, c.storageService), { lifetime: Lifetime.SCOPED }),
+    manageSequenceUseCase: asFunction(() => new ManageSequenceUseCase(prisma), { lifetime: Lifetime.SCOPED }),
   });
 }
