@@ -28,6 +28,9 @@ import { qgisProjectRoutes } from './presentation/routes/qgis-project.routes.js'
 import { wmsProxyRoutes, wfsProxyRoutes } from './presentation/routes/wms-proxy.routes.js';
 import { defaultThemeRoutes } from './presentation/routes/default-theme.routes.js';
 import { adminRoutes } from './presentation/routes/admin.routes.js';
+import { multipartPlugin } from './presentation/plugins/multipart.plugin.js';
+import { uploadRoutes } from './presentation/routes/upload.routes.js';
+import { createLayerImportProcessor } from './infrastructure/queue/workers/layer-import.worker.js';
 
 async function bootstrap(): Promise<void> {
   const app = Fastify({
@@ -42,6 +45,7 @@ async function bootstrap(): Promise<void> {
   await swaggerPlugin(app);
   await authPlugin(app);
   await websocketPlugin(app);
+  await multipartPlugin(app);
 
   await app.register(fastifyRateLimit, {
     max: appConfig.rateLimit.authenticated,
@@ -54,6 +58,19 @@ async function bootstrap(): Promise<void> {
   }
 
   await setupContainer(app);
+
+  // Register WebSocket notification routes
+  const notificationService = app.diContainer.resolve('notificationService') as import('./infrastructure/websocket/notification.service.js').NotificationService;
+  notificationService.registerRoutes(app);
+
+  // Register layer import worker
+  const queueService = app.diContainer.resolve('queueService') as import('./infrastructure/queue/queue.service.js').QueueService;
+  queueService.createQueue('layer-import');
+  queueService.registerWorker('layer-import', createLayerImportProcessor({
+    exportRepository: app.diContainer.resolve('exportRepository') as import('./infrastructure/database/repositories/prisma-export.repository.js').PrismaExportRepository,
+    storageService: app.diContainer.resolve('storageService') as import('./infrastructure/storage/minio.service.js').MinioStorageService,
+    notificationService,
+  }));
 
   await app.register(healthRoutes);
   await app.register(authRoutes, { prefix: `${appConfig.apiPrefix}/auth` });
@@ -73,6 +90,7 @@ async function bootstrap(): Promise<void> {
   await app.register(wfsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wfs` });
   await app.register(defaultThemeRoutes, { prefix: `${appConfig.apiPrefix}/default-themes` });
   await app.register(adminRoutes, { prefix: `${appConfig.apiPrefix}/admin` });
+  await app.register(uploadRoutes, { prefix: `${appConfig.apiPrefix}/layers` });
 
   await app.ready();
 

@@ -129,6 +129,13 @@ import { GetDashboardUseCase } from './application/use-cases/admin/get-dashboard
 import { ListJobsUseCase } from './application/use-cases/admin/list-jobs.use-case.js';
 import { GetSystemHealthUseCase } from './application/use-cases/admin/get-system-health.use-case.js';
 
+// Phase 4: Layer Import Pipeline
+import { MinioStorageService } from './infrastructure/storage/minio.service.js';
+import { QueueService } from './infrastructure/queue/queue.service.js';
+import { NotificationService } from './infrastructure/websocket/notification.service.js';
+import { ImportLayerUseCase } from './application/use-cases/layers/import-layer.use-case.js';
+import { DownloadExportUseCase } from './application/use-cases/exports/download-export.use-case.js';
+
 import type { IEmailService } from './application/services/email.service.js';
 import { logger } from './infrastructure/observability/logger.js';
 
@@ -255,6 +262,12 @@ interface Cradle {
   getDashboardUseCase: GetDashboardUseCase;
   listJobsUseCase: ListJobsUseCase;
   getSystemHealthUseCase: GetSystemHealthUseCase;
+  // Phase 4: Layer Import Pipeline
+  storageService: MinioStorageService;
+  queueService: QueueService;
+  notificationService: NotificationService;
+  importLayerUseCase: ImportLayerUseCase;
+  downloadExportUseCase: DownloadExportUseCase;
 }
 
 export async function setupContainer(app: FastifyInstance): Promise<void> {
@@ -429,5 +442,13 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     getDashboardUseCase: asFunction((c: Cradle) => new GetDashboardUseCase(c.instanceRepository, c.userRepository, c.exportRepository, c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
     listJobsUseCase: asFunction(() => new ListJobsUseCase(), { lifetime: Lifetime.SCOPED }),
     getSystemHealthUseCase: asFunction((c: Cradle) => new GetSystemHealthUseCase(c.prisma, c.redisService), { lifetime: Lifetime.SCOPED }),
+
+    // Phase 4: Layer Import Pipeline
+    storageService: asFunction(() => new MinioStorageService(), { lifetime: Lifetime.SINGLETON }),
+    queueService: asFunction(() => new QueueService(), { lifetime: Lifetime.SINGLETON }),
+    notificationService: asFunction(() => new NotificationService(), { lifetime: Lifetime.SINGLETON }),
+
+    importLayerUseCase: asFunction((c: Cradle) => new ImportLayerUseCase(c.layerRepository, c.exportRepository, c.storageService, c.queueService), { lifetime: Lifetime.SCOPED }),
+    downloadExportUseCase: asFunction((c: Cradle) => new DownloadExportUseCase(c.exportRepository, c.storageService), { lifetime: Lifetime.SCOPED }),
   });
 }
