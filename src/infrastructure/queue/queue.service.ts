@@ -61,6 +61,10 @@ export class QueueService {
     return worker;
   }
 
+  getQueueNames(): string[] {
+    return Array.from(this.queues.keys());
+  }
+
   async getJobCounts(queueName: string): Promise<Record<string, number>> {
     const queue = this.getQueue(queueName);
     if (!queue) return {};

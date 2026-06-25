@@ -6,11 +6,13 @@ import { Layer } from '../../../domain/entities/layer.entity.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ConflictError } from '../../../domain/errors/conflict.error.js';
 import { Slug } from '../../../domain/value-objects/slug.vo.js';
+import { IndexLayerUseCase } from '../search/index-layer.use-case.js';
 
 export class CreateLayerUseCase {
   constructor(
     private readonly layerRepository: ILayerRepository,
     private readonly instanceRepository: IInstanceRepository,
+    private readonly indexLayerUseCase?: IndexLayerUseCase,
   ) {}
 
   async execute(instanceId: string, dto: CreateLayerDTO): Promise<Layer> {
@@ -21,7 +23,7 @@ export class CreateLayerUseCase {
     const existing = await this.layerRepository.findBySlug(slug.value, instanceId);
     if (existing) throw new ConflictError('Layer with this slug already exists in this instance');
 
-    return this.layerRepository.create({
+    const layer = await this.layerRepository.create({
       id: uuidv4(),
       name: dto.name,
       slug: slug.value,
@@ -43,5 +45,13 @@ export class CreateLayerUseCase {
       instanceId,
       qgisProjectId: null,
     });
+
+    try {
+      await this.indexLayerUseCase?.execute(layer);
+    } catch {
+      // Non-critical: indexing failure should not block layer creation
+    }
+
+    return layer;
   }
 }

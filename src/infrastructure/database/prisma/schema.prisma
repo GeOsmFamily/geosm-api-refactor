@@ -322,6 +322,50 @@ model DefaultTheme {
   @@map("default_themes")
 }
 
+model Drawing {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  instanceId  String   @map("instance_id") @db.Uuid
+  name        String
+  geojson     Json
+  description String?
+  isPublic    Boolean  @default(false) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([instanceId])
+  @@map("drawings")
+}
+
+model SharedMap {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  instanceId String    @map("instance_id") @db.Uuid
+  mapState   Json      @map("map_state")
+  shortCode  String    @unique @map("short_code")
+  expiresAt  DateTime? @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("shared_maps")
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventType String   @map("event_type")
+  userId    String?  @map("user_id") @db.Uuid
+  instanceId String  @map("instance_id") @db.Uuid
+  layerId   String?  @map("layer_id") @db.Uuid
+  metadata  Json?
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([instanceId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
+
 model DefaultTag {
   id        String   @id @default(uuid()) @db.Uuid
   name      String

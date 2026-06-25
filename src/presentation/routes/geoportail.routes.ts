@@ -5,6 +5,7 @@ import { ValidationError } from '../../domain/errors/validation.error.js';
 
 import type { PostGISService } from '../../infrastructure/database/postgis.service.js';
 import { GetLayerStatsUseCase } from '../../application/use-cases/layers/get-layer-stats.use-case.js';
+import { FindAdminBoundaryUseCase } from '../../application/use-cases/geoportail/find-admin-boundary.use-case.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -24,9 +25,16 @@ const elevationProfileBodySchema = z.object({
 
 const layerIdParamSchema = z.object({ layerId: z.string().uuid() });
 
+const adminBoundaryQuerySchema = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lon: z.coerce.number().min(-180).max(180),
+  table: z.string().optional(),
+});
+
 export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
   const postGISService = app.diContainer.resolve<PostGISService>('postGISService');
   const getLayerStatsUseCase = app.diContainer.resolve<GetLayerStatsUseCase>('getLayerStatsUseCase');
+  const findAdminBoundaryUseCase = app.diContainer.resolve<FindAdminBoundaryUseCase>('findAdminBoundaryUseCase');
 
   // POST /api/v1/geoportail/altitude
   app.post('/altitude', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -40,6 +48,13 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
     const { geometry, numPoints } = parseBody(elevationProfileBodySchema, request.body);
     const profile = await postGISService.drapeElevationProfile(JSON.stringify(geometry), numPoints);
     return reply.send(successResponse({ profile }));
+  });
+
+  // GET /api/v1/geoportail/admin-boundary?lat=X&lon=Y&table=optional
+  app.get('/admin-boundary', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { lat, lon, table } = parseBody(adminBoundaryQuerySchema, request.query);
+    const boundaries = await findAdminBoundaryUseCase.execute(lat, lon, table);
+    return reply.send(successResponse(boundaries));
   });
 
   // POST /api/v1/layers/:layerId/stats

@@ -110,6 +110,28 @@ import { FindNearestUseCase } from './application/use-cases/routing/find-nearest
 import { GlobalSearchUseCase } from './application/use-cases/search/global-search.use-case.js';
 import { SearchLayersUseCase } from './application/use-cases/search/search-layers.use-case.js';
 import { SearchFeaturesUseCase } from './application/use-cases/search/search-features.use-case.js';
+import { IndexLayerUseCase } from './application/use-cases/search/index-layer.use-case.js';
+import { RemoveLayerIndexUseCase } from './application/use-cases/search/remove-layer-index.use-case.js';
+
+// Admin Boundary use cases
+import { FindAdminBoundaryUseCase } from './application/use-cases/geoportail/find-admin-boundary.use-case.js';
+
+// Drawing use cases
+import { PrismaDrawingRepository } from './infrastructure/database/repositories/prisma-drawing.repository.js';
+import { SaveDrawingUseCase } from './application/use-cases/drawings/save-drawing.use-case.js';
+import { GetDrawingsUseCase } from './application/use-cases/drawings/get-drawings.use-case.js';
+import { GetDrawingUseCase } from './application/use-cases/drawings/get-drawing.use-case.js';
+import { DeleteDrawingUseCase } from './application/use-cases/drawings/delete-drawing.use-case.js';
+
+// Sharing use cases
+import { PrismaSharedMapRepository } from './infrastructure/database/repositories/prisma-shared-map.repository.js';
+import { CreateSharedMapUseCase } from './application/use-cases/sharing/create-shared-map.use-case.js';
+import { GetSharedMapUseCase } from './application/use-cases/sharing/get-shared-map.use-case.js';
+
+// Analytics use cases
+import { PrismaAnalyticsRepository } from './infrastructure/database/repositories/prisma-analytics.repository.js';
+import { TrackEventUseCase } from './application/use-cases/analytics/track-event.use-case.js';
+import { GetAnalyticsUseCase } from './application/use-cases/analytics/get-analytics.use-case.js';
 
 // QGIS Projects use cases
 import { GetQgisProjectUseCase } from './application/use-cases/qgis-projects/get-qgis-project.use-case.js';
@@ -149,20 +171,18 @@ import { UpdateFeatureUseCase } from './application/use-cases/features/update-fe
 import { DeleteFeatureUseCase } from './application/use-cases/features/delete-feature.use-case.js';
 import { GetLayerStatsUseCase } from './application/use-cases/layers/get-layer-stats.use-case.js';
 
-import type { IEmailService } from './application/services/email.service.js';
-import { logger } from './infrastructure/observability/logger.js';
+import { SmtpEmailService } from './infrastructure/email/smtp.service.js';
+import { OsmQueryService } from './infrastructure/database/osm-query.service.js';
+import { Osm2pgsqlService } from './infrastructure/osm/osm2pgsql.service.js';
 
-class NoopEmailService implements IEmailService {
-  async sendVerificationEmail(email: string, _token: string): Promise<void> {
-    logger.info('Verification email (noop)', { email });
-  }
-  async sendPasswordResetEmail(email: string, _token: string): Promise<void> {
-    logger.info('Password reset email (noop)', { email });
-  }
-  async sendWelcomeEmail(email: string, _firstName: string): Promise<void> {
-    logger.info('Welcome email (noop)', { email });
-  }
-}
+// OSM use cases
+import { QueryOsmUseCase } from './application/use-cases/osm/query-osm.use-case.js';
+import { CreateOsmTableUseCase } from './application/use-cases/osm/create-osm-table.use-case.js';
+
+// Additional admin use cases
+import { GetJobDetailsUseCase } from './application/use-cases/admin/get-job-details.use-case.js';
+import { RetryJobUseCase } from './application/use-cases/admin/retry-job.use-case.js';
+import { ImportOsmDataUseCase } from './application/use-cases/admin/import-osm-data.use-case.js';
 
 interface Cradle {
   prisma: PrismaClient;
@@ -183,7 +203,7 @@ interface Cradle {
   qgisServerService: QgisServerService;
   qgisProjectService: QGISProjectService;
   passwordService: Argon2PasswordService;
-  emailService: NoopEmailService;
+  emailService: SmtpEmailService;
   tokenService: JwtTokenService;
   redisService: RedisService;
   // Auth
@@ -275,7 +295,15 @@ interface Cradle {
   // Admin
   getDashboardUseCase: GetDashboardUseCase;
   listJobsUseCase: ListJobsUseCase;
+  getJobDetailsUseCase: GetJobDetailsUseCase;
+  retryJobUseCase: RetryJobUseCase;
+  importOsmDataUseCase: ImportOsmDataUseCase;
   getSystemHealthUseCase: GetSystemHealthUseCase;
+  // OSM
+  osmQueryService: OsmQueryService;
+  osm2pgsqlService: Osm2pgsqlService;
+  queryOsmUseCase: QueryOsmUseCase;
+  createOsmTableUseCase: CreateOsmTableUseCase;
   // Phase 4: Layer Import Pipeline
   storageService: MinioStorageService;
   queueService: QueueService;
@@ -292,6 +320,25 @@ interface Cradle {
   updateFeatureUseCase: UpdateFeatureUseCase;
   deleteFeatureUseCase: DeleteFeatureUseCase;
   getLayerStatsUseCase: GetLayerStatsUseCase;
+  // Search indexing
+  indexLayerUseCase: IndexLayerUseCase;
+  removeLayerIndexUseCase: RemoveLayerIndexUseCase;
+  // Admin Boundary
+  findAdminBoundaryUseCase: FindAdminBoundaryUseCase;
+  // Drawings
+  drawingRepository: PrismaDrawingRepository;
+  saveDrawingUseCase: SaveDrawingUseCase;
+  getDrawingsUseCase: GetDrawingsUseCase;
+  getDrawingUseCase: GetDrawingUseCase;
+  deleteDrawingUseCase: DeleteDrawingUseCase;
+  // Sharing
+  sharedMapRepository: PrismaSharedMapRepository;
+  createSharedMapUseCase: CreateSharedMapUseCase;
+  getSharedMapUseCase: GetSharedMapUseCase;
+  // Analytics
+  analyticsRepository: PrismaAnalyticsRepository;
+  trackEventUseCase: TrackEventUseCase;
+  getAnalyticsUseCase: GetAnalyticsUseCase;
 }
 
 export async function setupContainer(app: FastifyInstance): Promise<void> {
@@ -312,7 +359,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     redisService: asFunction(() => new RedisService(), { lifetime: Lifetime.SINGLETON }),
     passwordService: asFunction(() => new Argon2PasswordService(), { lifetime: Lifetime.SINGLETON }),
-    emailService: asFunction(() => new NoopEmailService(), { lifetime: Lifetime.SINGLETON }),
+    emailService: asFunction(() => new SmtpEmailService(), { lifetime: Lifetime.SINGLETON }),
 
     // Repositories
     userRepository: asFunction(() => new PrismaUserRepository(prisma), { lifetime: Lifetime.SINGLETON }),
@@ -413,9 +460,9 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     // Layers use cases
     listLayersUseCase: asFunction((c: Cradle) => new ListLayersUseCase(c.layerRepository), { lifetime: Lifetime.SCOPED }),
     getLayerUseCase: asFunction((c: Cradle) => new GetLayerUseCase(c.layerRepository), { lifetime: Lifetime.SCOPED }),
-    createLayerUseCase: asFunction((c: Cradle) => new CreateLayerUseCase(c.layerRepository, c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    updateLayerUseCase: asFunction((c: Cradle) => new UpdateLayerUseCase(c.layerRepository), { lifetime: Lifetime.SCOPED }),
-    deleteLayerUseCase: asFunction((c: Cradle) => new DeleteLayerUseCase(c.layerRepository), { lifetime: Lifetime.SCOPED }),
+    createLayerUseCase: asFunction((c: Cradle) => new CreateLayerUseCase(c.layerRepository, c.instanceRepository, c.indexLayerUseCase), { lifetime: Lifetime.SCOPED }),
+    updateLayerUseCase: asFunction((c: Cradle) => new UpdateLayerUseCase(c.layerRepository, c.indexLayerUseCase), { lifetime: Lifetime.SCOPED }),
+    deleteLayerUseCase: asFunction((c: Cradle) => new DeleteLayerUseCase(c.layerRepository, c.removeLayerIndexUseCase), { lifetime: Lifetime.SCOPED }),
 
     // BaseMaps use cases
     listBaseMapsUseCase: asFunction((c: Cradle) => new ListBaseMapsUseCase(c.baseMapRepository), { lifetime: Lifetime.SCOPED }),
@@ -465,7 +512,10 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     // Admin use cases
     getDashboardUseCase: asFunction((c: Cradle) => new GetDashboardUseCase(c.instanceRepository, c.userRepository, c.exportRepository, c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
-    listJobsUseCase: asFunction(() => new ListJobsUseCase(), { lifetime: Lifetime.SCOPED }),
+    listJobsUseCase: asFunction((c: Cradle) => new ListJobsUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
+    getJobDetailsUseCase: asFunction((c: Cradle) => new GetJobDetailsUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
+    retryJobUseCase: asFunction((c: Cradle) => new RetryJobUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
+    importOsmDataUseCase: asFunction((c: Cradle) => new ImportOsmDataUseCase(c.osm2pgsqlService), { lifetime: Lifetime.SCOPED }),
     getSystemHealthUseCase: asFunction((c: Cradle) => new GetSystemHealthUseCase(c.prisma, c.redisService), { lifetime: Lifetime.SCOPED }),
 
     // Phase 4: Layer Import Pipeline
@@ -480,6 +530,12 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     postGISService: asFunction(() => new PostGISService(prisma), { lifetime: Lifetime.SINGLETON }),
     ogr2ogrService: asFunction(() => new Ogr2OgrService(), { lifetime: Lifetime.SINGLETON }),
 
+    // OSM services
+    osmQueryService: asFunction(() => new OsmQueryService(prisma), { lifetime: Lifetime.SINGLETON }),
+    osm2pgsqlService: asFunction(() => new Osm2pgsqlService(), { lifetime: Lifetime.SINGLETON }),
+    queryOsmUseCase: asFunction((c: Cradle) => new QueryOsmUseCase(c.osmQueryService), { lifetime: Lifetime.SCOPED }),
+    createOsmTableUseCase: asFunction((c: Cradle) => new CreateOsmTableUseCase(c.osmQueryService), { lifetime: Lifetime.SCOPED }),
+
     // Feature use cases
     getFeaturesUseCase: asFunction((c: Cradle) => new GetFeaturesUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
     getFeatureUseCase: asFunction((c: Cradle) => new GetFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
@@ -487,5 +543,29 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     updateFeatureUseCase: asFunction((c: Cradle) => new UpdateFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
     deleteFeatureUseCase: asFunction((c: Cradle) => new DeleteFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
     getLayerStatsUseCase: asFunction((c: Cradle) => new GetLayerStatsUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
+
+    // Search indexing use cases
+    indexLayerUseCase: asFunction((c: Cradle) => new IndexLayerUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
+    removeLayerIndexUseCase: asFunction((c: Cradle) => new RemoveLayerIndexUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
+
+    // Admin Boundary
+    findAdminBoundaryUseCase: asFunction((c: Cradle) => new FindAdminBoundaryUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+
+    // Drawing repositories and use cases
+    drawingRepository: asFunction(() => new PrismaDrawingRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    saveDrawingUseCase: asFunction((c: Cradle) => new SaveDrawingUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
+    getDrawingsUseCase: asFunction((c: Cradle) => new GetDrawingsUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
+    getDrawingUseCase: asFunction((c: Cradle) => new GetDrawingUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
+    deleteDrawingUseCase: asFunction((c: Cradle) => new DeleteDrawingUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Sharing repositories and use cases
+    sharedMapRepository: asFunction(() => new PrismaSharedMapRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    createSharedMapUseCase: asFunction((c: Cradle) => new CreateSharedMapUseCase(c.sharedMapRepository), { lifetime: Lifetime.SCOPED }),
+    getSharedMapUseCase: asFunction((c: Cradle) => new GetSharedMapUseCase(c.sharedMapRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Analytics repositories and use cases
+    analyticsRepository: asFunction(() => new PrismaAnalyticsRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    trackEventUseCase: asFunction((c: Cradle) => new TrackEventUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
+    getAnalyticsUseCase: asFunction((c: Cradle) => new GetAnalyticsUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
   });
 }

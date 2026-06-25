@@ -28,10 +28,14 @@ import { qgisProjectRoutes } from './presentation/routes/qgis-project.routes.js'
 import { wmsProxyRoutes, wfsProxyRoutes } from './presentation/routes/wms-proxy.routes.js';
 import { defaultThemeRoutes } from './presentation/routes/default-theme.routes.js';
 import { adminRoutes } from './presentation/routes/admin.routes.js';
+import { osmRoutes } from './presentation/routes/osm.routes.js';
 import { multipartPlugin } from './presentation/plugins/multipart.plugin.js';
 import { uploadRoutes } from './presentation/routes/upload.routes.js';
 import { featureRoutes } from './presentation/routes/feature.routes.js';
 import { geoportailRoutes } from './presentation/routes/geoportail.routes.js';
+import { drawingRoutes } from './presentation/routes/drawing.routes.js';
+import { sharingRoutes } from './presentation/routes/sharing.routes.js';
+import { analyticsRoutes } from './presentation/routes/analytics.routes.js';
 import { createLayerImportProcessor } from './infrastructure/queue/workers/layer-import.worker.js';
 import { createExportProcessor } from './infrastructure/queue/workers/export.worker.js';
 
@@ -106,9 +110,13 @@ async function bootstrap(): Promise<void> {
   await app.register(wfsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wfs` });
   await app.register(defaultThemeRoutes, { prefix: `${appConfig.apiPrefix}/default-themes` });
   await app.register(adminRoutes, { prefix: `${appConfig.apiPrefix}/admin` });
+  await app.register(osmRoutes, { prefix: `${appConfig.apiPrefix}/osm` });
   await app.register(uploadRoutes, { prefix: `${appConfig.apiPrefix}/layers` });
   await app.register(featureRoutes, { prefix: `${appConfig.apiPrefix}/layers/:layerId/features` });
   await app.register(geoportailRoutes, { prefix: `${appConfig.apiPrefix}/geoportail` });
+  await app.register(drawingRoutes, { prefix: `${appConfig.apiPrefix}/drawings` });
+  await app.register(sharingRoutes, { prefix: `${appConfig.apiPrefix}/share` });
+  await app.register(analyticsRoutes, { prefix: `${appConfig.apiPrefix}/analytics` });
 
   await app.ready();
 
