@@ -19,6 +19,15 @@ import { groupRoutes } from './presentation/routes/group.routes.js';
 import { subGroupRoutes } from './presentation/routes/sub-group.routes.js';
 import { layerRoutes } from './presentation/routes/layer.routes.js';
 import { baseMapRoutes } from './presentation/routes/base-map.routes.js';
+import { styleRoutes } from './presentation/routes/style.routes.js';
+import { exportRoutes } from './presentation/routes/export.routes.js';
+import { geocodingRoutes } from './presentation/routes/geocoding.routes.js';
+import { routingRoutes } from './presentation/routes/routing.routes.js';
+import { searchRoutes } from './presentation/routes/search.routes.js';
+import { qgisProjectRoutes } from './presentation/routes/qgis-project.routes.js';
+import { wmsProxyRoutes, wfsProxyRoutes } from './presentation/routes/wms-proxy.routes.js';
+import { defaultThemeRoutes } from './presentation/routes/default-theme.routes.js';
+import { adminRoutes } from './presentation/routes/admin.routes.js';
 
 async function bootstrap(): Promise<void> {
   const app = Fastify({
@@ -54,6 +63,16 @@ async function bootstrap(): Promise<void> {
   await app.register(subGroupRoutes, { prefix: `${appConfig.apiPrefix}/groups/:groupId/sub-groups` });
   await app.register(layerRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/layers` });
   await app.register(baseMapRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/base-maps` });
+  await app.register(styleRoutes, { prefix: `${appConfig.apiPrefix}/layers/:layerId/style` });
+  await app.register(exportRoutes, { prefix: `${appConfig.apiPrefix}/exports` });
+  await app.register(geocodingRoutes, { prefix: `${appConfig.apiPrefix}/geocode` });
+  await app.register(routingRoutes, { prefix: `${appConfig.apiPrefix}/routing` });
+  await app.register(searchRoutes, { prefix: `${appConfig.apiPrefix}/search` });
+  await app.register(qgisProjectRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/qgis-project` });
+  await app.register(wmsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wms` });
+  await app.register(wfsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wfs` });
+  await app.register(defaultThemeRoutes, { prefix: `${appConfig.apiPrefix}/default-themes` });
+  await app.register(adminRoutes, { prefix: `${appConfig.apiPrefix}/admin` });
 
   await app.ready();
 

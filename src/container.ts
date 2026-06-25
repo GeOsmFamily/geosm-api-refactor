@@ -10,6 +10,10 @@ import { PrismaGroupRepository } from './infrastructure/database/repositories/pr
 import { PrismaSubGroupRepository } from './infrastructure/database/repositories/prisma-sub-group.repository.js';
 import { PrismaLayerRepository } from './infrastructure/database/repositories/prisma-layer.repository.js';
 import { PrismaBaseMapRepository } from './infrastructure/database/repositories/prisma-base-map.repository.js';
+import { PrismaLayerStyleRepository } from './infrastructure/database/repositories/prisma-layer-style.repository.js';
+import { PrismaExportRepository } from './infrastructure/database/repositories/prisma-export.repository.js';
+import { PrismaQgisProjectRepository } from './infrastructure/database/repositories/prisma-qgis-project.repository.js';
+import { PrismaDefaultThemeRepository } from './infrastructure/database/repositories/prisma-default-theme.repository.js';
 import { Argon2PasswordService } from './infrastructure/auth/argon2-password.service.js';
 import { JwtTokenService } from './infrastructure/auth/jwt-token.service.js';
 import { RedisService } from './infrastructure/cache/redis.service.js';
@@ -74,6 +78,57 @@ import { CreateBaseMapUseCase } from './application/use-cases/base-maps/create-b
 import { UpdateBaseMapUseCase } from './application/use-cases/base-maps/update-base-map.use-case.js';
 import { DeleteBaseMapUseCase } from './application/use-cases/base-maps/delete-base-map.use-case.js';
 
+// External API services
+import { NominatimService } from './infrastructure/external-apis/nominatim.service.js';
+import { OSRMService } from './infrastructure/external-apis/osrm.service.js';
+import { MeiliSearchService } from './infrastructure/external-apis/meilisearch.service.js';
+import { QgisServerService } from './infrastructure/external-apis/qgis-server.service.js';
+
+// Styles use cases
+import { GetLayerStyleUseCase } from './application/use-cases/styles/get-layer-style.use-case.js';
+import { UpdateLayerStyleUseCase } from './application/use-cases/styles/update-layer-style.use-case.js';
+import { ResetLayerStyleUseCase } from './application/use-cases/styles/reset-layer-style.use-case.js';
+import { ListDefaultStylesUseCase } from './application/use-cases/styles/list-default-styles.use-case.js';
+
+// Exports use cases
+import { CreateExportUseCase } from './application/use-cases/exports/create-export.use-case.js';
+import { ListExportsUseCase } from './application/use-cases/exports/list-exports.use-case.js';
+import { GetExportUseCase } from './application/use-cases/exports/get-export.use-case.js';
+import { DeleteExportUseCase } from './application/use-cases/exports/delete-export.use-case.js';
+
+// Geocoding use cases
+import { SearchGeocodingUseCase } from './application/use-cases/geocoding/search-geocoding.use-case.js';
+import { ReverseGeocodingUseCase } from './application/use-cases/geocoding/reverse-geocoding.use-case.js';
+import { LookupGeocodingUseCase } from './application/use-cases/geocoding/lookup-geocoding.use-case.js';
+
+// Routing use cases
+import { CalculateRouteUseCase } from './application/use-cases/routing/calculate-route.use-case.js';
+import { FindNearestUseCase } from './application/use-cases/routing/find-nearest.use-case.js';
+
+// Search use cases
+import { GlobalSearchUseCase } from './application/use-cases/search/global-search.use-case.js';
+import { SearchLayersUseCase } from './application/use-cases/search/search-layers.use-case.js';
+import { SearchFeaturesUseCase } from './application/use-cases/search/search-features.use-case.js';
+
+// QGIS Projects use cases
+import { GetQgisProjectUseCase } from './application/use-cases/qgis-projects/get-qgis-project.use-case.js';
+import { ReloadQgisProjectUseCase } from './application/use-cases/qgis-projects/reload-qgis-project.use-case.js';
+
+// Default Themes use cases
+import { ListDefaultThemesUseCase } from './application/use-cases/default-themes/list-default-themes.use-case.js';
+import { GetDefaultThemeUseCase } from './application/use-cases/default-themes/get-default-theme.use-case.js';
+import { CreateDefaultThemeUseCase } from './application/use-cases/default-themes/create-default-theme.use-case.js';
+import { UpdateDefaultThemeUseCase } from './application/use-cases/default-themes/update-default-theme.use-case.js';
+import { DeleteDefaultThemeUseCase } from './application/use-cases/default-themes/delete-default-theme.use-case.js';
+import { GetThemeTagsUseCase } from './application/use-cases/default-themes/get-theme-tags.use-case.js';
+import { CreateThemeTagUseCase } from './application/use-cases/default-themes/create-theme-tag.use-case.js';
+import { SeedDefaultThemesUseCase } from './application/use-cases/default-themes/seed-default-themes.use-case.js';
+
+// Admin use cases
+import { GetDashboardUseCase } from './application/use-cases/admin/get-dashboard.use-case.js';
+import { ListJobsUseCase } from './application/use-cases/admin/list-jobs.use-case.js';
+import { GetSystemHealthUseCase } from './application/use-cases/admin/get-system-health.use-case.js';
+
 import type { IEmailService } from './application/services/email.service.js';
 import { logger } from './infrastructure/observability/logger.js';
 
@@ -98,6 +153,14 @@ interface Cradle {
   subGroupRepository: PrismaSubGroupRepository;
   layerRepository: PrismaLayerRepository;
   baseMapRepository: PrismaBaseMapRepository;
+  layerStyleRepository: PrismaLayerStyleRepository;
+  exportRepository: PrismaExportRepository;
+  qgisProjectRepository: PrismaQgisProjectRepository;
+  defaultThemeRepository: PrismaDefaultThemeRepository;
+  nominatimService: NominatimService;
+  osrmService: OSRMService;
+  meiliSearchService: MeiliSearchService;
+  qgisServerService: QgisServerService;
   passwordService: Argon2PasswordService;
   emailService: NoopEmailService;
   tokenService: JwtTokenService;
@@ -155,6 +218,43 @@ interface Cradle {
   createBaseMapUseCase: CreateBaseMapUseCase;
   updateBaseMapUseCase: UpdateBaseMapUseCase;
   deleteBaseMapUseCase: DeleteBaseMapUseCase;
+  // Styles
+  getLayerStyleUseCase: GetLayerStyleUseCase;
+  updateLayerStyleUseCase: UpdateLayerStyleUseCase;
+  resetLayerStyleUseCase: ResetLayerStyleUseCase;
+  listDefaultStylesUseCase: ListDefaultStylesUseCase;
+  // Exports
+  createExportUseCase: CreateExportUseCase;
+  listExportsUseCase: ListExportsUseCase;
+  getExportUseCase: GetExportUseCase;
+  deleteExportUseCase: DeleteExportUseCase;
+  // Geocoding
+  searchGeocodingUseCase: SearchGeocodingUseCase;
+  reverseGeocodingUseCase: ReverseGeocodingUseCase;
+  lookupGeocodingUseCase: LookupGeocodingUseCase;
+  // Routing
+  calculateRouteUseCase: CalculateRouteUseCase;
+  findNearestUseCase: FindNearestUseCase;
+  // Search
+  globalSearchUseCase: GlobalSearchUseCase;
+  searchLayersUseCase: SearchLayersUseCase;
+  searchFeaturesUseCase: SearchFeaturesUseCase;
+  // QGIS Projects
+  getQgisProjectUseCase: GetQgisProjectUseCase;
+  reloadQgisProjectUseCase: ReloadQgisProjectUseCase;
+  // Default Themes
+  listDefaultThemesUseCase: ListDefaultThemesUseCase;
+  getDefaultThemeUseCase: GetDefaultThemeUseCase;
+  createDefaultThemeUseCase: CreateDefaultThemeUseCase;
+  updateDefaultThemeUseCase: UpdateDefaultThemeUseCase;
+  deleteDefaultThemeUseCase: DeleteDefaultThemeUseCase;
+  getThemeTagsUseCase: GetThemeTagsUseCase;
+  createThemeTagUseCase: CreateThemeTagUseCase;
+  seedDefaultThemesUseCase: SeedDefaultThemesUseCase;
+  // Admin
+  getDashboardUseCase: GetDashboardUseCase;
+  listJobsUseCase: ListJobsUseCase;
+  getSystemHealthUseCase: GetSystemHealthUseCase;
 }
 
 export async function setupContainer(app: FastifyInstance): Promise<void> {
@@ -185,6 +285,16 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     subGroupRepository: asFunction(() => new PrismaSubGroupRepository(prisma), { lifetime: Lifetime.SINGLETON }),
     layerRepository: asFunction(() => new PrismaLayerRepository(prisma), { lifetime: Lifetime.SINGLETON }),
     baseMapRepository: asFunction(() => new PrismaBaseMapRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    layerStyleRepository: asFunction(() => new PrismaLayerStyleRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    exportRepository: asFunction(() => new PrismaExportRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    qgisProjectRepository: asFunction(() => new PrismaQgisProjectRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    defaultThemeRepository: asFunction(() => new PrismaDefaultThemeRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+
+    // External API services
+    nominatimService: asFunction(() => new NominatimService(), { lifetime: Lifetime.SINGLETON }),
+    osrmService: asFunction(() => new OSRMService(), { lifetime: Lifetime.SINGLETON }),
+    meiliSearchService: asFunction(() => new MeiliSearchService(), { lifetime: Lifetime.SINGLETON }),
+    qgisServerService: asFunction(() => new QgisServerService(), { lifetime: Lifetime.SINGLETON }),
 
     // Auth use cases
     registerUseCase: asFunction((c: Cradle) =>
@@ -274,5 +384,50 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     createBaseMapUseCase: asFunction((c: Cradle) => new CreateBaseMapUseCase(c.baseMapRepository, c.instanceRepository), { lifetime: Lifetime.SCOPED }),
     updateBaseMapUseCase: asFunction((c: Cradle) => new UpdateBaseMapUseCase(c.baseMapRepository), { lifetime: Lifetime.SCOPED }),
     deleteBaseMapUseCase: asFunction((c: Cradle) => new DeleteBaseMapUseCase(c.baseMapRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Styles use cases
+    getLayerStyleUseCase: asFunction((c: Cradle) => new GetLayerStyleUseCase(c.layerStyleRepository), { lifetime: Lifetime.SCOPED }),
+    updateLayerStyleUseCase: asFunction((c: Cradle) => new UpdateLayerStyleUseCase(c.layerStyleRepository), { lifetime: Lifetime.SCOPED }),
+    resetLayerStyleUseCase: asFunction((c: Cradle) => new ResetLayerStyleUseCase(c.layerStyleRepository), { lifetime: Lifetime.SCOPED }),
+    listDefaultStylesUseCase: asFunction((c: Cradle) => new ListDefaultStylesUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+
+    // Exports use cases
+    createExportUseCase: asFunction((c: Cradle) => new CreateExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
+    listExportsUseCase: asFunction((c: Cradle) => new ListExportsUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
+    getExportUseCase: asFunction((c: Cradle) => new GetExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
+    deleteExportUseCase: asFunction((c: Cradle) => new DeleteExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Geocoding use cases
+    searchGeocodingUseCase: asFunction((c: Cradle) => new SearchGeocodingUseCase(c.nominatimService), { lifetime: Lifetime.SCOPED }),
+    reverseGeocodingUseCase: asFunction((c: Cradle) => new ReverseGeocodingUseCase(c.nominatimService), { lifetime: Lifetime.SCOPED }),
+    lookupGeocodingUseCase: asFunction((c: Cradle) => new LookupGeocodingUseCase(c.nominatimService), { lifetime: Lifetime.SCOPED }),
+
+    // Routing use cases
+    calculateRouteUseCase: asFunction((c: Cradle) => new CalculateRouteUseCase(c.osrmService), { lifetime: Lifetime.SCOPED }),
+    findNearestUseCase: asFunction((c: Cradle) => new FindNearestUseCase(c.osrmService), { lifetime: Lifetime.SCOPED }),
+
+    // Search use cases
+    globalSearchUseCase: asFunction((c: Cradle) => new GlobalSearchUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
+    searchLayersUseCase: asFunction((c: Cradle) => new SearchLayersUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
+    searchFeaturesUseCase: asFunction((c: Cradle) => new SearchFeaturesUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
+
+    // QGIS Projects use cases
+    getQgisProjectUseCase: asFunction((c: Cradle) => new GetQgisProjectUseCase(c.qgisProjectRepository), { lifetime: Lifetime.SCOPED }),
+    reloadQgisProjectUseCase: asFunction((c: Cradle) => new ReloadQgisProjectUseCase(c.qgisProjectRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Default Themes use cases
+    listDefaultThemesUseCase: asFunction((c: Cradle) => new ListDefaultThemesUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
+    getDefaultThemeUseCase: asFunction((c: Cradle) => new GetDefaultThemeUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
+    createDefaultThemeUseCase: asFunction((c: Cradle) => new CreateDefaultThemeUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
+    updateDefaultThemeUseCase: asFunction((c: Cradle) => new UpdateDefaultThemeUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
+    deleteDefaultThemeUseCase: asFunction((c: Cradle) => new DeleteDefaultThemeUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
+    getThemeTagsUseCase: asFunction((c: Cradle) => new GetThemeTagsUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
+    createThemeTagUseCase: asFunction((c: Cradle) => new CreateThemeTagUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
+    seedDefaultThemesUseCase: asFunction((c: Cradle) => new SeedDefaultThemesUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Admin use cases
+    getDashboardUseCase: asFunction((c: Cradle) => new GetDashboardUseCase(c.instanceRepository, c.userRepository, c.exportRepository, c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
+    listJobsUseCase: asFunction(() => new ListJobsUseCase(), { lifetime: Lifetime.SCOPED }),
+    getSystemHealthUseCase: asFunction((c: Cradle) => new GetSystemHealthUseCase(c.prisma, c.redisService), { lifetime: Lifetime.SCOPED }),
   });
 }

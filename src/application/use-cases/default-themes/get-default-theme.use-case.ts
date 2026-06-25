@@ -1,0 +1,13 @@
+import { IDefaultThemeRepository } from '../../../domain/repositories/default-theme.repository.js';
+import { DefaultTheme } from '../../../domain/entities/default-theme.entity.js';
+import { NotFoundError } from '../../../domain/errors/not-found.error.js';
+
+export class GetDefaultThemeUseCase {
+  constructor(private readonly defaultThemeRepository: IDefaultThemeRepository) {}
+
+  async execute(id: string): Promise<DefaultTheme> {
+    const theme = await this.defaultThemeRepository.findById(id);
+    if (!theme) throw new NotFoundError('DefaultTheme', id);
+    return theme;
+  }
+}
