@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../observability/logger.js';
 
 export interface AdresseResult {
   geometry: unknown;

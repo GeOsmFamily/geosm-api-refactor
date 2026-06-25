@@ -15,11 +15,6 @@ function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean
   return result.data as T;
 }
 
-const uploadSchema = z.object({
-  tableName: z.string().min(1).max(255),
-  srid: z.number().int().optional(),
-});
-
 const downloadSchema = z.object({
   tableName: z.string().min(1),
   format: z.string().default('GTiff'),

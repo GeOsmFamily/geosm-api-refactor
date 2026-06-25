@@ -121,7 +121,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /icons/generate — generate SVG marker icons
-  app.post('/icons/generate', { preHandler: [app.authenticate, requireRole(Role.ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/icons/generate', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const input = parseBody(generateIconsSchema, request.body);
     const result = await generateIconUseCase.execute(input);
     return reply.send(successResponse(result));
