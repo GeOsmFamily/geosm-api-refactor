@@ -23,6 +23,11 @@ export class CreateInstanceUseCase {
       centerLat: dto.centerLat ?? null,
       centerLon: dto.centerLon ?? null,
       defaultZoom: dto.defaultZoom ?? 6,
+      boundaryTable: dto.boundaryTable ?? null,
+      boundaryId: dto.boundaryId ?? null,
+      boundaryGeomCol: dto.boundaryGeomCol ?? null,
+      adminLevel: dto.adminLevel ?? null,
+      parentInstanceId: dto.parentInstanceId ?? null,
       isActive: true,
     });
   }

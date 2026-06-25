@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../observability/logger.js';
+import { postgisOperationsTotal, postgisOperationDurationSeconds } from '../observability/metrics.js';
 
 export interface GeoJSONFeature {
   type: 'Feature';
@@ -33,11 +34,27 @@ export interface LayerStats {
 export class PostGISService {
   constructor(private readonly prisma: PrismaClient) {}
 
+  private async trackOperation<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+    const end = postgisOperationDurationSeconds.startTimer({ operation });
+    try {
+      const result = await fn();
+      postgisOperationsTotal.inc({ operation });
+      return result;
+    } catch (err) {
+      postgisOperationsTotal.inc({ operation: `${operation}_error` });
+      throw err;
+    } finally {
+      end();
+    }
+  }
+
   // Create a schema for a thematic group
   async createSchema(schemaName: string): Promise<void> {
-    const safeName = this.sanitizeIdentifier(schemaName);
-    await this.prisma.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${safeName}"`);
-    logger.info('Schema created', { schema: safeName });
+    return this.trackOperation('createSchema', async () => {
+      const safeName = this.sanitizeIdentifier(schemaName);
+      await this.prisma.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${safeName}"`);
+      logger.info('Schema created', { schema: safeName });
+    });
   }
 
   // Drop a schema
@@ -97,6 +114,8 @@ export class PostGISService {
 
   // Insert a GeoJSON feature into a spatial table
   async insertFeature(schema: string, table: string, feature: GeoJSONFeature, columns?: string[]): Promise<number> {
+    const end = postgisOperationDurationSeconds.startTimer({ operation: 'insertFeature' });
+    postgisOperationsTotal.inc({ operation: 'insertFeature' });
     const s = this.sanitizeIdentifier(schema);
     const t = this.sanitizeIdentifier(table);
     const geojsonStr = JSON.stringify(feature.geometry);
@@ -120,6 +139,7 @@ export class PostGISService {
     const result = await this.prisma.$queryRawUnsafe<{ id: number }[]>(
       `INSERT INTO "${s}"."${t}" (geom, properties) VALUES (ST_SetSRID(ST_GeomFromGeoJSON('${geojsonStr}'), 4326), '${JSON.stringify(feature.properties).replace(/'/g, "''")}') RETURNING id`
     );
+    end();
     return result[0]?.id ?? 0;
   }
 
@@ -158,6 +178,8 @@ export class PostGISService {
 
   // Query features as GeoJSON
   async queryFeatures(options: SpatialQueryOptions): Promise<GeoJSONFeatureCollection> {
+    const end = postgisOperationDurationSeconds.startTimer({ operation: 'queryFeatures' });
+    postgisOperationsTotal.inc({ operation: 'queryFeatures' });
     const s = this.sanitizeIdentifier(options.schema);
     const t = this.sanitizeIdentifier(options.table);
     const srid = options.srid ?? 4326;
@@ -196,6 +218,7 @@ export class PostGISService {
       };
     });
 
+    end();
     return { type: 'FeatureCollection', features };
   }
 

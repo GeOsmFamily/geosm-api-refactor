@@ -5,6 +5,7 @@ import { mkdir } from 'fs/promises';
 import path from 'path';
 import { pipeline } from 'stream/promises';
 import { logger } from '../../observability/logger.js';
+import { importCompletedTotal } from '../../observability/metrics.js';
 import type { PostGISService, GeoJSONFeature } from '../../database/postgis.service.js';
 import type { Ogr2OgrService } from '../../gdal/ogr2ogr.service.js';
 
@@ -126,6 +127,7 @@ export function createLayerImportProcessor(deps: {
         stats,
       });
 
+      importCompletedTotal.inc();
       logger.info('Layer import completed', { exportId, layerId, featureCount, stats });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

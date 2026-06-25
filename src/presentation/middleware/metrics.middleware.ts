@@ -1,5 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { httpRequestsTotal, httpRequestDurationSeconds } from '../../infrastructure/observability/metrics.js';
+import {
+  httpRequestsTotal,
+  httpRequestDurationSeconds,
+  httpRequestSizeBytes,
+  httpResponseSizeBytes,
+} from '../../infrastructure/observability/metrics.js';
 
 export async function metricsMiddleware(app: FastifyInstance): Promise<void> {
   app.addHook('onResponse', async (request, reply) => {
@@ -10,5 +15,17 @@ export async function metricsMiddleware(app: FastifyInstance): Promise<void> {
 
     httpRequestsTotal.inc({ method, route, status_code: statusCode });
     httpRequestDurationSeconds.observe({ method, route, status_code: statusCode }, duration);
+
+    // Track request size
+    const reqContentLength = request.headers['content-length'];
+    if (reqContentLength) {
+      httpRequestSizeBytes.observe({ method, route }, parseInt(reqContentLength, 10));
+    }
+
+    // Track response size
+    const resContentLength = reply.getHeader('content-length');
+    if (resContentLength) {
+      httpResponseSizeBytes.observe({ method, route }, parseInt(String(resContentLength), 10));
+    }
   });
 }

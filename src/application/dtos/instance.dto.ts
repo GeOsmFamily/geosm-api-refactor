@@ -16,6 +16,11 @@ export interface CreateInstanceDTO {
   centerLat?: number;
   centerLon?: number;
   defaultZoom?: number;
+  boundaryTable?: string;
+  boundaryId?: number;
+  boundaryGeomCol?: string;
+  adminLevel?: number;
+  parentInstanceId?: string;
 }
 
 export interface UpdateInstanceDTO {

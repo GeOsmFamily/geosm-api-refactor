@@ -54,6 +54,15 @@ const envSchema = z.object({
   LOG_LEVEL: z.string().default('info'),
   PROMETHEUS_ENABLED: z.coerce.boolean().default(true),
 
+  // Observability
+  GRAYLOG_HOST: z.string().optional(),
+  GRAYLOG_PORT: z.coerce.number().default(12201),
+  SLACK_WEBHOOK_URL: z.string().optional(),
+  ALERT_EMAIL_TO: z.string().optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
+  OTEL_SERVICE_NAME: z.string().default('geosm-api'),
+  GRAFANA_PASSWORD: z.string().optional(),
+
   SUPER_ADMIN_EMAIL: z.string().default('admin@geosm.org'),
   SUPER_ADMIN_PASSWORD: z.string().default('AdminP@ssw0rd!'),
   SUPER_ADMIN_FIRST_NAME: z.string().default('Super'),

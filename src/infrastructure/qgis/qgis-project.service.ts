@@ -5,6 +5,7 @@ import { existsSync } from 'fs';
 import { mkdir } from 'fs/promises';
 import { logger } from '../observability/logger.js';
 import { config } from '../../config/env.config.js';
+import { qgisScriptExecutionsTotal, qgisScriptDurationSeconds } from '../observability/metrics.js';
 
 const execAsync = promisify(exec);
 
@@ -32,8 +33,10 @@ export class QGISProjectService {
     const escapedArgs = args.map(a => `"${a.replace(/"/g, '\\"')}"`).join(' ');
     const cmd = `python3 "${scriptPath}" ${escapedArgs}`;
 
+    const end = qgisScriptDurationSeconds.startTimer({ script: scriptName });
     try {
       const { stdout, stderr } = await execAsync(cmd, { timeout: 600000 });
+      qgisScriptExecutionsTotal.inc({ script: scriptName });
       if (stderr) logger.warn('PyQGIS stderr', { script: scriptName, stderr: stderr.trim() });
 
       const lines = stdout.trim().split('\n');
@@ -41,8 +44,11 @@ export class QGISProjectService {
       return JSON.parse(lastLine) as PyQGISResult;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      qgisScriptExecutionsTotal.inc({ script: `${scriptName}_error` });
       logger.error('PyQGIS script failed', { script: scriptName, error: msg });
       return { success: false, error: msg };
+    } finally {
+      end();
     }
   }
 

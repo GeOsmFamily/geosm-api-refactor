@@ -1,6 +1,7 @@
 import { Queue, Worker, Job } from 'bullmq';
 import { config } from '../../config/env.config.js';
 import { logger } from '../observability/logger.js';
+import { jobsProcessedTotal, jobsProcessingDurationSeconds, jobsWaitingCount, jobsFailedTotal } from '../observability/metrics.js';
 
 export interface JobData {
   [key: string]: unknown;
@@ -50,10 +51,16 @@ export class QueueService {
     const worker = new Worker(queueName, processor, { connection, concurrency });
 
     worker.on('completed', (job) => {
+      jobsProcessedTotal.inc({ queue: queueName, status: 'completed' });
+      if (job.processedOn && job.finishedOn) {
+        jobsProcessingDurationSeconds.observe({ queue: queueName }, (job.finishedOn - job.processedOn) / 1000);
+      }
       logger.info(`Job completed: ${job.id} in queue ${queueName}`);
     });
 
     worker.on('failed', (job, err) => {
+      jobsProcessedTotal.inc({ queue: queueName, status: 'failed' });
+      jobsFailedTotal.inc({ queue: queueName });
       logger.error(`Job failed: ${job?.id} in queue ${queueName}`, { error: err.message });
     });
 
@@ -68,7 +75,9 @@ export class QueueService {
   async getJobCounts(queueName: string): Promise<Record<string, number>> {
     const queue = this.getQueue(queueName);
     if (!queue) return {};
-    return queue.getJobCounts('active', 'completed', 'failed', 'delayed', 'waiting');
+    const counts = await queue.getJobCounts('active', 'completed', 'failed', 'delayed', 'waiting');
+    jobsWaitingCount.set({ queue: queueName }, counts.waiting ?? 0);
+    return counts;
   }
 
   async close(): Promise<void> {

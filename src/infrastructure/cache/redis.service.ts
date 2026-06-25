@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import { redisConfig } from '../../config/redis.config.js';
 import { logger } from '../observability/logger.js';
+import { cacheHitsTotal, cacheMissesTotal } from '../observability/metrics.js';
 
 export class RedisService {
   private client: Redis;
@@ -27,7 +28,13 @@ export class RedisService {
   }
 
   async get(key: string): Promise<string | null> {
-    return this.client.get(key);
+    const result = await this.client.get(key);
+    if (result !== null) {
+      cacheHitsTotal.inc();
+    } else {
+      cacheMissesTotal.inc();
+    }
+    return result;
   }
 
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {

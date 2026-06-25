@@ -111,7 +111,13 @@ export class PrismaInstanceRepository implements IInstanceRepository {
     return new Instance({
       id: record.id, name: record.name, slug: record.slug, description: record.description,
       logo: record.logo, bbox: record.bbox, centerLat: record.centerLat, centerLon: record.centerLon,
-      defaultZoom: record.defaultZoom, isActive: record.isActive,
+      defaultZoom: record.defaultZoom,
+      boundaryTable: (record as Record<string, unknown>).boundaryTable as string | null ?? null,
+      boundaryId: (record as Record<string, unknown>).boundaryId as number | null ?? null,
+      boundaryGeomCol: (record as Record<string, unknown>).boundaryGeomCol as string | null ?? null,
+      adminLevel: (record as Record<string, unknown>).adminLevel as number | null ?? null,
+      parentInstanceId: (record as Record<string, unknown>).parentInstanceId as string | null ?? null,
+      isActive: record.isActive,
       createdAt: record.createdAt, updatedAt: record.updatedAt,
     });
   }

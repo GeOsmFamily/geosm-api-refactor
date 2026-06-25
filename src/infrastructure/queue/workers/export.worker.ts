@@ -3,6 +3,7 @@ import { readFile, unlink, stat } from 'fs/promises';
 import { mkdir } from 'fs/promises';
 import path from 'path';
 import { logger } from '../../observability/logger.js';
+import { exportCompletedTotal } from '../../observability/metrics.js';
 import type { Ogr2OgrService } from '../../gdal/ogr2ogr.service.js';
 import type { ExportFormat } from '../../../domain/enums.js';
 
@@ -91,6 +92,7 @@ export function createExportProcessor(deps: {
         fileSize: fileStats.size,
       });
 
+      exportCompletedTotal.inc();
       logger.info('Layer export completed', { exportId, layerId, format, fileSize: fileStats.size });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

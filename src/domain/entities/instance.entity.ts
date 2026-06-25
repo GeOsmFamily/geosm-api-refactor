@@ -8,6 +8,11 @@ export interface InstanceProps {
   centerLat: number | null;
   centerLon: number | null;
   defaultZoom: number;
+  boundaryTable: string | null;
+  boundaryId: number | null;
+  boundaryGeomCol: string | null;
+  adminLevel: number | null;
+  parentInstanceId: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -23,6 +28,11 @@ export class Instance {
   readonly centerLat: number | null;
   readonly centerLon: number | null;
   readonly defaultZoom: number;
+  readonly boundaryTable: string | null;
+  readonly boundaryId: number | null;
+  readonly boundaryGeomCol: string | null;
+  readonly adminLevel: number | null;
+  readonly parentInstanceId: string | null;
   readonly isActive: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -37,8 +47,17 @@ export class Instance {
     this.centerLat = props.centerLat;
     this.centerLon = props.centerLon;
     this.defaultZoom = props.defaultZoom;
+    this.boundaryTable = props.boundaryTable;
+    this.boundaryId = props.boundaryId;
+    this.boundaryGeomCol = props.boundaryGeomCol;
+    this.adminLevel = props.adminLevel;
+    this.parentInstanceId = props.parentInstanceId;
     this.isActive = props.isActive;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
+  }
+
+  hasBoundary(): boolean {
+    return this.boundaryTable !== null && this.boundaryId !== null;
   }
 }

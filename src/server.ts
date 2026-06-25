@@ -1,3 +1,7 @@
+// Initialize OpenTelemetry tracing BEFORE other imports
+import { initTracing } from './infrastructure/observability/tracing.js';
+await initTracing();
+
 import Fastify from 'fastify';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyRateLimit from '@fastify/rate-limit';

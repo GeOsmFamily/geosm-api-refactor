@@ -106,18 +106,23 @@ model RefreshToken {
 }
 
 model Instance {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String
-  slug        String   @unique
-  description String?
-  logo        String?
-  bbox        Float[]
-  centerLat   Float?   @map("center_lat")
-  centerLon   Float?   @map("center_lon")
-  defaultZoom Int      @default(6) @map("default_zoom")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String
+  slug            String   @unique
+  description     String?
+  logo            String?
+  bbox            Float[]
+  centerLat       Float?   @map("center_lat")
+  centerLon       Float?   @map("center_lon")
+  defaultZoom     Int      @default(6) @map("default_zoom")
+  boundaryTable   String?  @map("boundary_table")
+  boundaryId      Int?     @map("boundary_id")
+  boundaryGeomCol String?  @default("geom") @map("boundary_geom_col")
+  adminLevel      Int?     @map("admin_level")
+  parentInstanceId String? @map("parent_instance_id") @db.Uuid
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   groups       Group[]
   layers       Layer[]

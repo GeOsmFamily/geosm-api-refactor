@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { config } from '../../config/env.config.js';
 import { logger } from '../observability/logger.js';
+import { ogr2ogrOperationsTotal, ogr2ogrOperationDurationSeconds } from '../observability/metrics.js';
 import { existsSync } from 'fs';
 import { mkdir, unlink } from 'fs/promises';
 import path from 'path';
@@ -70,9 +71,12 @@ export class Ogr2OgrService {
     ].join(' ');
 
     logger.info('Running ogr2ogr import', { schema: safeSchema, table: safeTable, file: filePath });
+    const importEnd = ogr2ogrOperationDurationSeconds.startTimer({ operation: 'import' });
 
     try {
       const { stdout, stderr } = await execAsync(cmd, { timeout: 1800000 }); // 30 min timeout
+      ogr2ogrOperationsTotal.inc({ operation: 'import' });
+      importEnd();
       logger.info('ogr2ogr import completed', { stdout: stdout.trim(), stderr: stderr.trim() });
 
       // Get feature count and geometry type via ogrinfo
@@ -135,9 +139,12 @@ export class Ogr2OgrService {
     ].join(' ');
 
     logger.info('Running ogr2ogr export', { format: outputFormat, output: options.outputPath });
+    const exportEnd = ogr2ogrOperationDurationSeconds.startTimer({ operation: 'export' });
 
     try {
       await execAsync(cmd, { timeout: 1800000 });
+      ogr2ogrOperationsTotal.inc({ operation: 'export' });
+      exportEnd();
       logger.info('ogr2ogr export completed', { output: options.outputPath });
       return options.outputPath;
     } catch (error) {

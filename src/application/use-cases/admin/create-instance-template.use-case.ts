@@ -26,6 +26,11 @@ export class CreateInstanceTemplateUseCase {
       centerLat: null,
       centerLon: null,
       defaultZoom: 6,
+      boundaryTable: null,
+      boundaryId: null,
+      boundaryGeomCol: null,
+      adminLevel: null,
+      parentInstanceId: null,
       isActive: true,
     });
 
