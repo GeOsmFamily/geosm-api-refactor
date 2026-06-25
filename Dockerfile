@@ -1,4 +1,5 @@
-FROM node:22-bookworm-slim AS builder
+# Stage 1: Builder
+FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -7,32 +8,46 @@ RUN npm ci
 
 COPY tsconfig.json ./
 COPY src/ ./src/
-COPY prisma/ ./prisma/
 
 RUN npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
 RUN npm run build
 
-RUN npm ci --omit=dev
-
-FROM node:22-bookworm-slim AS runtime
+# Stage 2: Production
+FROM node:20-bookworm-slim AS production
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
     gdal-bin \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    python3 \
+    python3-qgis \
+    osm2pgsql \
+    wget \
+    ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+COPY package*.json ./
+RUN npm ci --omit=dev
+
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY python_scripts/ ./python_scripts/
 
 ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOST=0.0.0.0
+
+RUN addgroup --system --gid 1001 appgroup && \
+    adduser --system --uid 1001 --ingroup appgroup appuser
+
+RUN mkdir -p /data /qgis-projects /qgis-styles && \
+    chown -R appuser:appgroup /app /data /qgis-projects /qgis-styles
+
+USER appuser
+
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
 
 CMD ["node", "dist/server.js"]

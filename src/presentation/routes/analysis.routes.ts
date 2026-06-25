@@ -13,8 +13,8 @@ function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean
 
 const spatialAnalysisSchema = z.object({
   operation: z.enum(['buffer', 'intersection', 'union', 'difference']),
-  geometryA: z.string().min(1),
-  geometryB: z.string().optional(),
+  geometryA: z.record(z.unknown()),
+  geometryB: z.record(z.unknown()).optional(),
   distance: z.number().positive().optional(),
   srid: z.number().int().optional(),
 });

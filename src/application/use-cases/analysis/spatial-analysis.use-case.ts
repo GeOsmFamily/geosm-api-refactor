@@ -1,11 +1,13 @@
 import { PrismaClient } from '@prisma/client';
+import { ValidationError } from '../../../domain/errors/validation.error.js';
 
 export interface SpatialAnalysisInput {
   operation: 'buffer' | 'intersection' | 'union' | 'difference';
-  geometryA: string; // GeoJSON string
-  geometryB?: string; // GeoJSON string (required for intersection, union, difference)
-  distance?: number; // meters, for buffer
+  geometryA: Record<string, unknown>;
+  geometryB?: Record<string, unknown>;
+  distance?: number;
   srid?: number;
+  outputFormat?: 'geojson' | 'wkt';
 }
 
 export interface SpatialAnalysisResult {
@@ -16,31 +18,35 @@ export interface SpatialAnalysisResult {
 export class SpatialAnalysisUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
+  private validateGeometry(geom: Record<string, unknown>): string {
+    if (!geom.type || !geom.coordinates) {
+      throw new ValidationError('Invalid GeoJSON geometry', { type: 'required', coordinates: 'required' });
+    }
+    return JSON.stringify(geom).replace(/'/g, "''");
+  }
+
   async execute(input: SpatialAnalysisInput): Promise<SpatialAnalysisResult> {
-    const srid = input.srid ?? 4326;
-    const safeA = input.geometryA.replace(/'/g, "''");
+    const srid = Number(input.srid) || 4326;
+    const safeA = this.validateGeometry(input.geometryA);
 
     let sql: string;
 
     switch (input.operation) {
       case 'buffer': {
-        const dist = Number(input.distance) || 100;
+        const dist = Math.abs(Number(input.distance) || 100);
         sql = `SELECT ST_AsGeoJSON(ST_Buffer(ST_SetSRID(ST_GeomFromGeoJSON('${safeA}'), ${srid})::geography, ${dist}))::json AS geometry`;
         break;
       }
-      case 'intersection': {
-        const safeB = (input.geometryB ?? '').replace(/'/g, "''");
-        sql = `SELECT ST_AsGeoJSON(ST_Intersection(ST_SetSRID(ST_GeomFromGeoJSON('${safeA}'), ${srid}), ST_SetSRID(ST_GeomFromGeoJSON('${safeB}'), ${srid})))::json AS geometry`;
-        break;
-      }
-      case 'union': {
-        const safeB = (input.geometryB ?? '').replace(/'/g, "''");
-        sql = `SELECT ST_AsGeoJSON(ST_Union(ST_SetSRID(ST_GeomFromGeoJSON('${safeA}'), ${srid}), ST_SetSRID(ST_GeomFromGeoJSON('${safeB}'), ${srid})))::json AS geometry`;
-        break;
-      }
+      case 'intersection':
+      case 'union':
       case 'difference': {
-        const safeB = (input.geometryB ?? '').replace(/'/g, "''");
-        sql = `SELECT ST_AsGeoJSON(ST_Difference(ST_SetSRID(ST_GeomFromGeoJSON('${safeA}'), ${srid}), ST_SetSRID(ST_GeomFromGeoJSON('${safeB}'), ${srid})))::json AS geometry`;
+        if (!input.geometryB) {
+          throw new ValidationError(`geometryB is required for ${input.operation}`, {});
+        }
+        const safeB = this.validateGeometry(input.geometryB);
+        const fn = input.operation === 'intersection' ? 'ST_Intersection'
+          : input.operation === 'union' ? 'ST_Union' : 'ST_Difference';
+        sql = `SELECT ST_AsGeoJSON(${fn}(ST_SetSRID(ST_GeomFromGeoJSON('${safeA}'), ${srid}), ST_SetSRID(ST_GeomFromGeoJSON('${safeB}'), ${srid})))::json AS geometry`;
         break;
       }
     }
