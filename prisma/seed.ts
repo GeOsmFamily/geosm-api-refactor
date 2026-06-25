@@ -1,116 +1,195 @@
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
-import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
 
-const DEFAULT_THEMES = [
-  { name: 'Transport', icon: 'directions_bus', color: '#1565C0', tags: ['Routes', 'Gares', 'Aeroports', 'Ports'] },
-  { name: 'Sante', icon: 'local_hospital', color: '#C62828', tags: ['Hopitaux', 'Cliniques', 'Pharmacies', 'Centres de sante'] },
-  { name: 'Education', icon: 'school', color: '#2E7D32', tags: ['Ecoles', 'Universites', 'Centres de formation', 'Bibliotheques'] },
-  { name: 'Eau et Assainissement', icon: 'water_drop', color: '#0277BD', tags: ['Points d eau', 'Forages', 'Assainissement'] },
-  { name: 'Energie', icon: 'bolt', color: '#F57F17', tags: ['Electricite', 'Solaire', 'Postes de transformation'] },
-  { name: 'Agriculture', icon: 'agriculture', color: '#33691E', tags: ['Cultures', 'Elevage', 'Peche'] },
-  { name: 'Environnement', icon: 'park', color: '#1B5E20', tags: ['Forets', 'Aires protegees', 'Zones humides'] },
-  { name: 'Administration', icon: 'account_balance', color: '#4A148C', tags: ['Mairies', 'Prefectures', 'Ministeres'] },
-  { name: 'Commerce', icon: 'store', color: '#E65100', tags: ['Marches', 'Centres commerciaux', 'Banques'] },
-  { name: 'Tourisme', icon: 'tour', color: '#00695C', tags: ['Hotels', 'Sites touristiques', 'Restaurants'] },
-  { name: 'Securite', icon: 'shield', color: '#37474F', tags: ['Police', 'Gendarmerie', 'Pompiers'] },
-  { name: 'Urbanisme', icon: 'location_city', color: '#5D4037', tags: ['Batiments', 'Parcelles', 'Voirie', 'Limites administratives'] },
-];
-
-const DEFAULT_BASEMAPS = [
-  { name: 'OpenStreetMap', slug: 'openstreetmap', type: 'XYZ' as const, url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '(c) OpenStreetMap contributors', isDefault: true, order: 0 },
-  { name: 'Satellite (Esri)', slug: 'satellite-esri', type: 'XYZ' as const, url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '(c) Esri', isDefault: false, order: 1 },
-  { name: 'OpenTopoMap', slug: 'opentopomap', type: 'XYZ' as const, url: 'https://tile.opentopomap.org/{z}/{x}/{y}.png', attribution: '(c) OpenTopoMap', isDefault: false, order: 2 },
-];
-
-function slugify(input: string): string {
-  return input.toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9\s-]/g, '').replace(/[\s_]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-}
-
 async function main(): Promise<void> {
-  const adminEmail = process.env.SUPER_ADMIN_EMAIL || 'admin@geosm.org';
-  const adminPassword = process.env.SUPER_ADMIN_PASSWORD || 'AdminP@ssw0rd!';
-  const adminFirstName = process.env.SUPER_ADMIN_FIRST_NAME || 'Super';
-  const adminLastName = process.env.SUPER_ADMIN_LAST_NAME || 'Admin';
+  console.log('Seeding database...');
 
-  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
-  if (!existingAdmin) {
-    const passwordHash = await argon2.hash(adminPassword, {
+  // Super admin
+  const passwordHash = await argon2.hash(
+    process.env.SUPER_ADMIN_PASSWORD || 'AdminP@ssw0rd!',
+    {
       type: argon2.argon2id,
       memoryCost: 65536,
       timeCost: 3,
       parallelism: 4,
+    },
+  );
+
+  const admin = await prisma.user.upsert({
+    where: { email: process.env.SUPER_ADMIN_EMAIL || 'admin@geosm.org' },
+    update: {},
+    create: {
+      email: process.env.SUPER_ADMIN_EMAIL || 'admin@geosm.org',
+      passwordHash,
+      firstName: process.env.SUPER_ADMIN_FIRST_NAME || 'Super',
+      lastName: process.env.SUPER_ADMIN_LAST_NAME || 'Admin',
+      role: 'SUPER_ADMIN',
+      isActive: true,
+      emailVerifiedAt: new Date(),
+    },
+  });
+  console.log(`Admin user created: ${admin.email}`);
+
+  // Demo instance
+  const instance = await prisma.instance.upsert({
+    where: { slug: 'cameroon' },
+    update: {},
+    create: {
+      name: 'Cameroon',
+      slug: 'cameroon',
+      description: 'GeOSM Cameroon instance',
+      bbox: [8.4, 1.6, 16.2, 13.1],
+      centerLat: 7.37,
+      centerLon: 12.35,
+      defaultZoom: 6,
+      isActive: true,
+    },
+  });
+  console.log(`Instance created: ${instance.name}`);
+
+  // Add admin to instance
+  await prisma.instanceUser.upsert({
+    where: {
+      userId_instanceId: { userId: admin.id, instanceId: instance.id },
+    },
+    update: {},
+    create: { userId: admin.id, instanceId: instance.id, role: 'SUPER_ADMIN' },
+  });
+
+  // Groups
+  const groups = [
+    {
+      name: 'Santé',
+      slug: 'sante',
+      icon: 'local_hospital',
+      color: '#e74c3c',
+      order: 1,
+    },
+    {
+      name: 'Éducation',
+      slug: 'education',
+      icon: 'school',
+      color: '#3498db',
+      order: 2,
+    },
+    {
+      name: 'Transport',
+      slug: 'transport',
+      icon: 'directions_bus',
+      color: '#2ecc71',
+      order: 3,
+    },
+    {
+      name: 'Environnement',
+      slug: 'environnement',
+      icon: 'eco',
+      color: '#27ae60',
+      order: 4,
+    },
+  ];
+
+  for (const g of groups) {
+    const group = await prisma.group.upsert({
+      where: {
+        slug_instanceId: { slug: g.slug, instanceId: instance.id },
+      },
+      update: {},
+      create: { ...g, instanceId: instance.id, isActive: true },
     });
 
-    await prisma.user.create({
-      data: {
-        id: uuidv4(),
-        email: adminEmail,
-        passwordHash,
-        firstName: adminFirstName,
-        lastName: adminLastName,
-        role: 'SUPER_ADMIN',
+    // Create a default sub-group per group
+    await prisma.subGroup.upsert({
+      where: {
+        slug_groupId: { slug: `${g.slug}-default`, groupId: group.id },
+      },
+      update: {},
+      create: {
+        name: `${g.name} - Général`,
+        slug: `${g.slug}-default`,
+        order: 0,
         isActive: true,
-        emailVerifiedAt: new Date(),
+        groupId: group.id,
       },
     });
   }
+  console.log('Groups and sub-groups created');
 
-  for (const theme of DEFAULT_THEMES) {
-    const slug = slugify(theme.name);
-    const existing = await prisma.defaultTheme.findUnique({ where: { slug } });
-    if (!existing) {
-      const themeRecord = await prisma.defaultTheme.create({
-        data: {
-          id: uuidv4(),
-          name: theme.name,
-          slug,
-          icon: theme.icon,
-          color: theme.color,
-          order: DEFAULT_THEMES.indexOf(theme),
-        },
-      });
+  // Default themes
+  const themes = [
+    {
+      name: 'Santé',
+      slug: 'sante',
+      icon: 'local_hospital',
+      color: '#e74c3c',
+      order: 1,
+    },
+    {
+      name: 'Éducation',
+      slug: 'education',
+      icon: 'school',
+      color: '#3498db',
+      order: 2,
+    },
+    {
+      name: 'Eau et Assainissement',
+      slug: 'eau-assainissement',
+      icon: 'water_drop',
+      color: '#1abc9c',
+      order: 3,
+    },
+  ];
 
-      for (const tagName of theme.tags) {
-        await prisma.defaultTag.create({
-          data: {
-            id: uuidv4(),
-            name: tagName,
-            slug: slugify(tagName),
-            themeId: themeRecord.id,
-          },
-        });
-      }
-    }
+  for (const t of themes) {
+    await prisma.defaultTheme.upsert({
+      where: { slug: t.slug },
+      update: {},
+      create: t,
+    });
   }
+  console.log('Default themes created');
 
-  for (const bm of DEFAULT_BASEMAPS) {
-    const existing = await prisma.baseMap.findFirst({ where: { slug: bm.slug, instanceId: null } });
+  // Base maps (no unique constraint on slug, use findFirst + create)
+  const baseMaps = [
+    {
+      name: 'OpenStreetMap',
+      slug: 'osm',
+      type: 'XYZ' as const,
+      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      attribution: '© OpenStreetMap contributors',
+      isDefault: true,
+      order: 1,
+    },
+    {
+      name: 'Satellite',
+      slug: 'satellite',
+      type: 'XYZ' as const,
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attribution: '© Esri',
+      isDefault: false,
+      order: 2,
+    },
+  ];
+
+  for (const bm of baseMaps) {
+    const existing = await prisma.baseMap.findFirst({
+      where: { name: bm.name, instanceId: instance.id },
+    });
     if (!existing) {
       await prisma.baseMap.create({
-        data: {
-          id: uuidv4(),
-          name: bm.name,
-          slug: bm.slug,
-          type: bm.type,
-          url: bm.url,
-          attribution: bm.attribution,
-          isDefault: bm.isDefault,
-          order: bm.order,
-          instanceId: null,
-        },
+        data: { ...bm, instanceId: instance.id },
       });
     }
   }
+  console.log('Base maps created');
+
+  console.log('Seed completed successfully');
 }
 
 main()
   .catch((e) => {
-    process.stderr.write(`Seed error: ${e}\n`);
+    console.error('Seed failed:', e);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => prisma.$disconnect());

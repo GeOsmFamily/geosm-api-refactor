@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "GeOSM Backend API",
   "type": "module",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts",
+    "schema": "src/infrastructure/database/prisma/schema.prisma"
+  },
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
