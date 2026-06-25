@@ -366,6 +366,44 @@ model AnalyticsEvent {
   @@map("analytics_events")
 }
 
+model MapComposition {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String
+  description String?
+  instanceId  String   @map("instance_id") @db.Uuid
+  layers      Json
+  center      Json
+  zoom        Int      @default(6)
+  isPublic    Boolean  @default(false) @map("is_public")
+  userId      String   @map("user_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([slug, instanceId])
+  @@index([instanceId])
+  @@index([userId])
+  @@map("map_compositions")
+}
+
+model Document {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  filePath    String   @map("file_path")
+  fileSize    Int      @map("file_size")
+  mimeType    String   @map("mime_type")
+  layerId     String?  @map("layer_id") @db.Uuid
+  instanceId  String   @map("instance_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([instanceId])
+  @@index([layerId])
+  @@map("documents")
+}
+
 model DefaultTag {
   id        String   @id @default(uuid()) @db.Uuid
   name      String

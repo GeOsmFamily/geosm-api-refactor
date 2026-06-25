@@ -36,6 +36,10 @@ import { geoportailRoutes } from './presentation/routes/geoportail.routes.js';
 import { drawingRoutes } from './presentation/routes/drawing.routes.js';
 import { sharingRoutes } from './presentation/routes/sharing.routes.js';
 import { analyticsRoutes } from './presentation/routes/analytics.routes.js';
+import { catalogRoutes } from './presentation/routes/catalog.routes.js';
+import { mapCompositionRoutes } from './presentation/routes/map-composition.routes.js';
+import { documentRoutes } from './presentation/routes/document.routes.js';
+import { seoRoutes } from './presentation/routes/seo.routes.js';
 import { createLayerImportProcessor } from './infrastructure/queue/workers/layer-import.worker.js';
 import { createExportProcessor } from './infrastructure/queue/workers/export.worker.js';
 
@@ -117,6 +121,10 @@ async function bootstrap(): Promise<void> {
   await app.register(drawingRoutes, { prefix: `${appConfig.apiPrefix}/drawings` });
   await app.register(sharingRoutes, { prefix: `${appConfig.apiPrefix}/share` });
   await app.register(analyticsRoutes, { prefix: `${appConfig.apiPrefix}/analytics` });
+  await app.register(catalogRoutes, { prefix: `${appConfig.apiPrefix}/catalog` });
+  await app.register(mapCompositionRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/maps` });
+  await app.register(documentRoutes, { prefix: `${appConfig.apiPrefix}/documents` });
+  await app.register(seoRoutes, { prefix: `${appConfig.apiPrefix}/seo` });
 
   await app.ready();
 

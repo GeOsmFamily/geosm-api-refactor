@@ -179,6 +179,33 @@ import { Osm2pgsqlService } from './infrastructure/osm/osm2pgsql.service.js';
 import { QueryOsmUseCase } from './application/use-cases/osm/query-osm.use-case.js';
 import { CreateOsmTableUseCase } from './application/use-cases/osm/create-osm-table.use-case.js';
 
+// Catalog use cases
+import { GetCatalogUseCase } from './application/use-cases/catalog/get-catalog.use-case.js';
+
+// Map Composition use cases
+import { PrismaMapCompositionRepository } from './infrastructure/database/repositories/prisma-map-composition.repository.js';
+import { CreateMapCompositionUseCase } from './application/use-cases/maps/create-map-composition.use-case.js';
+import { GetMapCompositionsUseCase } from './application/use-cases/maps/get-map-compositions.use-case.js';
+import { GetMapCompositionUseCase } from './application/use-cases/maps/get-map-composition.use-case.js';
+import { UpdateMapCompositionUseCase } from './application/use-cases/maps/update-map-composition.use-case.js';
+import { DeleteMapCompositionUseCase } from './application/use-cases/maps/delete-map-composition.use-case.js';
+
+// View counter use case
+import { IncrementViewUseCase } from './application/use-cases/analytics/increment-view.use-case.js';
+
+// Document use cases
+import { PrismaDocumentRepository } from './infrastructure/database/repositories/prisma-document.repository.js';
+import { UploadDocumentUseCase } from './application/use-cases/documents/upload-document.use-case.js';
+import { ListDocumentsUseCase } from './application/use-cases/documents/list-documents.use-case.js';
+import { GetDocumentUseCase } from './application/use-cases/documents/get-document.use-case.js';
+import { DeleteDocumentUseCase } from './application/use-cases/documents/delete-document.use-case.js';
+
+// IP Geolocation use case
+import { GeolocateIpUseCase } from './application/use-cases/geoportail/geolocate-ip.use-case.js';
+
+// SEO use case
+import { GetSeoMetadataUseCase } from './application/use-cases/seo/get-seo-metadata.use-case.js';
+
 // Additional admin use cases
 import { GetJobDetailsUseCase } from './application/use-cases/admin/get-job-details.use-case.js';
 import { RetryJobUseCase } from './application/use-cases/admin/retry-job.use-case.js';
@@ -339,6 +366,26 @@ interface Cradle {
   analyticsRepository: PrismaAnalyticsRepository;
   trackEventUseCase: TrackEventUseCase;
   getAnalyticsUseCase: GetAnalyticsUseCase;
+  incrementViewUseCase: IncrementViewUseCase;
+  // Catalog
+  getCatalogUseCase: GetCatalogUseCase;
+  // Map Compositions
+  mapCompositionRepository: PrismaMapCompositionRepository;
+  createMapCompositionUseCase: CreateMapCompositionUseCase;
+  getMapCompositionsUseCase: GetMapCompositionsUseCase;
+  getMapCompositionUseCase: GetMapCompositionUseCase;
+  updateMapCompositionUseCase: UpdateMapCompositionUseCase;
+  deleteMapCompositionUseCase: DeleteMapCompositionUseCase;
+  // Documents
+  documentRepository: PrismaDocumentRepository;
+  uploadDocumentUseCase: UploadDocumentUseCase;
+  listDocumentsUseCase: ListDocumentsUseCase;
+  getDocumentUseCase: GetDocumentUseCase;
+  deleteDocumentUseCase: DeleteDocumentUseCase;
+  // IP Geolocation
+  geolocateIpUseCase: GeolocateIpUseCase;
+  // SEO
+  getSeoMetadataUseCase: GetSeoMetadataUseCase;
 }
 
 export async function setupContainer(app: FastifyInstance): Promise<void> {
@@ -567,5 +614,30 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     analyticsRepository: asFunction(() => new PrismaAnalyticsRepository(prisma), { lifetime: Lifetime.SINGLETON }),
     trackEventUseCase: asFunction((c: Cradle) => new TrackEventUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
     getAnalyticsUseCase: asFunction((c: Cradle) => new GetAnalyticsUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
+    incrementViewUseCase: asFunction((c: Cradle) => new IncrementViewUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Catalog
+    getCatalogUseCase: asFunction((c: Cradle) => new GetCatalogUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+
+    // Map Composition repositories and use cases
+    mapCompositionRepository: asFunction(() => new PrismaMapCompositionRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    createMapCompositionUseCase: asFunction((c: Cradle) => new CreateMapCompositionUseCase(c.mapCompositionRepository), { lifetime: Lifetime.SCOPED }),
+    getMapCompositionsUseCase: asFunction((c: Cradle) => new GetMapCompositionsUseCase(c.mapCompositionRepository), { lifetime: Lifetime.SCOPED }),
+    getMapCompositionUseCase: asFunction((c: Cradle) => new GetMapCompositionUseCase(c.mapCompositionRepository), { lifetime: Lifetime.SCOPED }),
+    updateMapCompositionUseCase: asFunction((c: Cradle) => new UpdateMapCompositionUseCase(c.mapCompositionRepository), { lifetime: Lifetime.SCOPED }),
+    deleteMapCompositionUseCase: asFunction((c: Cradle) => new DeleteMapCompositionUseCase(c.mapCompositionRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Document repositories and use cases
+    documentRepository: asFunction(() => new PrismaDocumentRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    uploadDocumentUseCase: asFunction((c: Cradle) => new UploadDocumentUseCase(c.documentRepository, c.storageService), { lifetime: Lifetime.SCOPED }),
+    listDocumentsUseCase: asFunction((c: Cradle) => new ListDocumentsUseCase(c.documentRepository), { lifetime: Lifetime.SCOPED }),
+    getDocumentUseCase: asFunction((c: Cradle) => new GetDocumentUseCase(c.documentRepository), { lifetime: Lifetime.SCOPED }),
+    deleteDocumentUseCase: asFunction((c: Cradle) => new DeleteDocumentUseCase(c.documentRepository, c.storageService), { lifetime: Lifetime.SCOPED }),
+
+    // IP Geolocation
+    geolocateIpUseCase: asFunction(() => new GeolocateIpUseCase(), { lifetime: Lifetime.SCOPED }),
+
+    // SEO
+    getSeoMetadataUseCase: asFunction((c: Cradle) => new GetSeoMetadataUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
   });
 }

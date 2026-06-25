@@ -6,6 +6,7 @@ import { ValidationError } from '../../domain/errors/validation.error.js';
 import type { PostGISService } from '../../infrastructure/database/postgis.service.js';
 import { GetLayerStatsUseCase } from '../../application/use-cases/layers/get-layer-stats.use-case.js';
 import { FindAdminBoundaryUseCase } from '../../application/use-cases/geoportail/find-admin-boundary.use-case.js';
+import { GeolocateIpUseCase } from '../../application/use-cases/geoportail/geolocate-ip.use-case.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -35,6 +36,7 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
   const postGISService = app.diContainer.resolve<PostGISService>('postGISService');
   const getLayerStatsUseCase = app.diContainer.resolve<GetLayerStatsUseCase>('getLayerStatsUseCase');
   const findAdminBoundaryUseCase = app.diContainer.resolve<FindAdminBoundaryUseCase>('findAdminBoundaryUseCase');
+  const geolocateIpUseCase = app.diContainer.resolve<GeolocateIpUseCase>('geolocateIpUseCase');
 
   // POST /api/v1/geoportail/altitude
   app.post('/altitude', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -55,6 +57,12 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
     const { lat, lon, table } = parseBody(adminBoundaryQuerySchema, request.query);
     const boundaries = await findAdminBoundaryUseCase.execute(lat, lon, table);
     return reply.send(successResponse(boundaries));
+  });
+
+  // GET /api/v1/geoportail/geolocate
+  app.get('/geolocate', async (request: FastifyRequest, reply: FastifyReply) => {
+    const result = await geolocateIpUseCase.execute(request.ip);
+    return reply.send(successResponse(result));
   });
 
   // POST /api/v1/layers/:layerId/stats

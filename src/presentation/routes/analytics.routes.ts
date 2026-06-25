@@ -7,6 +7,7 @@ import { Role } from '../../domain/enums.js';
 
 import { TrackEventUseCase, TrackEventDTO } from '../../application/use-cases/analytics/track-event.use-case.js';
 import { GetAnalyticsUseCase } from '../../application/use-cases/analytics/get-analytics.use-case.js';
+import { IncrementViewUseCase } from '../../application/use-cases/analytics/increment-view.use-case.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -21,6 +22,11 @@ const trackEventSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+const incrementViewSchema = z.object({
+  type: z.enum(['layer', 'instance']),
+  id: z.string().uuid(),
+});
+
 const getAnalyticsQuerySchema = z.object({
   instanceId: z.string().uuid(),
   startDate: z.coerce.date().optional(),
@@ -30,6 +36,7 @@ const getAnalyticsQuerySchema = z.object({
 export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   const trackEventUseCase = app.diContainer.resolve<TrackEventUseCase>('trackEventUseCase');
   const getAnalyticsUseCase = app.diContainer.resolve<GetAnalyticsUseCase>('getAnalyticsUseCase');
+  const incrementViewUseCase = app.diContainer.resolve<IncrementViewUseCase>('incrementViewUseCase');
 
   // POST /api/v1/analytics/track
   app.post('/track', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -42,6 +49,14 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
       userId,
       ipAddress,
     });
+    return reply.status(201).send(successResponse(event));
+  });
+
+  // POST /api/v1/analytics/view
+  app.post('/view', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { type, id } = parseBody(incrementViewSchema, request.body);
+    const userId = (request.user as { sub: string } | undefined)?.sub;
+    const event = await incrementViewUseCase.execute(type, id, request.ip, userId);
     return reply.status(201).send(successResponse(event));
   });
 
