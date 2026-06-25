@@ -27,3 +27,14 @@ export function successResponse<T>(data: T, meta?: Record<string, unknown>) {
     },
   };
 }
+
+export function paginatedResponse<T>(data: T[], meta: { page: number; limit: number; total: number; totalPages: number }) {
+  return {
+    success: true as const,
+    data,
+    meta: {
+      pagination: meta,
+      timestamp: new Date().toISOString(),
+    },
+  };
+}

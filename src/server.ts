@@ -13,6 +13,12 @@ import { metricsMiddleware } from './presentation/middleware/metrics.middleware.
 import { errorHandler } from './presentation/middleware/error-handler.middleware.js';
 import { authRoutes } from './presentation/routes/auth.routes.js';
 import { healthRoutes } from './presentation/routes/health.routes.js';
+import { userRoutes } from './presentation/routes/user.routes.js';
+import { instanceRoutes } from './presentation/routes/instance.routes.js';
+import { groupRoutes } from './presentation/routes/group.routes.js';
+import { subGroupRoutes } from './presentation/routes/sub-group.routes.js';
+import { layerRoutes } from './presentation/routes/layer.routes.js';
+import { baseMapRoutes } from './presentation/routes/base-map.routes.js';
 
 async function bootstrap(): Promise<void> {
   const app = Fastify({
@@ -42,6 +48,12 @@ async function bootstrap(): Promise<void> {
 
   await app.register(healthRoutes);
   await app.register(authRoutes, { prefix: `${appConfig.apiPrefix}/auth` });
+  await app.register(userRoutes, { prefix: `${appConfig.apiPrefix}/users` });
+  await app.register(instanceRoutes, { prefix: `${appConfig.apiPrefix}/instances` });
+  await app.register(groupRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/groups` });
+  await app.register(subGroupRoutes, { prefix: `${appConfig.apiPrefix}/groups/:groupId/sub-groups` });
+  await app.register(layerRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/layers` });
+  await app.register(baseMapRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/base-maps` });
 
   await app.ready();
 

@@ -1,0 +1,64 @@
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { z } from 'zod';
+import { listLayersQuerySchema, createLayerSchema, updateLayerSchema } from '../schemas/layer.schema.js';
+import { successResponse, paginatedResponse } from '../schemas/common.schema.js';
+import { ValidationError } from '../../domain/errors/validation.error.js';
+import { requireRole } from '../middleware/rbac.middleware.js';
+import { Role } from '../../domain/enums.js';
+
+import { ListLayersUseCase } from '../../application/use-cases/layers/list-layers.use-case.js';
+import { GetLayerUseCase } from '../../application/use-cases/layers/get-layer.use-case.js';
+import { CreateLayerUseCase } from '../../application/use-cases/layers/create-layer.use-case.js';
+import { UpdateLayerUseCase } from '../../application/use-cases/layers/update-layer.use-case.js';
+import { DeleteLayerUseCase } from '../../application/use-cases/layers/delete-layer.use-case.js';
+
+function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
+  const result = schema.safeParse(body);
+  if (!result.success) throw new ValidationError('Validation failed', result.error?.format() as Record<string, unknown>);
+  return result.data as T;
+}
+
+const instanceIdParamSchema = z.object({ instanceId: z.string().uuid() });
+const layerIdParamSchema = z.object({ instanceId: z.string().uuid(), id: z.string().uuid() });
+
+export async function layerRoutes(app: FastifyInstance): Promise<void> {
+  const listLayersUseCase = app.diContainer.resolve<ListLayersUseCase>('listLayersUseCase');
+  const getLayerUseCase = app.diContainer.resolve<GetLayerUseCase>('getLayerUseCase');
+  const createLayerUseCase = app.diContainer.resolve<CreateLayerUseCase>('createLayerUseCase');
+  const updateLayerUseCase = app.diContainer.resolve<UpdateLayerUseCase>('updateLayerUseCase');
+  const deleteLayerUseCase = app.diContainer.resolve<DeleteLayerUseCase>('deleteLayerUseCase');
+
+  app.get('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { instanceId } = parseBody(instanceIdParamSchema, request.params);
+    const query = parseBody(listLayersQuerySchema, request.query);
+    const result = await listLayersUseCase.execute(instanceId, query);
+    const totalPages = Math.ceil(result.total / (query.limit ?? 20));
+    return reply.send(paginatedResponse(result.data, { page: query.page ?? 1, limit: query.limit ?? 20, total: result.total, totalPages }));
+  });
+
+  app.get('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = parseBody(layerIdParamSchema, request.params);
+    const result = await getLayerUseCase.execute(id);
+    return reply.send(successResponse(result));
+  });
+
+  app.post('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { instanceId } = parseBody(instanceIdParamSchema, request.params);
+    const dto = parseBody(createLayerSchema, request.body);
+    const result = await createLayerUseCase.execute(instanceId, dto);
+    return reply.status(201).send(successResponse(result));
+  });
+
+  app.patch('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = parseBody(layerIdParamSchema, request.params);
+    const dto = parseBody(updateLayerSchema, request.body);
+    const result = await updateLayerUseCase.execute(id, dto);
+    return reply.send(successResponse(result));
+  });
+
+  app.delete('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = parseBody(layerIdParamSchema, request.params);
+    await deleteLayerUseCase.execute(id);
+    return reply.send(successResponse(null));
+  });
+}
