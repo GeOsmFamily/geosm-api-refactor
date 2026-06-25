@@ -1,9 +1,7 @@
-# GeOSM API v3.0
-
-**The backend API powering GeOSM -- an open-source geoportail platform for collaborative geographic data visualization and management.**
+# GeOSM API v3.0 -- Backend du geoportail open-source base sur OpenStreetMap
 
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![Licence](https://img.shields.io/badge/licence-MIT-blue)
 ![Node.js](https://img.shields.io/badge/node-20%2B-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)
 
@@ -11,629 +9,517 @@
 
 ## Description
 
-GeOSM (Geographic Open Source Mapping) is a full-featured geoportail platform that enables organizations to publish, manage, and share geographic data through interactive web maps. It supports multiple map instances, layer management with OGC standards (WMS/WFS), spatial data import/export, geocoding, routing, and real-time collaboration.
+**GeOSM** (Geographic OpenStreetMap) est un geoportail open-source qui permet de **visualiser, gerer et diffuser des donnees geographiques**, principalement issues d'**OpenStreetMap**. Concu pour l'Afrique, il offre une infrastructure SIG complete permettant aux organisations de creer des portails cartographiques multi-instances avec des donnees provenant d'OSM, d'uploads utilisateur (GeoJSON, Shapefile, GeoPackage, KML) et d'imagerie raster.
 
-This repository contains the **backend REST API** built with Fastify 5, following Clean Architecture principles. It provides a comprehensive set of endpoints for managing geospatial instances, layer catalogs, user authentication, data import/export pipelines, QGIS project integration, and more. The API serves as the backbone for the GeOSM frontend application, handling everything from user authentication to complex spatial data processing through BullMQ background workers.
+La plateforme couvre le cycle de vie complet des donnees geographiques : import (OSM via osm2pgsql, fichiers vectoriels via ogr2ogr), stockage (PostGIS), stylisation (SLD/Mapbox GL), visualisation (WMS/WFS via QGIS Server), edition de features, analyse spatiale, export multi-format et partage.
 
-The system integrates with PostGIS for spatial queries, QGIS Server for OGC services (WMS/WFS), MinIO for object storage, MeiliSearch for full-text search, Nominatim for geocoding, and OSRM for routing -- making it a complete geospatial data infrastructure.
+Ce depot contient l'**API REST backend** construite avec Fastify 5, suivant les principes de la **Clean Architecture** (Architecture Hexagonale).
 
 ---
 
-## Architecture
+## Stack technique
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   Presentation Layer                     │
-│  Routes  │  Middleware  │  Plugins  │  Schemas           │
-├─────────────────────────────────────────────────────────┤
-│                   Application Layer                      │
-│  Use Cases  │  DTOs  │  Service Interfaces               │
-├─────────────────────────────────────────────────────────┤
-│                     Domain Layer                         │
-│  Entities  │  Enums  │  Errors  │  Repository Interfaces │
-├─────────────────────────────────────────────────────────┤
-│                  Infrastructure Layer                    │
-│  Prisma Repos  │  Redis  │  MinIO  │  BullMQ  │  GDAL   │
-│  WebSocket  │  External APIs  │  QGIS  │  Email  │  OSM  │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Tech Stack
-
-| Category | Technology |
+| Categorie | Technologie |
 |---|---|
 | Runtime | Node.js 20+ |
-| Language | TypeScript 5.7 |
+| Langage | TypeScript 5.7 (mode strict) |
 | Framework | Fastify 5 |
-| Database | PostgreSQL 16 + PostGIS 3.4 |
+| Base de donnees | PostgreSQL 16 + PostGIS 3.4 |
 | ORM | Prisma 6 |
-| Cache / Queue | Redis 7+ / BullMQ 5 |
-| Auth | JWT (access + refresh tokens), Argon2 |
-| Object Storage | MinIO |
-| Search | MeiliSearch |
-| Geospatial | PostGIS, GDAL/ogr2ogr, QGIS Server |
-| Geocoding | Nominatim |
-| Routing | OSRM |
-| Observability | Winston logging, Prometheus metrics |
+| Cache / File d'attente | Redis 7+ / BullMQ 5 |
+| Authentification | JWT (access + refresh tokens), Argon2id |
+| Stockage objet | MinIO (compatible S3) |
+| Recherche | MeiliSearch v1.6 |
+| Serveur cartographique | QGIS Server 3.28 |
+| Outils geospatiaux | GDAL/ogr2ogr, osm2pgsql |
+| Scripts serveur carto | PyQGIS (Python 3) |
+| Geocodage | Nominatim |
+| Itineraire | OSRM |
+| Observabilite | Winston (logs), Prometheus (metriques) |
 | Validation | Zod |
-| DI Container | Awilix |
+| Injection de dependances | Awilix |
 | WebSocket | @fastify/websocket |
-| API Docs | Swagger / Swagger UI |
-| Testing | Vitest |
+| Documentation API | Swagger / Swagger UI |
+| Tests | Vitest |
 
 ---
 
-## Prerequisites
+## Prerequis
 
 - **Node.js** 20+
-- **PostgreSQL** 16 with **PostGIS** 3.4 extension
+- **PostgreSQL** 16 avec l'extension **PostGIS** 3.4
 - **Redis** 7+
-- **MinIO** (S3-compatible object storage)
-- **MeiliSearch** (full-text search engine)
-- **QGIS Server** 3.28+ (OGC WMS/WFS services)
-- **GDAL** with `ogr2ogr` CLI (spatial data conversion)
-- **Python 3** with PyQGIS bindings (for QGIS project management scripts)
-- **osm2pgsql** (OpenStreetMap data import)
-- **Nominatim** instance (geocoding)
-- **OSRM** instance (routing)
+- **MinIO** (stockage objet compatible S3)
+- **MeiliSearch** (moteur de recherche full-text)
+- **QGIS Server** 3.28+ (services OGC WMS/WFS)
+- **GDAL** avec `ogr2ogr` en ligne de commande (conversion de donnees spatiales)
+- **Python 3** avec les bindings PyQGIS (scripts de gestion de projets QGIS)
+- **osm2pgsql** (import de donnees OpenStreetMap)
+- **Nominatim** (geocodage)
+- **OSRM** (calcul d'itineraires)
 
 ---
 
 ## Installation
 
 ```bash
-# 1. Clone the repository
+# 1. Cloner le depot
 git clone https://github.com/geosm/geosm-api.git
 cd geosm-api
 
-# 2. Install dependencies
+# 2. Installer les dependances
 npm install
 
-# 3. Set up environment variables
+# 3. Configurer les variables d'environnement
 cp .env.example .env
-# Edit .env with your configuration (see Environment Variables below)
+# Editer .env avec votre configuration (voir la section ci-dessous)
 
-# 4. Generate Prisma client
+# 4. Generer le client Prisma
 npm run db:generate
 
-# 5. Run database migrations
+# 5. Executer les migrations de la base de donnees
 npm run db:migrate
 
-# 6. Seed the database (creates super admin user)
+# 6. Initialiser la base de donnees (cree le super administrateur)
 npm run db:seed
 
-# 7. Start in development mode
+# 7. Demarrer en mode developpement
 npm run dev
 
-# 8. Or build and start in production
+# 8. Ou compiler et demarrer en production
 npm run build
 npm start
 ```
 
-The API will be available at `http://localhost:3000` by default. Swagger UI is available at `http://localhost:3000/docs`.
+L'API sera disponible sur `http://localhost:3000`. La documentation Swagger est accessible sur `http://localhost:3000/docs`.
 
 ---
 
-## Environment Variables
+## Variables d'environnement
 
-All environment variables are validated at startup with Zod. Required variables have no default and will cause the server to fail if missing.
+Toutes les variables sont validees au demarrage avec Zod. Les variables sans valeur par defaut sont **obligatoires**.
 
-| Variable | Description | Default | Required |
+### Application
+
+| Variable | Description | Defaut | Requis |
 |---|---|---|---|
-| `NODE_ENV` | Environment (`development`, `production`, `test`) | `development` | No |
-| `PORT` | Server port | `3000` | No |
-| `HOST` | Server host | `0.0.0.0` | No |
-| `API_PREFIX` | API route prefix | `/api/v1` | No |
-| `APP_NAME` | Application name | `GeOSM API` | No |
-| `APP_URL` | Public application URL | `http://localhost:3000` | No |
-| `DATABASE_URL` | PostgreSQL connection string (with PostGIS) | -- | **Yes** |
-| `REDIS_HOST` | Redis host | `localhost` | No |
-| `REDIS_PORT` | Redis port | `6379` | No |
-| `REDIS_PASSWORD` | Redis password | `""` | No |
-| `JWT_ACCESS_SECRET` | Secret for signing access tokens | -- | **Yes** |
-| `JWT_REFRESH_SECRET` | Secret for signing refresh tokens | -- | **Yes** |
-| `JWT_ACCESS_EXPIRATION` | Access token TTL | `15m` | No |
-| `JWT_REFRESH_EXPIRATION` | Refresh token TTL | `7d` | No |
-| `ARGON2_MEMORY_COST` | Argon2 memory cost (KiB) | `65536` | No |
-| `ARGON2_TIME_COST` | Argon2 time cost (iterations) | `3` | No |
-| `ARGON2_PARALLELISM` | Argon2 parallelism factor | `4` | No |
-| `RATE_LIMIT_PUBLIC` | Rate limit for public endpoints (req/window) | `10` | No |
-| `RATE_LIMIT_AUTHENTICATED` | Rate limit for authenticated endpoints | `100` | No |
-| `RATE_LIMIT_ADMIN` | Rate limit for admin endpoints | `1000` | No |
-| `RATE_LIMIT_WINDOW_MS` | Rate limit window in milliseconds | `60000` | No |
-| `SMTP_HOST` | SMTP server host | `localhost` | No |
-| `SMTP_PORT` | SMTP server port | `587` | No |
-| `SMTP_USER` | SMTP username | `""` | No |
-| `SMTP_PASS` | SMTP password | `""` | No |
-| `SMTP_FROM` | Default sender email address | `noreply@geosm.org` | No |
-| `MINIO_ENDPOINT` | MinIO server endpoint | `localhost` | No |
-| `MINIO_PORT` | MinIO server port | `9000` | No |
-| `MINIO_ACCESS_KEY` | MinIO access key | `minio_access` | No |
-| `MINIO_SECRET_KEY` | MinIO secret key | `minio_secret` | No |
-| `MINIO_BUCKET` | MinIO bucket name | `geosm` | No |
-| `MINIO_USE_SSL` | Enable SSL for MinIO | `false` | No |
-| `MEILISEARCH_HOST` | MeiliSearch server URL | `http://localhost:7700` | No |
-| `MEILISEARCH_API_KEY` | MeiliSearch API key | `masterKey` | No |
-| `QGIS_SERVER_URL` | QGIS Server OWS endpoint | `http://localhost:8380/ows` | No |
-| `QGIS_PROJECTS_DIR` | Directory for QGIS project files | `/var/www/qgis/projects` | No |
-| `QGIS_STYLES_DIR` | Directory for QGIS style files | `/var/www/qgis/styles` | No |
-| `DATA_DIR` | Temporary data directory | `/tmp/geosm-data` | No |
-| `NOMINATIM_URL` | Nominatim geocoding service URL | `http://localhost:8081` | No |
-| `OSRM_URL` | OSRM routing service URL | `http://localhost:5000` | No |
-| `LOG_LEVEL` | Logging level (debug, info, warn, error) | `info` | No |
-| `PROMETHEUS_ENABLED` | Enable Prometheus metrics endpoint | `true` | No |
-| `SUPER_ADMIN_EMAIL` | Default super admin email (used by seed) | `admin@geosm.org` | No |
-| `SUPER_ADMIN_PASSWORD` | Default super admin password (used by seed) | `AdminP@ssw0rd!` | No |
-| `SUPER_ADMIN_FIRST_NAME` | Super admin first name | `Super` | No |
-| `SUPER_ADMIN_LAST_NAME` | Super admin last name | `Admin` | No |
-| `CORS_ORIGIN` | Allowed CORS origin | `http://localhost:4200` | No |
+| `NODE_ENV` | Environnement (`development`, `production`, `test`) | `development` | Non |
+| `PORT` | Port du serveur | `3000` | Non |
+| `HOST` | Hote du serveur | `0.0.0.0` | Non |
+| `API_PREFIX` | Prefixe des routes API | `/api/v1` | Non |
+| `APP_NAME` | Nom de l'application | `GeOSM API` | Non |
+| `APP_URL` | URL publique de l'application | `http://localhost:3000` | Non |
+
+### Base de donnees
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `DATABASE_URL` | Chaine de connexion PostgreSQL (avec PostGIS) | -- | **Oui** |
+
+### Redis
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `REDIS_HOST` | Hote Redis | `localhost` | Non |
+| `REDIS_PORT` | Port Redis | `6379` | Non |
+| `REDIS_PASSWORD` | Mot de passe Redis | `""` | Non |
+
+### Authentification JWT
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `JWT_ACCESS_SECRET` | Secret pour signer les access tokens | -- | **Oui** |
+| `JWT_REFRESH_SECRET` | Secret pour signer les refresh tokens | -- | **Oui** |
+| `JWT_ACCESS_EXPIRATION` | Duree de vie de l'access token | `15m` | Non |
+| `JWT_REFRESH_EXPIRATION` | Duree de vie du refresh token | `7d` | Non |
+
+### Hachage Argon2
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `ARGON2_MEMORY_COST` | Cout memoire (KiB) | `65536` | Non |
+| `ARGON2_TIME_COST` | Nombre d'iterations | `3` | Non |
+| `ARGON2_PARALLELISM` | Facteur de parallelisme | `4` | Non |
+
+### Limitation de debit
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `RATE_LIMIT_PUBLIC` | Limite pour les endpoints publics (req/fenetre) | `10` | Non |
+| `RATE_LIMIT_AUTHENTICATED` | Limite pour les endpoints authentifies | `100` | Non |
+| `RATE_LIMIT_ADMIN` | Limite pour les endpoints admin | `1000` | Non |
+| `RATE_LIMIT_WINDOW_MS` | Fenetre de limitation en millisecondes | `60000` | Non |
+
+### Email SMTP
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `SMTP_HOST` | Hote du serveur SMTP | `localhost` | Non |
+| `SMTP_PORT` | Port du serveur SMTP | `587` | Non |
+| `SMTP_USER` | Nom d'utilisateur SMTP | `""` | Non |
+| `SMTP_PASS` | Mot de passe SMTP | `""` | Non |
+| `SMTP_FROM` | Adresse d'envoi par defaut | `noreply@geosm.org` | Non |
+
+### MinIO (stockage objet)
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `MINIO_ENDPOINT` | Endpoint du serveur MinIO | `localhost` | Non |
+| `MINIO_PORT` | Port du serveur MinIO | `9000` | Non |
+| `MINIO_ACCESS_KEY` | Cle d'acces MinIO | `minio_access` | Non |
+| `MINIO_SECRET_KEY` | Cle secrete MinIO | `minio_secret` | Non |
+| `MINIO_BUCKET` | Nom du bucket MinIO | `geosm` | Non |
+| `MINIO_USE_SSL` | Activer SSL pour MinIO | `false` | Non |
+
+### MeiliSearch
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `MEILISEARCH_HOST` | URL du serveur MeiliSearch | `http://localhost:7700` | Non |
+| `MEILISEARCH_API_KEY` | Cle API MeiliSearch | `masterKey` | Non |
+
+### Services geospatiaux
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `QGIS_SERVER_URL` | URL du endpoint OWS de QGIS Server | `http://localhost:8380/ows` | Non |
+| `QGIS_PROJECTS_DIR` | Repertoire des fichiers de projets QGIS | `/var/www/qgis/projects` | Non |
+| `QGIS_STYLES_DIR` | Repertoire des fichiers de styles QGIS | `/var/www/qgis/styles` | Non |
+| `DATA_DIR` | Repertoire temporaire de donnees | `/tmp/geosm-data` | Non |
+| `NOMINATIM_URL` | URL du service de geocodage Nominatim | `http://localhost:8081` | Non |
+| `OSRM_URL` | URL du service de routage OSRM | `http://localhost:5000` | Non |
+
+### Observabilite
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `LOG_LEVEL` | Niveau de log (debug, info, warn, error) | `info` | Non |
+| `PROMETHEUS_ENABLED` | Activer l'endpoint de metriques Prometheus | `true` | Non |
+
+### Super administrateur
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `SUPER_ADMIN_EMAIL` | Email du super admin (utilise par le seed) | `admin@geosm.org` | Non |
+| `SUPER_ADMIN_PASSWORD` | Mot de passe du super admin (utilise par le seed) | `AdminP@ssw0rd!` | Non |
+| `SUPER_ADMIN_FIRST_NAME` | Prenom du super admin | `Super` | Non |
+| `SUPER_ADMIN_LAST_NAME` | Nom du super admin | `Admin` | Non |
+
+### CORS
+
+| Variable | Description | Defaut | Requis |
+|---|---|---|---|
+| `CORS_ORIGIN` | Origine CORS autorisee | `http://localhost:4200` | Non |
 
 ---
 
-## API Documentation
+## Architecture
 
-The API is served under the `/api/v1` prefix. Interactive Swagger documentation is available at `/docs` when the server is running.
+Ce projet suit les principes de la **Clean Architecture** (Architecture Hexagonale). Les dependances pointent vers l'interieur.
 
-### Health & Metrics
+```
++---------------------------------------------------------+
+|                 Couche Presentation                      |
+|  Routes  |  Middleware  |  Plugins  |  Schemas (Zod)     |
++----------------------------------------------------------+
+|                 Couche Application                       |
+|  Cas d'utilisation  |  DTOs  |  Interfaces de services   |
++----------------------------------------------------------+
+|                   Couche Domaine                         |
+|  Entites  |  Enums  |  Erreurs  |  Interfaces de depots  |
++----------------------------------------------------------+
+|                Couche Infrastructure                     |
+|  Prisma  |  Redis  |  MinIO  |  BullMQ  |  GDAL          |
+|  WebSocket  |  APIs externes  |  QGIS  |  Email  |  OSM  |
++----------------------------------------------------------+
+```
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/health` | No | Health check |
-| GET | `/health/ready` | No | Readiness probe |
-| GET | `/health/live` | No | Liveness probe |
-| GET | `/metrics` | No | Prometheus metrics |
+Pour plus de details, voir [docs/architecture.md](./docs/architecture.md).
 
-### Auth (`/api/v1/auth`)
+---
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/register` | No | Register a new user |
-| POST | `/login` | No | Login and receive tokens |
-| POST | `/refresh` | No | Refresh access token |
-| POST | `/logout` | No | Revoke refresh token |
-| POST | `/verify-email` | No | Verify email address |
-| POST | `/forgot-password` | No | Request password reset email |
-| POST | `/reset-password` | No | Reset password with token |
-| GET | `/profile` | Yes | Get current user profile |
-| PATCH | `/profile` | Yes | Update current user profile |
-| PUT | `/change-password` | Yes | Change password |
+## Endpoints API
 
-### Users (`/api/v1/users`) -- Super Admin only
+L'API est servie sous le prefixe `/api/v1`. La documentation interactive Swagger est disponible sur `/docs`.
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes (Super Admin) | List all users |
-| GET | `/:id` | Yes (Super Admin) | Get user by ID |
-| POST | `/` | Yes (Super Admin) | Create a new user |
-| PATCH | `/:id` | Yes (Super Admin) | Update a user |
-| DELETE | `/:id` | Yes (Super Admin) | Delete a user |
-| PATCH | `/:id/role` | Yes (Super Admin) | Change user role |
-| PATCH | `/:id/activate` | Yes (Super Admin) | Toggle user active status |
+### Sante et metriques
+- `GET /health` -- Verification de sante
+- `GET /health/ready` -- Sonde de disponibilite
+- `GET /health/live` -- Sonde de vivacite
+- `GET /metrics` -- Metriques Prometheus
+
+### Authentification (`/api/v1/auth`)
+- Inscription, connexion, rafraichissement de token, deconnexion
+- Verification d'email, mot de passe oublie, reinitialisation
+- Profil utilisateur (consultation et mise a jour)
+
+### Utilisateurs (`/api/v1/users`) -- Super Admin uniquement
+- CRUD complet + changement de role + activation/desactivation
 
 ### Instances (`/api/v1/instances`)
+- CRUD + gestion des utilisateurs par instance
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes | List all instances |
-| GET | `/:id` | Yes | Get instance by ID |
-| POST | `/` | Yes (Super Admin) | Create an instance |
-| PATCH | `/:id` | Yes (Admin+) | Update an instance |
-| DELETE | `/:id` | Yes (Super Admin) | Delete an instance |
-| GET | `/:instanceId/users` | Yes (Admin+) | List instance users |
-| POST | `/:instanceId/users` | Yes (Admin+) | Add user to instance |
-| DELETE | `/:instanceId/users/:userId` | Yes (Admin+) | Remove user from instance |
-| PATCH | `/:instanceId/users/:userId/role` | Yes (Admin+) | Change instance user role |
+### Groupes (`/api/v1/instances/:instanceId/groups`)
+- CRUD + reordonnancement
 
-### Groups (`/api/v1/instances/:instanceId/groups`)
+### Sous-groupes (`/api/v1/groups/:groupId/sub-groups`)
+- CRUD complet
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes | List groups |
-| GET | `/:id` | Yes | Get group by ID |
-| POST | `/` | Yes (Admin+) | Create a group |
-| PATCH | `/:id` | Yes (Admin+) | Update a group |
-| DELETE | `/:id` | Yes (Admin+) | Delete a group |
-| PATCH | `/reorder` | Yes (Admin+) | Reorder groups |
-
-### Sub-groups (`/api/v1/groups/:groupId/sub-groups`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes | List sub-groups |
-| GET | `/:id` | Yes | Get sub-group by ID |
-| POST | `/` | Yes (Admin+) | Create a sub-group |
-| PATCH | `/:id` | Yes (Admin+) | Update a sub-group |
-| DELETE | `/:id` | Yes (Admin+) | Delete a sub-group |
-
-### Layers (`/api/v1/instances/:instanceId/layers`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes | List layers |
-| GET | `/:id` | Yes | Get layer by ID |
-| POST | `/` | Yes (Editor+) | Create a layer |
-| PATCH | `/:id` | Yes (Editor+) | Update a layer |
-| DELETE | `/:id` | Yes (Editor+) | Delete a layer |
-
-### Layer Import (`/api/v1/layers`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/:layerId/import` | Yes (Editor+) | Import spatial data (multipart file upload) |
-| GET | `/exports/:exportId/download` | Yes | Download an export file |
+### Couches (`/api/v1/instances/:instanceId/layers`)
+- CRUD + import de donnees + statistiques
 
 ### Features (`/api/v1/layers/:layerId/features`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes | List features (with spatial filters) |
-| GET | `/:featureId` | Yes | Get feature by ID |
-| POST | `/` | Yes (Editor+) | Add a feature |
-| PATCH | `/:featureId` | Yes (Editor+) | Update a feature |
-| DELETE | `/:featureId` | Yes (Editor+) | Delete a feature |
+- CRUD des entites geographiques avec filtres spatiaux
 
 ### Styles (`/api/v1/layers/:layerId/style`)
+- Consultation/mise a jour SLD et Mapbox GL, reinitialisation
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes | Get layer style |
-| PUT | `/sld` | Yes (Editor+) | Update SLD style |
-| PUT | `/mapbox` | Yes (Editor+) | Update Mapbox style |
-| POST | `/reset` | Yes (Editor+) | Reset to default style |
-| GET | `/defaults` | Yes | List default styles |
+### Fonds de carte (`/api/v1/instances/:instanceId/base-maps`)
+- CRUD des fonds de carte (XYZ, WMS, WMTS, Mapbox)
 
 ### Exports (`/api/v1/exports`)
+- Creation, liste, detail, telechargement, suppression
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/` | Yes | Create an export job |
-| GET | `/` | Yes | List user's exports |
-| GET | `/:id` | Yes | Get export details |
-| GET | `/:id/download` | Yes | Download export file |
-| DELETE | `/:id` | Yes | Delete an export |
+### Geocodage (`/api/v1/geocode`)
+- Recherche, geocodage inverse, lookup par ID OSM
 
-### Geocoding (`/api/v1/geocode`)
+### Itineraire (`/api/v1/routing`)
+- Calcul d'itineraire, point le plus proche
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/search` | No | Forward geocoding search |
-| GET | `/reverse` | No | Reverse geocoding (lat/lng to address) |
-| GET | `/lookup` | No | Lookup by OSM ID |
+### Recherche (`/api/v1/search`)
+- Recherche globale, par couches, par features
 
-### Routing (`/api/v1/routing`)
+### Projets QGIS (`/api/v1/instances/:instanceId/qgis-project`)
+- Consultation et rechargement
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/route` | No | Calculate route between points |
-| GET | `/nearest` | No | Find nearest road segment |
-
-### Search (`/api/v1/search`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | No | Global search across all content |
-| GET | `/layers` | No | Search layers |
-| GET | `/features` | No | Search features |
-
-### QGIS Projects (`/api/v1/instances/:instanceId/qgis-project`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes | Get QGIS project for instance |
-| POST | `/reload` | Yes (Admin+) | Reload QGIS project |
-
-### WMS/WFS Proxy
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/v1/wms` | No | WMS proxy to QGIS Server |
-| GET | `/api/v1/wfs` | No | WFS proxy to QGIS Server |
-
-### Geoportail (`/api/v1/geoportail`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/altitude` | No | Get altitude for coordinates |
-| POST | `/elevation-profile` | No | Get elevation profile along a line |
-| GET | `/admin-boundary` | No | Find administrative boundary |
-| GET | `/geolocate` | No | Geolocate by IP address |
-| POST | `/layers/:layerId/stats` | Yes | Get layer statistics |
+### Proxy WMS/WFS
+- `GET /api/v1/wms` -- Proxy WMS vers QGIS Server
+- `GET /api/v1/wfs` -- Proxy WFS vers QGIS Server
 
 ### OSM (`/api/v1/osm`)
+- Requete de donnees OSM, creation de tables PostGIS a partir de tags OSM
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/query` | Yes | Query OSM data |
-| POST | `/create-table` | Yes (Super Admin) | Create PostGIS table from OSM data |
+### Themes par defaut (`/api/v1/default-themes`)
+- CRUD + tags + initialisation
 
-### Base Maps (`/api/v1/instances/:instanceId/base-maps`)
+### Geoportail (`/api/v1/geoportail`)
+- Altitude, profil altimetrique, limites administratives, geolocalisation IP
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | No | List base maps |
-| POST | `/` | Yes (Admin+) | Create a base map |
-| PATCH | `/:id` | Yes (Admin+) | Update a base map |
-| DELETE | `/:id` | Yes (Admin+) | Delete a base map |
+### Dessins (`/api/v1/drawings`)
+- Sauvegarde et gestion de dessins GeoJSON
 
-### Default Themes (`/api/v1/default-themes`)
+### Partage (`/api/v1/share`)
+- Creation et consultation de cartes partagees
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | No | List default themes |
-| GET | `/:id` | No | Get theme by ID |
-| POST | `/` | Yes (Super Admin) | Create a theme |
-| PATCH | `/:id` | Yes (Super Admin) | Update a theme |
-| DELETE | `/:id` | Yes (Super Admin) | Delete a theme |
-| GET | `/:id/tags` | No | Get theme tags |
-| POST | `/:id/tags` | Yes (Super Admin) | Create a theme tag |
-| POST | `/seed` | Yes (Super Admin) | Seed default themes |
+### Analytiques (`/api/v1/analytics`)
+- Suivi d'evenements, compteur de vues, consultation des donnees
 
-### Drawings (`/api/v1/drawings`)
+### Catalogue (`/api/v1/catalog`)
+- Catalogue complet des donnees par instance
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes | List user drawings |
-| GET | `/:id` | Yes | Get drawing by ID |
-| POST | `/` | Yes | Save a drawing (GeoJSON) |
-| DELETE | `/:id` | Yes | Delete a drawing |
-
-### Sharing (`/api/v1/share`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/` | Yes | Create a shared map link |
-| GET | `/:code` | No | Get shared map by short code |
-
-### Analytics (`/api/v1/analytics`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/track` | No | Track an analytics event |
-| POST | `/view` | No | Increment view counter |
-| GET | `/` | Yes (Super Admin) | Get analytics data |
-
-### Catalog (`/api/v1/catalog`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | No | Get full catalog |
-| GET | `/:instanceSlug` | No | Get catalog for an instance |
-
-### Maps (`/api/v1/instances/:instanceId/maps`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes | List map compositions |
-| GET | `/:id` | Yes | Get map composition |
-| POST | `/` | Yes | Create a map composition |
-| PUT | `/:id` | Yes | Update a map composition |
-| DELETE | `/:id` | Yes | Delete a map composition |
+### Compositions de carte (`/api/v1/instances/:instanceId/maps`)
+- CRUD des compositions de carte sauvegardees
 
 ### Documents (`/api/v1/documents`)
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/` | Yes | List documents |
-| GET | `/:id` | Yes | Get document by ID |
-| POST | `/` | Yes | Upload a document |
-| DELETE | `/:id` | Yes | Delete a document |
+- Upload, liste, consultation, suppression
 
 ### SEO (`/api/v1/seo`)
+- Metadonnees SEO par instance
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/:instanceSlug` | No | Get SEO metadata for an instance |
+### Adressage (`/api/v1/adressage`)
+- Operations d'adressage (recherche, position, points)
 
-### Admin (`/api/v1/admin`) -- Super Admin only
+### Analyse spatiale (`/api/v1/analysis`)
+- Analyse spatiale (buffer, intersection, etc.)
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/dashboard` | Yes (Super Admin) | Get admin dashboard stats |
-| GET | `/jobs` | Yes (Super Admin) | List background jobs |
-| GET | `/jobs/:id` | Yes (Super Admin) | Get job details |
-| POST | `/jobs/:id/retry` | Yes (Super Admin) | Retry a failed job |
-| POST | `/osm/import` | Yes (Super Admin) | Import OSM PBF data |
-| GET | `/health` | Yes (Super Admin) | System health check |
-| POST | `/cache/clear` | Yes (Super Admin) | Clear Redis cache |
+### Rasters (`/api/v1/rasters`)
+- Upload et telechargement de donnees raster
+
+### Administration (`/api/v1/admin`) -- Super Admin uniquement
+- Tableau de bord, gestion des jobs, import OSM, cache, sante systeme
 
 ### WebSocket (`/ws/notifications`)
+- Notifications en temps reel (progression import/export)
 
-Authenticated WebSocket endpoint for real-time notifications. Requires a valid JWT token.
-
----
-
-## Database Schema
-
-The database uses PostgreSQL with PostGIS extensions. Key models and their relationships:
-
-- **User** -- Authentication, roles (SUPER_ADMIN, ADMIN_INSTANCE, EDITOR, VIEWER)
-- **Instance** -- A geoportail instance (project/organization), has groups, layers, base maps
-- **InstanceUser** -- Many-to-many between users and instances with per-instance roles
-- **Group** -- Thematic grouping of layers within an instance
-- **SubGroup** -- Sub-category within a group, contains layers
-- **Layer** -- A map layer with geometry type, source configuration, and spatial table reference
-- **LayerStyle** -- SLD or Mapbox GL styles attached to a layer
-- **LayerAction** -- Configurable actions per layer (download, share, print, measure, routing, comment)
-- **QgisProject** -- QGIS project file reference for WMS/WFS serving
-- **BaseMap** -- Background map tiles (XYZ, WMS, WMTS, Mapbox)
-- **Export** -- Async export jobs (GeoJSON, Shapefile, GeoPackage, KML, CSV, PDF)
-- **Drawing** -- User-created GeoJSON drawings
-- **SharedMap** -- Shareable map state snapshots with short codes
-- **MapComposition** -- Saved map compositions with layer selections and viewport
-- **Document** -- File attachments linked to layers or instances
-- **AnalyticsEvent** -- Usage tracking events
-- **DefaultTheme / DefaultTag** -- Predefined thematic categories
+Pour la reference API complete, voir [docs/reference-api.md](./docs/reference-api.md).
 
 ---
 
-## Queue System
+## Schema de base de donnees
 
-The API uses **BullMQ** with Redis for background job processing. Two worker queues are registered:
+La base de donnees utilise PostgreSQL avec les extensions PostGIS. Elle contient **19 modeles Prisma** :
 
-### `layer-import` Queue
-Handles spatial data import from uploaded files (GeoJSON, Shapefile, GeoPackage, KML, CSV). The worker:
-1. Downloads the uploaded file from MinIO
-2. Uses `ogr2ogr` to convert and import data into a PostGIS table
-3. Updates the layer record with the table reference
-4. Sends real-time progress notifications via WebSocket
-
-### `layer-export` Queue
-Handles spatial data export to various formats. The worker:
-1. Reads features from PostGIS using `ogr2ogr`
-2. Converts to the requested format (GeoJSON, Shapefile, GeoPackage, KML, CSV, PDF)
-3. Uploads the result to MinIO
-4. Notifies the user via WebSocket when the export is ready for download
-
----
-
-## PyQGIS Scripts
-
-Located in `python_scripts/`, these scripts manage QGIS Server projects:
-
-| Script | Purpose |
+| Modele | Description |
 |---|---|
-| `add_vector_layer.py` | Add a PostGIS vector layer to a QGIS project |
-| `remove_layer.py` | Remove a layer from a QGIS project |
-| `save_style.py` | Save a layer style (SLD) to the QGIS project |
-| `set_style.py` | Apply a style to a layer in the QGIS project |
-| `reload_project.py` | Reload a QGIS project to pick up changes |
-| `clip_export.py` | Export and clip layer data to a bounding box |
-| `setup_wms_capabilities.py` | Configure WMS capabilities for a QGIS project |
+| `User` | Utilisateurs avec roles (SUPER_ADMIN, ADMIN_INSTANCE, EDITOR, VIEWER) |
+| `RefreshToken` | Tokens de rafraichissement avec rotation par famille |
+| `Instance` | Instance geoportail (pays/region) avec bbox, centre, zoom |
+| `InstanceUser` | Association utilisateur-instance avec role par instance |
+| `Group` | Groupe thematique de couches au sein d'une instance |
+| `SubGroup` | Sous-categorie au sein d'un groupe |
+| `Layer` | Couche cartographique avec type de geometrie, source, table spatiale |
+| `LayerStyle` | Styles SLD ou Mapbox GL attaches a une couche |
+| `LayerAction` | Actions configurables par couche (telechargement, partage, impression, mesure, itineraire, commentaire) |
+| `QgisProject` | Reference a un fichier de projet QGIS pour le service WMS/WFS |
+| `BaseMap` | Fonds de carte (XYZ, WMS, WMTS, Mapbox) |
+| `Export` | Jobs d'export asynchrones (GeoJSON, Shapefile, GeoPackage, KML, CSV, PDF) |
+| `DefaultTheme` | Categories thematiques OSM predefinies |
+| `DefaultTag` | Tags OSM associes a un theme par defaut |
+| `Drawing` | Dessins GeoJSON crees par les utilisateurs |
+| `SharedMap` | Instantanes de carte partagees avec codes courts |
+| `AnalyticsEvent` | Evenements de suivi d'utilisation |
+| `MapComposition` | Compositions de carte sauvegardees avec selection de couches et viewport |
+| `Document` | Fichiers attaches aux couches ou instances |
 
-These scripts require Python 3 with PyQGIS bindings and are invoked by the API via child processes.
+En plus des modeles Prisma, la base contient :
+- **Tables spatiales dynamiques** : creees lors de l'import de donnees, referencees par `Layer.tableName` et `Layer.schemaName`
+- **Tables OSM** : `planet_osm_point`, `planet_osm_line`, `planet_osm_polygon`, `planet_osm_roads` (creees par osm2pgsql)
 
 ---
 
-## WebSocket Events
+## Scripts PyQGIS
 
-The WebSocket endpoint at `/ws/notifications` sends real-time events to authenticated users:
+Situes dans `python_scripts/`, ces 14 scripts gerent les projets QGIS Server :
 
-| Event | Description |
+| Script | Description |
 |---|---|
-| `import:progress` | Layer import progress update |
-| `import:completed` | Layer import completed successfully |
-| `import:failed` | Layer import failed |
-| `export:progress` | Export job progress update |
-| `export:completed` | Export ready for download |
-| `export:failed` | Export job failed |
-| `ping` / `pong` | Connection keepalive |
+| `add_vector_layer.py` | Ajouter une couche vectorielle PostGIS a un projet QGIS |
+| `add_raster_layer.py` | Ajouter une couche raster a un projet QGIS |
+| `remove_layer.py` | Supprimer une couche d'un projet QGIS |
+| `save_style.py` | Sauvegarder un style de couche (SLD) dans le projet |
+| `set_style.py` | Appliquer un style a une couche |
+| `set_icon_on_layer.py` | Definir une icone sur une couche |
+| `reload_project.py` | Recharger un projet QGIS pour prendre en compte les modifications |
+| `clip_export.py` | Exporter et decouper des donnees selon une emprise |
+| `export_layer.py` | Exporter une couche dans un format specifique |
+| `setup_wms_capabilities.py` | Configurer les capacites WMS d'un projet |
+| `configure_wfs.py` | Configurer les capacites WFS d'un projet |
+| `get_layer_info.py` | Obtenir les informations d'une couche |
+| `edit_layer_properties.py` | Modifier les proprietes d'une couche |
+| `download_data.py` | Telecharger des donnees depuis une source |
+
+Ces scripts necessitent Python 3 avec les bindings PyQGIS et sont invoques par l'API via des processus enfants.
 
 ---
 
-## Testing
+## Tests
 
 ```bash
-# Run all tests
+# Lancer tous les tests
 npm test
 
-# Run tests in watch mode
+# Lancer les tests en mode watch
 npm run test:watch
 
-# Run tests with coverage
+# Lancer les tests avec couverture de code
 npm run test:coverage
 ```
 
-Tests are written with **Vitest** and follow the same Clean Architecture boundaries as the source code.
+Les tests sont ecrits avec **Vitest** et respectent les memes limites architecturales que le code source.
 
 ---
 
-## Project Structure
+## Docker
+
+Le deploiement se fait via Docker et Docker Compose. Voir [docs/deploiement.md](./docs/deploiement.md) pour le guide complet.
+
+```bash
+# Demarrer tous les services
+docker compose up -d
+
+# Executer les migrations
+docker compose exec api npx prisma migrate deploy
+
+# Initialiser la base de donnees
+docker compose exec api npm run db:seed
+```
+
+Le fichier `docker-compose.yml` inclut tous les services necessaires :
+- **api** -- L'API GeOSM (Fastify)
+- **postgres** -- PostgreSQL 16 + PostGIS 3.4
+- **redis** -- Redis 7 Alpine
+- **minio** -- MinIO (stockage objet)
+- **meilisearch** -- MeiliSearch v1.6
+- **qgis-server** -- QGIS Server 3.28
+
+---
+
+## Structure du projet
 
 ```
 src/
-├── server.ts                    # Application bootstrap
-├── container.ts                 # Awilix DI container setup
-├── config/                      # Environment and app configuration
-├── domain/                      # Domain entities, enums, errors, repository interfaces
-├── application/                 # Application layer
-│   ├── dtos/                    # Data transfer objects
-│   ├── services/                # Service interfaces (email, password, token)
-│   └── use-cases/               # Business logic organized by module
-│       ├── admin/
-│       ├── analytics/
-│       ├── auth/
-│       ├── base-maps/
-│       ├── catalog/
-│       ├── default-themes/
-│       ├── documents/
-│       ├── drawings/
-│       ├── exports/
-│       ├── features/
-│       ├── geocoding/
-│       ├── geoportail/
-│       ├── groups/
-│       ├── instances/
-│       ├── layers/
-│       ├── maps/
-│       ├── osm/
-│       ├── qgis-projects/
-│       ├── routing/
-│       ├── search/
-│       ├── seo/
-│       ├── sharing/
-│       ├── styles/
-│       ├── sub-groups/
-│       └── users/
-├── infrastructure/              # Infrastructure implementations
-│   ├── auth/                    # Argon2, JWT services
-│   ├── cache/                   # Redis service
-│   ├── database/                # Prisma repositories, PostGIS, OSM queries
-│   │   ├── prisma/              # Schema and migrations
-│   │   └── repositories/        # Prisma repository implementations
-│   ├── email/                   # SMTP service
-│   ├── external-apis/           # Nominatim, OSRM, MeiliSearch, QGIS Server
-│   ├── gdal/                    # ogr2ogr service
-│   ├── observability/           # Winston logger
-│   ├── osm/                     # osm2pgsql service
-│   ├── qgis/                    # QGIS project management service
-│   ├── queue/                   # BullMQ queue service and workers
-│   ├── storage/                 # MinIO storage service
-│   └── websocket/               # WebSocket notification service
-└── presentation/                # HTTP layer
-    ├── middleware/               # Error handler, RBAC, request logger, metrics
-    ├── plugins/                  # Fastify plugins (auth, cors, swagger, websocket, multipart)
-    ├── routes/                   # Route handlers organized by module
-    └── schemas/                  # Zod validation schemas
++-- server.ts                    # Point d'entree de l'application
++-- container.ts                 # Configuration du conteneur DI Awilix
++-- config/                      # Configuration (environnement, application)
++-- domain/                      # Couche domaine (entites, enums, erreurs, interfaces)
++-- application/                 # Couche application
+|   +-- dtos/                    # Objets de transfert de donnees
+|   +-- services/                # Interfaces de services
+|   +-- use-cases/               # Logique metier organisee par module
+|       +-- admin/               # Administration
+|       +-- adressage/           # Adressage
+|       +-- analysis/            # Analyse spatiale
+|       +-- analytics/           # Analytiques
+|       +-- auth/                # Authentification
+|       +-- base-maps/           # Fonds de carte
+|       +-- catalog/             # Catalogue
+|       +-- default-themes/      # Themes par defaut
+|       +-- documents/           # Documents
+|       +-- drawings/            # Dessins
+|       +-- exports/             # Exports
+|       +-- features/            # Features (entites geographiques)
+|       +-- geocoding/           # Geocodage
+|       +-- geoportail/          # Geoportail
+|       +-- groups/              # Groupes
+|       +-- instances/           # Instances
+|       +-- layers/              # Couches
+|       +-- maps/                # Compositions de carte
+|       +-- osm/                 # OpenStreetMap
+|       +-- qgis-projects/       # Projets QGIS
+|       +-- rasters/             # Rasters
+|       +-- routing/             # Itineraire
+|       +-- search/              # Recherche
+|       +-- seo/                 # SEO
+|       +-- sharing/             # Partage
+|       +-- styles/              # Styles
+|       +-- sub-groups/          # Sous-groupes
+|       +-- users/               # Utilisateurs
++-- infrastructure/              # Couche infrastructure
+|   +-- auth/                    # Services Argon2, JWT
+|   +-- cache/                   # Service Redis
+|   +-- database/                # Depots Prisma, PostGIS, requetes OSM
+|   |   +-- prisma/              # Schema et migrations
+|   |   +-- repositories/        # Implementations Prisma des depots
+|   +-- email/                   # Service SMTP
+|   +-- external-apis/           # Nominatim, OSRM, MeiliSearch, QGIS Server
+|   +-- gdal/                    # Service ogr2ogr, service raster
+|   +-- observability/           # Logger Winston
+|   +-- osm/                     # Service osm2pgsql
+|   +-- qgis/                    # Service de gestion de projets QGIS
+|   +-- queue/                   # Service de file d'attente BullMQ et workers
+|   +-- storage/                 # Service de stockage MinIO
+|   +-- utils/                   # Utilitaires (generateur SVG)
+|   +-- websocket/               # Service de notifications WebSocket
++-- presentation/                # Couche presentation (HTTP)
+    +-- middleware/               # Gestionnaire d'erreurs, RBAC, logger, metriques
+    +-- plugins/                  # Plugins Fastify (auth, CORS, Swagger, WebSocket, multipart)
+    +-- routes/                   # Gestionnaires de routes (31 modules)
+    +-- schemas/                  # Schemas de validation Zod
 
-python_scripts/                  # PyQGIS scripts for QGIS project management
-prisma/                          # Prisma seed script
+python_scripts/                  # Scripts PyQGIS pour la gestion des projets QGIS
+prisma/                          # Script de seed Prisma
 ```
 
 ---
 
-## Deployment
+## Contribution
 
-### Docker
-
-The application is designed to run in containers. Key considerations:
-
-- Mount `QGIS_PROJECTS_DIR` and `QGIS_STYLES_DIR` as volumes shared with QGIS Server
-- Ensure GDAL/ogr2ogr and Python 3 + PyQGIS are available in the container
-- Connect to the same PostgreSQL instance with PostGIS extensions enabled
-- Redis must be accessible for both caching and BullMQ job queues
-
-### Production Environment Variables
-
-For production, ensure you set:
-
-- `NODE_ENV=production`
-- Strong, unique values for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`
-- Proper `DATABASE_URL` with connection pooling
-- Secure `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY`
-- A real SMTP server for email functionality
-- `CORS_ORIGIN` set to your frontend domain
-- `SUPER_ADMIN_PASSWORD` changed from the default
+Consultez [CONTRIBUTING.md](./CONTRIBUTING.md) pour les directives de contribution a ce projet.
 
 ---
 
-## Contributing
+## Licence
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on how to contribute to this project.
-
----
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+Ce projet est sous licence MIT. Voir [LICENSE](./LICENSE) pour les details.
 
 Copyright (c) 2024-2025 GeOSM Family
