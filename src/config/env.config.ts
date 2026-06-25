@@ -45,6 +45,9 @@ const envSchema = z.object({
   MEILISEARCH_API_KEY: z.string().default('masterKey'),
 
   QGIS_SERVER_URL: z.string().default('http://localhost:8380/ows'),
+  QGIS_PROJECTS_DIR: z.string().default('/var/www/qgis/projects'),
+  QGIS_STYLES_DIR: z.string().default('/var/www/qgis/styles'),
+  DATA_DIR: z.string().default('/tmp/geosm-data'),
   NOMINATIM_URL: z.string().default('http://localhost:8081'),
   OSRM_URL: z.string().default('http://localhost:5000'),
 

@@ -6,7 +6,8 @@ export async function wmsProxyRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.query as Record<string, string>;
-    const { data, contentType } = await qgisServerService.proxyWmsRequest(params);
+    const mapPath = params.map || params.MAP;
+    const { data, contentType } = await qgisServerService.proxyWmsRequest(params, mapPath);
     return reply.type(contentType).send(data);
   });
 }
@@ -16,7 +17,8 @@ export async function wfsProxyRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.query as Record<string, string>;
-    const { data, contentType } = await qgisServerService.proxyWfsRequest(params);
+    const mapPath = params.map || params.MAP;
+    const { data, contentType } = await qgisServerService.proxyWfsRequest(params, mapPath);
     return reply.type(contentType).send(data);
   });
 }

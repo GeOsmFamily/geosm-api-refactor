@@ -30,7 +30,10 @@ import { defaultThemeRoutes } from './presentation/routes/default-theme.routes.j
 import { adminRoutes } from './presentation/routes/admin.routes.js';
 import { multipartPlugin } from './presentation/plugins/multipart.plugin.js';
 import { uploadRoutes } from './presentation/routes/upload.routes.js';
+import { featureRoutes } from './presentation/routes/feature.routes.js';
+import { geoportailRoutes } from './presentation/routes/geoportail.routes.js';
 import { createLayerImportProcessor } from './infrastructure/queue/workers/layer-import.worker.js';
+import { createExportProcessor } from './infrastructure/queue/workers/export.worker.js';
 
 async function bootstrap(): Promise<void> {
   const app = Fastify({
@@ -68,8 +71,21 @@ async function bootstrap(): Promise<void> {
   queueService.createQueue('layer-import');
   queueService.registerWorker('layer-import', createLayerImportProcessor({
     exportRepository: app.diContainer.resolve('exportRepository') as import('./infrastructure/database/repositories/prisma-export.repository.js').PrismaExportRepository,
+    layerRepository: app.diContainer.resolve('layerRepository') as import('./infrastructure/database/repositories/prisma-layer.repository.js').PrismaLayerRepository,
     storageService: app.diContainer.resolve('storageService') as import('./infrastructure/storage/minio.service.js').MinioStorageService,
     notificationService,
+    postGISService: app.diContainer.resolve('postGISService') as import('./infrastructure/database/postgis.service.js').PostGISService,
+    ogr2ogrService: app.diContainer.resolve('ogr2ogrService') as import('./infrastructure/gdal/ogr2ogr.service.js').Ogr2OgrService,
+  }));
+
+  // Register export worker
+  queueService.createQueue('layer-export');
+  queueService.registerWorker('layer-export', createExportProcessor({
+    exportRepository: app.diContainer.resolve('exportRepository') as import('./infrastructure/database/repositories/prisma-export.repository.js').PrismaExportRepository,
+    layerRepository: app.diContainer.resolve('layerRepository') as import('./infrastructure/database/repositories/prisma-layer.repository.js').PrismaLayerRepository,
+    storageService: app.diContainer.resolve('storageService') as import('./infrastructure/storage/minio.service.js').MinioStorageService,
+    notificationService,
+    ogr2ogrService: app.diContainer.resolve('ogr2ogrService') as import('./infrastructure/gdal/ogr2ogr.service.js').Ogr2OgrService,
   }));
 
   await app.register(healthRoutes);
@@ -91,6 +107,8 @@ async function bootstrap(): Promise<void> {
   await app.register(defaultThemeRoutes, { prefix: `${appConfig.apiPrefix}/default-themes` });
   await app.register(adminRoutes, { prefix: `${appConfig.apiPrefix}/admin` });
   await app.register(uploadRoutes, { prefix: `${appConfig.apiPrefix}/layers` });
+  await app.register(featureRoutes, { prefix: `${appConfig.apiPrefix}/layers/:layerId/features` });
+  await app.register(geoportailRoutes, { prefix: `${appConfig.apiPrefix}/geoportail` });
 
   await app.ready();
 

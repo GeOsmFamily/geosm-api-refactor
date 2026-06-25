@@ -83,6 +83,7 @@ import { NominatimService } from './infrastructure/external-apis/nominatim.servi
 import { OSRMService } from './infrastructure/external-apis/osrm.service.js';
 import { MeiliSearchService } from './infrastructure/external-apis/meilisearch.service.js';
 import { QgisServerService } from './infrastructure/external-apis/qgis-server.service.js';
+import { QGISProjectService } from './infrastructure/qgis/qgis-project.service.js';
 
 // Styles use cases
 import { GetLayerStyleUseCase } from './application/use-cases/styles/get-layer-style.use-case.js';
@@ -136,6 +137,18 @@ import { NotificationService } from './infrastructure/websocket/notification.ser
 import { ImportLayerUseCase } from './application/use-cases/layers/import-layer.use-case.js';
 import { DownloadExportUseCase } from './application/use-cases/exports/download-export.use-case.js';
 
+// Geospatial infrastructure
+import { PostGISService } from './infrastructure/database/postgis.service.js';
+import { Ogr2OgrService } from './infrastructure/gdal/ogr2ogr.service.js';
+
+// Feature use cases
+import { GetFeaturesUseCase } from './application/use-cases/features/get-features.use-case.js';
+import { GetFeatureUseCase } from './application/use-cases/features/get-feature.use-case.js';
+import { AddFeatureUseCase } from './application/use-cases/features/add-feature.use-case.js';
+import { UpdateFeatureUseCase } from './application/use-cases/features/update-feature.use-case.js';
+import { DeleteFeatureUseCase } from './application/use-cases/features/delete-feature.use-case.js';
+import { GetLayerStatsUseCase } from './application/use-cases/layers/get-layer-stats.use-case.js';
+
 import type { IEmailService } from './application/services/email.service.js';
 import { logger } from './infrastructure/observability/logger.js';
 
@@ -168,6 +181,7 @@ interface Cradle {
   osrmService: OSRMService;
   meiliSearchService: MeiliSearchService;
   qgisServerService: QgisServerService;
+  qgisProjectService: QGISProjectService;
   passwordService: Argon2PasswordService;
   emailService: NoopEmailService;
   tokenService: JwtTokenService;
@@ -268,6 +282,16 @@ interface Cradle {
   notificationService: NotificationService;
   importLayerUseCase: ImportLayerUseCase;
   downloadExportUseCase: DownloadExportUseCase;
+  // Geospatial
+  postGISService: PostGISService;
+  ogr2ogrService: Ogr2OgrService;
+  // Feature use cases
+  getFeaturesUseCase: GetFeaturesUseCase;
+  getFeatureUseCase: GetFeatureUseCase;
+  addFeatureUseCase: AddFeatureUseCase;
+  updateFeatureUseCase: UpdateFeatureUseCase;
+  deleteFeatureUseCase: DeleteFeatureUseCase;
+  getLayerStatsUseCase: GetLayerStatsUseCase;
 }
 
 export async function setupContainer(app: FastifyInstance): Promise<void> {
@@ -308,6 +332,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     osrmService: asFunction(() => new OSRMService(), { lifetime: Lifetime.SINGLETON }),
     meiliSearchService: asFunction(() => new MeiliSearchService(), { lifetime: Lifetime.SINGLETON }),
     qgisServerService: asFunction(() => new QgisServerService(), { lifetime: Lifetime.SINGLETON }),
+    qgisProjectService: asFunction(() => new QGISProjectService(), { lifetime: Lifetime.SINGLETON }),
 
     // Auth use cases
     registerUseCase: asFunction((c: Cradle) =>
@@ -405,7 +430,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     listDefaultStylesUseCase: asFunction((c: Cradle) => new ListDefaultStylesUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
 
     // Exports use cases
-    createExportUseCase: asFunction((c: Cradle) => new CreateExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
+    createExportUseCase: asFunction((c: Cradle) => new CreateExportUseCase(c.exportRepository, c.queueService), { lifetime: Lifetime.SCOPED }),
     listExportsUseCase: asFunction((c: Cradle) => new ListExportsUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
     getExportUseCase: asFunction((c: Cradle) => new GetExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
     deleteExportUseCase: asFunction((c: Cradle) => new DeleteExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
@@ -450,5 +475,17 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     importLayerUseCase: asFunction((c: Cradle) => new ImportLayerUseCase(c.layerRepository, c.exportRepository, c.storageService, c.queueService), { lifetime: Lifetime.SCOPED }),
     downloadExportUseCase: asFunction((c: Cradle) => new DownloadExportUseCase(c.exportRepository, c.storageService), { lifetime: Lifetime.SCOPED }),
+
+    // Geospatial services
+    postGISService: asFunction(() => new PostGISService(prisma), { lifetime: Lifetime.SINGLETON }),
+    ogr2ogrService: asFunction(() => new Ogr2OgrService(), { lifetime: Lifetime.SINGLETON }),
+
+    // Feature use cases
+    getFeaturesUseCase: asFunction((c: Cradle) => new GetFeaturesUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
+    getFeatureUseCase: asFunction((c: Cradle) => new GetFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
+    addFeatureUseCase: asFunction((c: Cradle) => new AddFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
+    updateFeatureUseCase: asFunction((c: Cradle) => new UpdateFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
+    deleteFeatureUseCase: asFunction((c: Cradle) => new DeleteFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
+    getLayerStatsUseCase: asFunction((c: Cradle) => new GetLayerStatsUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
   });
 }

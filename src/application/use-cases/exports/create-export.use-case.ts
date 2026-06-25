@@ -3,15 +3,18 @@ import { IExportRepository } from '../../../domain/repositories/export.repositor
 import { Export } from '../../../domain/entities/export.entity.js';
 import { CreateExportDTO } from '../../dtos/export.dto.js';
 import { JobStatus } from '../../../domain/enums.js';
+import type { QueueService } from '../../../infrastructure/queue/queue.service.js';
 
 export class CreateExportUseCase {
   constructor(
     private readonly exportRepository: IExportRepository,
+    private readonly queueService?: QueueService,
   ) {}
 
   async execute(userId: string, dto: CreateExportDTO): Promise<Export> {
-    return this.exportRepository.create({
-      id: uuidv4(),
+    const id = uuidv4();
+    const exportRecord = await this.exportRepository.create({
+      id,
       format: dto.format,
       status: JobStatus.PENDING,
       layerId: dto.layerId,
@@ -23,5 +26,18 @@ export class CreateExportUseCase {
       startedAt: null,
       completedAt: null,
     });
+
+    // Queue export job if queue service is available
+    if (this.queueService) {
+      await this.queueService.addJob('layer-export', 'export', {
+        exportId: id,
+        layerId: dto.layerId,
+        userId,
+        format: dto.format,
+        bbox: dto.bbox,
+      });
+    }
+
+    return exportRecord;
   }
 }
