@@ -95,11 +95,41 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      minio:
+        image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd="curl -f http://localhost:9000/minio/health/live || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      meilisearch:
+        image: getmeili/meilisearch:v1.6
+        env:
+          MEILI_MASTER_KEY: test-master-key
+        ports:
+          - 7700:7700
+        options: >-
+          --health-cmd="curl -f http://localhost:7700/health || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     env:
       DATABASE_URL: postgresql://geosm:geosm_test_secret@localhost:5432/geosm_test?schema=public
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       REDIS_URL: redis://localhost:6379
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: geosm-test
+      MEILISEARCH_HOST: http://localhost:7700
+      MEILISEARCH_API_KEY: test-master-key
       JWT_ACCESS_SECRET: test-access-secret-integration
       JWT_REFRESH_SECRET: test-refresh-secret-integration
       NODE_ENV: test

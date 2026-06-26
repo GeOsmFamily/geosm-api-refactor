@@ -1,15 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5433/geosm_test';
+const DATABASE_URL = process.env.DATABASE_URL;
 
 let prisma: PrismaClient | null = null;
 
-export const DB_AVAILABLE: boolean = process.env.__DB_AVAILABLE__ === 'true';
+export const DB_AVAILABLE: boolean = !!DATABASE_URL;
 
 export function getPrisma(): PrismaClient {
   if (!prisma) {
-    prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
+    prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL! } } });
   }
   return prisma;
 }
