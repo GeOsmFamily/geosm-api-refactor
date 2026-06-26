@@ -63,7 +63,7 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
-      - run: npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
+      - run: npx --no prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
       - name: Analyse de sécurité (ESLint security plugins)
         run: |
           npm install --no-save eslint-plugin-security eslint-plugin-no-unsanitized 2>/dev/null || true
@@ -98,8 +98,8 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
-      - run: npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
-      - uses: docker/setup-buildx-action@v4
+      - run: npx --no prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
+      - uses: docker/setup-buildx-action@v3
       - name: Build image Docker
         uses: docker/build-push-action@v7
         with:
