@@ -20,13 +20,13 @@ export async function qgisProjectRoutes(app: FastifyInstance): Promise<void> {
   const getQgisProjectUseCase = app.diContainer.resolve<GetQgisProjectUseCase>('getQgisProjectUseCase');
   const reloadQgisProjectUseCase = app.diContainer.resolve<ReloadQgisProjectUseCase>('reloadQgisProjectUseCase');
 
-  app.get('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', { schema: { description: 'Obtenir le projet QGIS d\'une instance', tags: ['Projets QGIS'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const result = await getQgisProjectUseCase.execute(instanceId);
     return reply.send(successResponse(result));
   });
 
-  app.post('/reload', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/reload', { schema: { description: 'Recharger le projet QGIS d\'une instance', tags: ['Projets QGIS'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const result = await reloadQgisProjectUseCase.execute(instanceId);
     return reply.send(successResponse(result));

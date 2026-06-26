@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 
 import { CreateSharedMapUseCase, CreateSharedMapDTO } from '../../application/use-cases/sharing/create-shared-map.use-case.js';
 import { GetSharedMapUseCase } from '../../application/use-cases/sharing/get-shared-map.use-case.js';
@@ -25,7 +26,10 @@ export async function sharingRoutes(app: FastifyInstance): Promise<void> {
   const getSharedMapUseCase = app.diContainer.resolve<GetSharedMapUseCase>('getSharedMapUseCase');
 
   // POST /api/v1/share
-  app.post('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: { description: 'Creer un partage de carte', tags: ['Partage'], security: [{ bearerAuth: [] }], body: zodToSwagger(createShareSchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const dto = parseBody(createShareSchema, request.body);
     const userId = (request.user as { sub: string }).sub;
     const shared = await createSharedMapUseCase.execute(userId, dto.instanceId, { ...dto, mapState: dto.mapState as CreateSharedMapDTO['mapState'] });
@@ -33,7 +37,9 @@ export async function sharingRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /api/v1/share/:code
-  app.get('/:code', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:code', {
+    schema: { description: 'Obtenir une carte partagee par code', tags: ['Partage'] },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { code } = parseBody(codeParamSchema, request.params);
     const shared = await getSharedMapUseCase.execute(code);
     return reply.send(successResponse(shared));

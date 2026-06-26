@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createBaseMapSchema, updateBaseMapSchema } from '../schemas/base-map.schema.js';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 
@@ -26,27 +27,29 @@ export async function baseMapRoutes(app: FastifyInstance): Promise<void> {
   const updateBaseMapUseCase = app.diContainer.resolve<UpdateBaseMapUseCase>('updateBaseMapUseCase');
   const deleteBaseMapUseCase = app.diContainer.resolve<DeleteBaseMapUseCase>('deleteBaseMapUseCase');
 
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister les fonds de carte d\'une instance', tags: ['Fonds de carte'] },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const result = await listBaseMapsUseCase.execute(instanceId);
     return reply.send(successResponse(result));
   });
 
-  app.post('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', { schema: { description: 'Creer un fond de carte', tags: ['Fonds de carte'], security: [{ bearerAuth: [] }], body: zodToSwagger(createBaseMapSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const dto = parseBody(createBaseMapSchema, request.body);
     const result = await createBaseMapUseCase.execute(instanceId, dto);
     return reply.status(201).send(successResponse(result));
   });
 
-  app.patch('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id', { schema: { description: 'Modifier un fond de carte', tags: ['Fonds de carte'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateBaseMapSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(baseMapIdParamSchema, request.params);
     const dto = parseBody(updateBaseMapSchema, request.body);
     const result = await updateBaseMapUseCase.execute(id, dto);
     return reply.send(successResponse(result));
   });
 
-  app.delete('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', { schema: { description: 'Supprimer un fond de carte', tags: ['Fonds de carte'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(baseMapIdParamSchema, request.params);
     await deleteBaseMapUseCase.execute(id);
     return reply.send(successResponse(null));

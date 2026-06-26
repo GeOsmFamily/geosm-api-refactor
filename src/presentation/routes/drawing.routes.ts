@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 
 import { SaveDrawingUseCase, SaveDrawingDTO } from '../../application/use-cases/drawings/save-drawing.use-case.js';
 import { GetDrawingsUseCase } from '../../application/use-cases/drawings/get-drawings.use-case.js';
@@ -35,7 +36,10 @@ export async function drawingRoutes(app: FastifyInstance): Promise<void> {
   const deleteDrawingUseCase = app.diContainer.resolve<DeleteDrawingUseCase>('deleteDrawingUseCase');
 
   // GET /api/v1/drawings?instanceId=...
-  app.get('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister les dessins', tags: ['Dessins'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(listQuerySchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(listQuerySchema, request.query);
     const userId = (request.user as { sub: string }).sub;
     const drawings = await getDrawingsUseCase.execute(userId, instanceId);
@@ -43,14 +47,20 @@ export async function drawingRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /api/v1/drawings/:id
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    schema: { description: 'Obtenir un dessin par ID', tags: ['Dessins'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const drawing = await getDrawingUseCase.execute(id);
     return reply.send(successResponse(drawing));
   });
 
   // POST /api/v1/drawings
-  app.post('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: { description: 'Creer un dessin', tags: ['Dessins'], security: [{ bearerAuth: [] }], body: zodToSwagger(createDrawingSchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const dto = parseBody(createDrawingSchema, request.body);
     const userId = (request.user as { sub: string }).sub;
     const drawing = await saveDrawingUseCase.execute(userId, dto.instanceId, { ...dto, geojson: dto.geojson as SaveDrawingDTO['geojson'] });
@@ -58,7 +68,10 @@ export async function drawingRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // DELETE /api/v1/drawings/:id
-  app.delete('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    schema: { description: 'Supprimer un dessin', tags: ['Dessins'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     await deleteDrawingUseCase.execute(id);
     return reply.status(204).send();

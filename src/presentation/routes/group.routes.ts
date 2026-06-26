@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createGroupSchema, updateGroupSchema, reorderGroupsSchema } from '../schemas/group.schema.js';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 
@@ -30,39 +31,57 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
   const deleteGroupUseCase = app.diContainer.resolve<DeleteGroupUseCase>('deleteGroupUseCase');
   const reorderGroupsUseCase = app.diContainer.resolve<ReorderGroupsUseCase>('reorderGroupsUseCase');
 
-  app.get('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister les groupes', tags: ['Groupes'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const result = await listGroupsUseCase.execute(instanceId);
     return reply.send(successResponse(result));
   });
 
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    schema: { description: 'Obtenir un groupe par ID', tags: ['Groupes'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(groupIdParamSchema, request.params);
     const result = await getGroupUseCase.execute(id);
     return reply.send(successResponse(result));
   });
 
-  app.post('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: { description: 'Créer un groupe', tags: ['Groupes'], security: [{ bearerAuth: [] }], body: zodToSwagger(createGroupSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const dto = parseBody(createGroupSchema, request.body);
     const result = await createGroupUseCase.execute(instanceId, dto);
     return reply.status(201).send(successResponse(result));
   });
 
-  app.patch('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id', {
+    schema: { description: 'Mettre à jour un groupe', tags: ['Groupes'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateGroupSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(groupIdParamSchema, request.params);
     const dto = parseBody(updateGroupSchema, request.body);
     const result = await updateGroupUseCase.execute(id, dto);
     return reply.send(successResponse(result));
   });
 
-  app.delete('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    schema: { description: 'Supprimer un groupe', tags: ['Groupes'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(groupIdParamSchema, request.params);
     await deleteGroupUseCase.execute(id);
     return reply.send(successResponse(null));
   });
 
-  app.patch('/reorder', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/reorder', {
+    schema: { description: 'Réordonner les groupes', tags: ['Groupes'], security: [{ bearerAuth: [] }], body: zodToSwagger(reorderGroupsSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const dto = parseBody(reorderGroupsSchema, request.body);
     await reorderGroupsUseCase.execute(dto);
     return reply.send(successResponse(null));

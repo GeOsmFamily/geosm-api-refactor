@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 
 import type { PostGISService } from '../../infrastructure/database/postgis.service.js';
 import { GetLayerStatsUseCase } from '../../application/use-cases/layers/get-layer-stats.use-case.js';
@@ -56,48 +57,64 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
   const saveCoordPdfUseCase = app.diContainer.resolve<SaveCoordPdfUseCase>('saveCoordPdfUseCase');
 
   // POST /api/v1/geoportail/altitude
-  app.post('/altitude', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/altitude', {
+    schema: { description: 'Obtenir l\'altitude d\'un point', tags: ['Geoportail'], body: zodToSwagger(altitudeBodySchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { lon, lat } = parseBody(altitudeBodySchema, request.body);
     const altitude = await postGISService.getAltitude(lon, lat);
     return reply.send(successResponse({ lon, lat, altitude }));
   });
 
   // POST /api/v1/geoportail/elevation-profile
-  app.post('/elevation-profile', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/elevation-profile', {
+    schema: { description: 'Obtenir le profil altimetrique', tags: ['Geoportail'], body: zodToSwagger(elevationProfileBodySchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { geometry, numPoints } = parseBody(elevationProfileBodySchema, request.body);
     const profile = await postGISService.drapeElevationProfile(JSON.stringify(geometry), numPoints);
     return reply.send(successResponse({ profile }));
   });
 
   // GET /api/v1/geoportail/admin-boundary?lat=X&lon=Y&table=optional
-  app.get('/admin-boundary', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/admin-boundary', {
+    schema: { description: 'Trouver les limites administratives', tags: ['Geoportail'], querystring: zodToSwagger(adminBoundaryQuerySchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { lat, lon, table } = parseBody(adminBoundaryQuerySchema, request.query);
     const boundaries = await findAdminBoundaryUseCase.execute(lat, lon, table);
     return reply.send(successResponse(boundaries));
   });
 
   // GET /api/v1/geoportail/geolocate
-  app.get('/geolocate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/geolocate', {
+    schema: { description: 'Geolocaliser par adresse IP', tags: ['Geoportail'] },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const result = await geolocateIpUseCase.execute(request.ip);
     return reply.send(successResponse(result));
   });
 
   // POST /api/v1/layers/:layerId/stats
-  app.post('/layers/:layerId/stats', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/layers/:layerId/stats', {
+    schema: { description: 'Obtenir les statistiques d\'une couche', tags: ['Geoportail'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { layerId } = parseBody(layerIdParamSchema, request.params);
     const stats = await getLayerStatsUseCase.execute(layerId);
     return reply.send(successResponse(stats));
   });
 
   // GET /api/v1/geoportail/search-limit?lat=X&lon=Y&table=schema.table
-  app.get('/search-limit', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/search-limit', {
+    schema: { description: 'Rechercher les limites dans une table', tags: ['Geoportail'], querystring: zodToSwagger(searchLimitQuerySchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { lat, lon, table } = parseBody(searchLimitQuerySchema, request.query);
     const results = await searchLimitInTableUseCase.execute(table, lat, lon);
     return reply.send(successResponse(results));
   });
 
   // POST /api/v1/geoportail/save-coord-pdf
-  app.post('/save-coord-pdf', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/save-coord-pdf', {
+    schema: { description: 'Sauvegarder les coordonnees en PDF', tags: ['Geoportail'], security: [{ bearerAuth: [] }], body: zodToSwagger(saveCoordPdfSchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const input = parseBody(saveCoordPdfSchema, request.body);
     const userId = (request.user as { sub: string }).sub;
     const result = await saveCoordPdfUseCase.execute({ ...input, userId });

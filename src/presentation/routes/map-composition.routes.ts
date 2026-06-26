@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 
 import { CreateMapCompositionUseCase, CreateMapCompositionDTO } from '../../application/use-cases/maps/create-map-composition.use-case.js';
 import { GetMapCompositionsUseCase } from '../../application/use-cases/maps/get-map-compositions.use-case.js';
@@ -43,21 +44,30 @@ export async function mapCompositionRoutes(app: FastifyInstance): Promise<void> 
   const deleteUseCase = app.diContainer.resolve<DeleteMapCompositionUseCase>('deleteMapCompositionUseCase');
 
   // GET /api/v1/instances/:instanceId/maps
-  app.get('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister les compositions de carte', tags: ['Compositions de carte'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const maps = await getListUseCase.execute(instanceId);
     return reply.send(successResponse(maps));
   });
 
   // GET /api/v1/instances/:instanceId/maps/:id
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    schema: { description: 'Obtenir une composition de carte', tags: ['Compositions de carte'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const map = await getOneUseCase.execute(id);
     return reply.send(successResponse(map));
   });
 
   // POST /api/v1/instances/:instanceId/maps
-  app.post('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: { description: 'Creer une composition de carte', tags: ['Compositions de carte'], security: [{ bearerAuth: [] }], body: zodToSwagger(createSchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const dto = parseBody(createSchema, request.body);
     const userId = (request.user as { sub: string }).sub;
@@ -66,7 +76,10 @@ export async function mapCompositionRoutes(app: FastifyInstance): Promise<void> 
   });
 
   // PUT /api/v1/instances/:instanceId/maps/:id
-  app.put('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/:id', {
+    schema: { description: 'Mettre a jour une composition de carte', tags: ['Compositions de carte'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateSchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const dto = parseBody(updateSchema, request.body);
     const map = await updateUseCase.execute(id, dto);
@@ -74,7 +87,10 @@ export async function mapCompositionRoutes(app: FastifyInstance): Promise<void> 
   });
 
   // DELETE /api/v1/instances/:instanceId/maps/:id
-  app.delete('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    schema: { description: 'Supprimer une composition de carte', tags: ['Compositions de carte'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     await deleteUseCase.execute(id);
     return reply.status(204).send();

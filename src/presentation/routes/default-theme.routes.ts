@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { idParamSchema, successResponse } from '../schemas/common.schema.js';
 import { createDefaultThemeSchema, updateDefaultThemeSchema, createDefaultTagSchema } from '../schemas/default-theme.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 
@@ -31,27 +32,31 @@ export async function defaultThemeRoutes(app: FastifyInstance): Promise<void> {
   const seedDefaultThemesUseCase = app.diContainer.resolve<SeedDefaultThemesUseCase>('seedDefaultThemesUseCase');
 
   // GET / — public, list all themes
-  app.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister tous les themes par defaut', tags: ['Themes par defaut'] },
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const result = await listDefaultThemesUseCase.execute();
     return reply.send(successResponse(result));
   });
 
   // GET /:id — public, get theme by id
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    schema: { description: 'Obtenir un theme par defaut par identifiant', tags: ['Themes par defaut'] },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const result = await getDefaultThemeUseCase.execute(id);
     return reply.send(successResponse(result));
   });
 
   // POST / — Super Admin, create theme
-  app.post('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', { schema: { description: 'Creer un theme par defaut', tags: ['Themes par defaut'], security: [{ bearerAuth: [] }], body: zodToSwagger(createDefaultThemeSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const dto = parseBody(createDefaultThemeSchema, request.body);
     const result = await createDefaultThemeUseCase.execute(dto);
     return reply.status(201).send(successResponse(result));
   });
 
   // PATCH /:id — Super Admin, update theme
-  app.patch('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id', { schema: { description: 'Modifier un theme par defaut', tags: ['Themes par defaut'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateDefaultThemeSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const dto = parseBody(updateDefaultThemeSchema, request.body);
     const result = await updateDefaultThemeUseCase.execute(id, dto);
@@ -59,21 +64,23 @@ export async function defaultThemeRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // DELETE /:id — Super Admin, delete theme
-  app.delete('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', { schema: { description: 'Supprimer un theme par defaut', tags: ['Themes par defaut'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     await deleteDefaultThemeUseCase.execute(id);
     return reply.send(successResponse(null));
   });
 
   // GET /:id/tags — public, get theme tags
-  app.get('/:id/tags', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id/tags', {
+    schema: { description: 'Lister les tags d\'un theme', tags: ['Themes par defaut'] },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const result = await getThemeTagsUseCase.execute(id);
     return reply.send(successResponse(result));
   });
 
   // POST /:id/tags — Super Admin, create tag
-  app.post('/:id/tags', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/tags', { schema: { description: 'Creer un tag pour un theme', tags: ['Themes par defaut'], security: [{ bearerAuth: [] }], body: zodToSwagger(createDefaultTagSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const dto = parseBody(createDefaultTagSchema, request.body);
     const result = await createThemeTagUseCase.execute(id, dto);
@@ -81,7 +88,7 @@ export async function defaultThemeRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /seed — Super Admin, seed default themes
-  app.post('/seed', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/seed', { schema: { description: 'Initialiser les themes par defaut', tags: ['Themes par defaut'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const result = await seedDefaultThemesUseCase.execute();
     return reply.status(201).send(successResponse(result));
   });

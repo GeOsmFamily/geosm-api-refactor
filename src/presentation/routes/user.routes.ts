@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { listUsersQuerySchema, createUserSchema, updateUserSchema, changeUserRoleSchema, toggleUserActiveSchema } from '../schemas/user.schema.js';
 import { idParamSchema, successResponse, paginatedResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 
@@ -28,46 +29,67 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
   const changeUserRoleUseCase = app.diContainer.resolve<ChangeUserRoleUseCase>('changeUserRoleUseCase');
   const toggleUserActiveUseCase = app.diContainer.resolve<ToggleUserActiveUseCase>('toggleUserActiveUseCase');
 
-  app.get('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister les utilisateurs', tags: ['Utilisateurs'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(listUsersQuerySchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = parseBody(listUsersQuerySchema, request.query);
     const result = await listUsersUseCase.execute(query);
     const totalPages = Math.ceil(result.total / (query.limit ?? 20));
     return reply.send(paginatedResponse(result.data, { page: query.page ?? 1, limit: query.limit ?? 20, total: result.total, totalPages }));
   });
 
-  app.get('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    schema: { description: 'Obtenir un utilisateur par ID', tags: ['Utilisateurs'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const result = await getUserUseCase.execute(id);
     return reply.send(successResponse(result));
   });
 
-  app.post('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: { description: 'Créer un utilisateur', tags: ['Utilisateurs'], security: [{ bearerAuth: [] }], body: zodToSwagger(createUserSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const dto = parseBody(createUserSchema, request.body);
     const result = await createUserUseCase.execute(dto);
     return reply.status(201).send(successResponse(result));
   });
 
-  app.patch('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id', {
+    schema: { description: 'Mettre à jour un utilisateur', tags: ['Utilisateurs'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateUserSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const dto = parseBody(updateUserSchema, request.body);
     const result = await updateUserUseCase.execute(id, dto);
     return reply.send(successResponse(result));
   });
 
-  app.delete('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    schema: { description: 'Supprimer un utilisateur', tags: ['Utilisateurs'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     await deleteUserUseCase.execute(id);
     return reply.send(successResponse(null));
   });
 
-  app.patch('/:id/role', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id/role', {
+    schema: { description: 'Changer le rôle d\'un utilisateur', tags: ['Utilisateurs'], security: [{ bearerAuth: [] }], body: zodToSwagger(changeUserRoleSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const dto = parseBody(changeUserRoleSchema, request.body);
     const result = await changeUserRoleUseCase.execute(id, dto);
     return reply.send(successResponse(result));
   });
 
-  app.patch('/:id/activate', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id/activate', {
+    schema: { description: 'Activer/désactiver un utilisateur', tags: ['Utilisateurs'], security: [{ bearerAuth: [] }], body: zodToSwagger(toggleUserActiveSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const dto = parseBody(toggleUserActiveSchema, request.body);
     const result = await toggleUserActiveUseCase.execute(id, dto);
