@@ -108,7 +108,7 @@ jobs:
           load: true
           tags: geosm-api:security-scan
       - name: Scan Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: 'geosm-api:security-scan'
           format: 'table'
