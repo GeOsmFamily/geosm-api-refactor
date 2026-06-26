@@ -1,0 +1,33 @@
+name: "⚡ Problème de performance"
+description: "Signaler un problème de lenteur ou de consommation de ressources"
+labels: ["performance", "à trier"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description du problème
+      description: "Décrivez le problème de performance observé."
+      placeholder: "La requête GET /api/... prend plus de 5 secondes."
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Métriques observées
+      description: "Temps de réponse, utilisation CPU/mémoire, nombre de requêtes, etc."
+      placeholder: |
+        - Temps de réponse : 5.2s (attendu < 500ms)
+        - Mémoire : 1.2 GB
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexte
+      description: "Volume de données, configuration matérielle, charge concurrente, etc."
+  - type: textarea
+    id: profiling
+    attributes:
+      label: Données de profilage
+      description: "Traces Jaeger, métriques Prometheus, flamegraphs, etc."
+      render: shell

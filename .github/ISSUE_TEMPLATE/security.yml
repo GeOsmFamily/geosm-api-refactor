@@ -1,0 +1,57 @@
+name: "🔒 Rapport de sécurité"
+description: "Signaler une vulnérabilité ou un problème de sécurité"
+labels: ["sécurité", "critique"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ Pour les vulnérabilités critiques, contactez directement l'équipe avant d'ouvrir une issue publique.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description de la vulnérabilité
+      description: "Décrivez la faille de sécurité identifiée."
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type de vulnérabilité
+      options:
+        - Injection SQL
+        - XSS (Cross-Site Scripting)
+        - Authentification / Autorisation
+        - Exposition de données sensibles
+        - Dépendance vulnérable
+        - Configuration non sécurisée
+        - Autre
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Sévérité (CVSS)
+      options:
+        - Critique (9.0 - 10.0)
+        - Haute (7.0 - 8.9)
+        - Moyenne (4.0 - 6.9)
+        - Basse (0.1 - 3.9)
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact potentiel
+      description: "Quel est l'impact si cette vulnérabilité est exploitée ?"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Étapes de reproduction
+      description: "Comment reproduire la vulnérabilité (si applicable)."
+  - type: textarea
+    id: remediation
+    attributes:
+      label: Correction suggérée
+      description: "Proposez une correction si vous en avez une."

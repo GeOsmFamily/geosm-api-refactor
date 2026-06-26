@@ -1,0 +1,68 @@
+name: Initialiser les labels
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  create-labels:
+    name: Créer les labels du projet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Créer les labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          create_label() {
+            local name="$1" color="$2" description="$3"
+            gh label create "$name" --color "$color" --description "$description" --force
+          }
+
+          # Types
+          create_label "bug"             "d73a4a" "Quelque chose ne fonctionne pas correctement"
+          create_label "amélioration"    "a2eeef" "Nouvelle fonctionnalité ou amélioration"
+          create_label "documentation"   "0075ca" "Amélioration ou ajout de documentation"
+          create_label "performance"     "f9d0c4" "Problème ou amélioration de performance"
+          create_label "sécurité"        "e11d48" "Problème ou amélioration de sécurité"
+          create_label "refactoring"     "d4c5f9" "Restructuration du code sans changement fonctionnel"
+          create_label "tests"           "bfd4f2" "Ajout ou modification de tests"
+          create_label "ci/cd"           "6f42c1" "Pipeline CI/CD et automatisation"
+          create_label "infrastructure"  "5319e7" "Infrastructure, Docker, déploiement"
+
+          # Priorités
+          create_label "priorité: critique" "b60205" "Doit être traité immédiatement"
+          create_label "priorité: haute"    "ff6600" "À traiter dans le sprint en cours"
+          create_label "priorité: moyenne"  "fbca04" "À planifier dans les prochains sprints"
+          create_label "priorité: basse"    "0e8a16" "Nice-to-have, pas urgent"
+
+          # Statuts
+          create_label "à trier"         "ededed" "En attente de tri et priorisation"
+          create_label "en cours"         "1d76db" "En cours de développement"
+          create_label "en revue"         "7057ff" "En attente de revue de code"
+          create_label "bloqué"           "b60205" "Bloqué par une dépendance externe"
+          create_label "doublon"          "cfd3d7" "Issue en doublon"
+          create_label "ne sera pas fait" "ffffff" "Décision de ne pas implémenter"
+
+          # Composants
+          create_label "api"             "006b75" "Endpoints REST API"
+          create_label "base de données" "1d1d6b" "PostgreSQL, PostGIS, Prisma"
+          create_label "authentification" "c2e0c6" "JWT, rôles, permissions"
+          create_label "cartographie"    "0e6e3d" "PostGIS, couches, styles"
+          create_label "adressage"       "d4a017" "Module adressage et géocodage"
+          create_label "recherche"       "fbca04" "MeiliSearch, indexation"
+          create_label "stockage"        "b4a7d6" "MinIO, fichiers, imports"
+          create_label "observabilité"   "ff7619" "Prometheus, Jaeger, Graylog, alertes"
+          create_label "websocket"       "5b6e7f" "Connexions temps réel WebSocket"
+
+          # Dependabot
+          create_label "dépendances"     "0366d6" "Mise à jour de dépendances"
+          create_label "maintenance"     "bfdadc" "Tâches de maintenance"
+          create_label "docker"          "2496ed" "Configuration Docker"
+
+          # Critique
+          create_label "critique"        "b60205" "Nécessite une attention immédiate"
+
+          echo "✅ Tous les labels ont été créés avec succès"
