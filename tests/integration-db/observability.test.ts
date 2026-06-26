@@ -84,7 +84,7 @@ describe.skipIf(!DB_AVAILABLE)('Prometheus Metrics Integration', () => {
       if (line === '' || line.startsWith('#')) continue;
       // Each metric line should match: metric_name{labels} value [timestamp]
       // or metric_name value [timestamp]
-      expect(line).toMatch(/^[a-zA-Z_:][a-zA-Z0-9_:]*(\{[^}]*\})?\s+[\d.eE+-]+(NaN|Inf|\s+\d+)?$/);
+      expect(line).toMatch(/^[a-zA-Z_:][a-zA-Z0-9_:]*(\{[^}]*\})?\s+([\d.eE+-]+|[Nn]a[Nn]|[+-]?Inf)(\s+\d+)?$/);
     }
   });
 });
