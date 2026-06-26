@@ -1,5 +1,5 @@
 import os from 'os';
-import { logger, createChildLogger } from './logger.js';
+import { createChildLogger } from './logger.js';
 
 export type AlertLevel = 'CRITICAL' | 'WARNING' | 'INFO';
 

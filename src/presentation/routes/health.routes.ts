@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { metricsRegister } from '../../infrastructure/observability/metrics.js';
 import { successResponse } from '../schemas/common.schema.js';
-import { logger } from '../../infrastructure/observability/logger.js';
+import { execSync } from 'child_process';
 import os from 'os';
 
 interface HealthCheckResult {
@@ -77,7 +77,6 @@ async function checkQGISServer(): Promise<HealthCheckResult> {
 
 function getDiskUsage(): { usagePercent: number; free: string; total: string } {
   try {
-    const { execSync } = require('child_process') as typeof import('child_process');
     const output = execSync("df -h / | tail -1").toString().trim();
     const parts = output.split(/\s+/);
     return {
