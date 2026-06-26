@@ -44,6 +44,7 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
 
   // POST /layers/:layerId/import — Upload and import a geospatial file
   app.post('/:layerId/import', {
+    schema: { description: 'Importer un fichier geospatial (multipart)', tags: ['Import de donnees'], security: [{ bearerAuth: [] }] },
     preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = z.object({ layerId: z.string().uuid() }).safeParse(request.params);
@@ -76,6 +77,7 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
 
   // GET /exports/:exportId/download — Get presigned download URL
   app.get('/exports/:exportId/download', {
+    schema: { description: 'Telecharger un export', tags: ['Import de donnees'], security: [{ bearerAuth: [] }] },
     preHandler: [app.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = z.object({ exportId: z.string().uuid() }).safeParse(request.params);

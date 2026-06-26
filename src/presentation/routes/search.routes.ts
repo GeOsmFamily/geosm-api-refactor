@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
 import { globalSearchQuerySchema, searchLayersQuerySchema, searchFeaturesQuerySchema } from '../schemas/search.schema.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import type { GlobalSearchUseCase } from '../../application/use-cases/search/global-search.use-case.js';
 import type { SearchLayersUseCase } from '../../application/use-cases/search/search-layers.use-case.js';
 import type { SearchFeaturesUseCase } from '../../application/use-cases/search/search-features.use-case.js';
@@ -17,13 +18,17 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
   const searchLayersUseCase = app.diContainer.resolve<SearchLayersUseCase>('searchLayersUseCase');
   const searchFeaturesUseCase = app.diContainer.resolve<SearchFeaturesUseCase>('searchFeaturesUseCase');
 
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Recherche globale', tags: ['Recherche'], querystring: zodToSwagger(globalSearchQuerySchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = parseBody(globalSearchQuerySchema, request.query);
     const result = await globalSearchUseCase.execute(query.q, query.limit);
     return reply.send(successResponse(result));
   });
 
-  app.get('/layers', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/layers', {
+    schema: { description: 'Rechercher des couches', tags: ['Recherche'], querystring: zodToSwagger(searchLayersQuerySchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = parseBody(searchLayersQuerySchema, request.query);
     const result = await searchLayersUseCase.execute(query.q, {
       instanceId: query.instanceId,
@@ -33,7 +38,9 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(successResponse(result));
   });
 
-  app.get('/features', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/features', {
+    schema: { description: 'Rechercher des entites geographiques', tags: ['Recherche'], querystring: zodToSwagger(searchFeaturesQuerySchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = parseBody(searchFeaturesQuerySchema, request.query);
     const result = await searchFeaturesUseCase.execute(query.q, {
       layerId: query.layerId,

@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 
 import { SpatialAnalysisUseCase } from '../../application/use-cases/analysis/spatial-analysis.use-case.js';
 
@@ -23,7 +24,9 @@ export async function analysisRoutes(app: FastifyInstance): Promise<void> {
   const spatialAnalysisUseCase = app.diContainer.resolve<SpatialAnalysisUseCase>('spatialAnalysisUseCase');
 
   // POST /analysis/spatial
-  app.post('/spatial', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/spatial', {
+    schema: { description: 'Effectuer une analyse spatiale', tags: ['Analyse spatiale'], body: zodToSwagger(spatialAnalysisSchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const input = parseBody(spatialAnalysisSchema, request.body);
     const result = await spatialAnalysisUseCase.execute(input);
     return reply.send(successResponse(result));

@@ -16,13 +16,17 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
   const getCatalogUseCase = app.diContainer.resolve<GetCatalogUseCase>('getCatalogUseCase');
 
   // GET /api/v1/catalog
-  app.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Obtenir le catalogue complet', tags: ['Catalogue'] },
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const catalog = await getCatalogUseCase.execute();
     return reply.send(successResponse(catalog));
   });
 
   // GET /api/v1/catalog/:instanceSlug
-  app.get('/:instanceSlug', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:instanceSlug', {
+    schema: { description: 'Obtenir le catalogue par instance', tags: ['Catalogue'] },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceSlug } = parseBody(instanceSlugParamSchema, request.params);
     const catalog = await getCatalogUseCase.execute(instanceSlug);
     return reply.send(successResponse(catalog));

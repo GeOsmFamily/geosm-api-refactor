@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { listInstancesQuerySchema, createInstanceSchema, updateInstanceSchema, addInstanceUserSchema, changeInstanceUserRoleSchema } from '../schemas/instance.schema.js';
 import { idParamSchema, successResponse, paginatedResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 
@@ -36,58 +37,85 @@ export async function instanceRoutes(app: FastifyInstance): Promise<void> {
   const removeInstanceUserUseCase = app.diContainer.resolve<RemoveInstanceUserUseCase>('removeInstanceUserUseCase');
   const changeInstanceUserRoleUseCase = app.diContainer.resolve<ChangeInstanceUserRoleUseCase>('changeInstanceUserRoleUseCase');
 
-  app.get('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister les instances', tags: ['Instances'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(listInstancesQuerySchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = parseBody(listInstancesQuerySchema, request.query);
     const result = await listInstancesUseCase.execute(query);
     const totalPages = Math.ceil(result.total / (query.limit ?? 20));
     return reply.send(paginatedResponse(result.data, { page: query.page ?? 1, limit: query.limit ?? 20, total: result.total, totalPages }));
   });
 
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    schema: { description: 'Obtenir une instance par ID', tags: ['Instances'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const result = await getInstanceUseCase.execute(id);
     return reply.send(successResponse(result));
   });
 
-  app.post('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: { description: 'Créer une instance', tags: ['Instances'], security: [{ bearerAuth: [] }], body: zodToSwagger(createInstanceSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const dto = parseBody(createInstanceSchema, request.body);
     const result = await createInstanceUseCase.execute(dto);
     return reply.status(201).send(successResponse(result));
   });
 
-  app.patch('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id', {
+    schema: { description: 'Mettre à jour une instance', tags: ['Instances'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateInstanceSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const dto = parseBody(updateInstanceSchema, request.body);
     const result = await updateInstanceUseCase.execute(id, dto);
     return reply.send(successResponse(result));
   });
 
-  app.delete('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    schema: { description: 'Supprimer une instance', tags: ['Instances'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     await deleteInstanceUseCase.execute(id);
     return reply.send(successResponse(null));
   });
 
-  app.get('/:instanceId/users', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:instanceId/users', {
+    schema: { description: 'Lister les utilisateurs d\'une instance', tags: ['Instances'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const result = await getInstanceUsersUseCase.execute(instanceId);
     return reply.send(successResponse(result));
   });
 
-  app.post('/:instanceId/users', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:instanceId/users', {
+    schema: { description: 'Ajouter un utilisateur à une instance', tags: ['Instances'], security: [{ bearerAuth: [] }], body: zodToSwagger(addInstanceUserSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const dto = parseBody(addInstanceUserSchema, request.body);
     const result = await addInstanceUserUseCase.execute(instanceId, dto);
     return reply.status(201).send(successResponse(result));
   });
 
-  app.delete('/:instanceId/users/:userId', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:instanceId/users/:userId', {
+    schema: { description: 'Retirer un utilisateur d\'une instance', tags: ['Instances'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId, userId } = parseBody(userIdParamSchema, request.params);
     await removeInstanceUserUseCase.execute(instanceId, userId);
     return reply.send(successResponse(null));
   });
 
-  app.patch('/:instanceId/users/:userId/role', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:instanceId/users/:userId/role', {
+    schema: { description: 'Changer le rôle d\'un utilisateur dans une instance', tags: ['Instances'], security: [{ bearerAuth: [] }], body: zodToSwagger(changeInstanceUserRoleSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId, userId } = parseBody(userIdParamSchema, request.params);
     const dto = parseBody(changeInstanceUserRoleSchema, request.body);
     const result = await changeInstanceUserRoleUseCase.execute(instanceId, userId, dto);

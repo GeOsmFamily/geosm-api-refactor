@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 
@@ -39,14 +40,14 @@ export async function osmRoutes(app: FastifyInstance): Promise<void> {
   const createOsmTableUseCase = app.diContainer.resolve<CreateOsmTableUseCase>('createOsmTableUseCase');
 
   // POST /query — query OSM data, returns GeoJSON
-  app.post('/query', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/query', { schema: { description: 'Interroger les donnees OSM', tags: ['OpenStreetMap'], security: [{ bearerAuth: [] }], body: zodToSwagger(osmQuerySchema) }, preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = parseBody(osmQuerySchema, request.body);
     const result = await queryOsmUseCase.execute(body);
     return reply.send(successResponse(result));
   });
 
   // POST /create-table — create derived table from OSM data (admin only)
-  app.post('/create-table', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/create-table', { schema: { description: 'Creer une table derivee a partir des donnees OSM', tags: ['OpenStreetMap'], security: [{ bearerAuth: [] }], body: zodToSwagger(createOsmTableSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = parseBody(createOsmTableSchema, request.body);
     const result = await createOsmTableUseCase.execute(body);
     return reply.send(successResponse(result));

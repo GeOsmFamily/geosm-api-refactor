@@ -4,6 +4,7 @@ import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 
 import { UploadRasterUseCase } from '../../application/use-cases/rasters/upload-raster.use-case.js';
 import { DownloadRasterUseCase } from '../../application/use-cases/rasters/download-raster.use-case.js';
@@ -26,7 +27,10 @@ export async function rasterRoutes(app: FastifyInstance): Promise<void> {
   const rasterService = app.diContainer.resolve<RasterService>('rasterService');
 
   // POST /rasters/upload
-  app.post('/upload', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/upload', {
+    schema: { description: 'Telecharger un fichier raster (multipart)', tags: ['Rasters'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const file = await request.file();
     if (!file) return reply.status(400).send({ success: false, message: 'No file uploaded' });
     const fields = file.fields as Record<string, { value?: string }>;
@@ -50,14 +54,20 @@ export async function rasterRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /rasters/download
-  app.post('/download', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/download', {
+    schema: { description: 'Telecharger un raster', tags: ['Rasters'], security: [{ bearerAuth: [] }], body: zodToSwagger(downloadSchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { tableName, format } = parseBody(downloadSchema, request.body);
     const result = await downloadRasterUseCase.execute(tableName, format);
     return reply.send(successResponse(result));
   });
 
   // POST /rasters/info
-  app.post('/info', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/info', {
+    schema: { description: 'Obtenir les informations d\'un raster', tags: ['Rasters'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { filePath } = parseBody(z.object({ filePath: z.string().min(1) }), request.body);
     const info = await rasterService.getRasterInfo(filePath);
     return reply.send(successResponse(info));

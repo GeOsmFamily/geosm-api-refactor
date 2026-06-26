@@ -2,14 +2,14 @@ services:
   api:
     build: .
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3005}:3000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       minio:
-        condition: service_healthy
+        condition: service_started
       meilisearch:
         condition: service_healthy
       qgis-server:
@@ -25,7 +25,7 @@ services:
           memory: 256M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       start_period: 40s
@@ -66,7 +66,7 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
     deploy:
       resources:
         limits:
@@ -103,9 +103,10 @@ services:
           memory: 128M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/localhost/9000' 2>/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 15s
       retries: 5
 
   meilisearch:
@@ -113,8 +114,8 @@ services:
     ports:
       - "7700:7700"
     environment:
-      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY:-masterkey123}
-      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY:-geosm-meilisearch-dev-key-2026}
+      MEILI_ENV: ${MEILI_ENV:-development}
     volumes:
       - meili-data:/meili_data
     deploy:
@@ -127,20 +128,23 @@ services:
           memory: 128M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:7700/health || exit 1"]
       interval: 15s
       timeout: 5s
+      start_period: 15s
       retries: 5
 
   qgis-server:
-    image: camptocamp/qgis-server:3.28
+    image: 3liz/qgis-map-server:3.34
     ports:
-      - "8380:80"
+      - "8380:8080"
     volumes:
-      - qgis-projects:/qgis-projects:ro
+      - qgis-projects:/projects:ro
       - data-volume:/data:ro
     environment:
-      QGIS_PROJECT_FILE: /qgis-projects/default.qgs
+      QGSRV_SERVER_WORKERS: 2
+      QGSRV_CACHE_ROOTDIR: /projects
+      QGSRV_LOGGING_LEVEL: WARNING
     deploy:
       resources:
         limits:
@@ -151,10 +155,11 @@ services:
           memory: 256M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --spider http://localhost:80/ || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ows/?service=WMS&request=GetCapabilities || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      start_period: 30s
+      retries: 5
 
   # --- Monitoring Stack ---
 
@@ -179,7 +184,7 @@ services:
           memory: 64M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -200,7 +205,7 @@ services:
           memory: 128M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:9090/-/healthy"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9090/-/healthy || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
