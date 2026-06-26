@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
 import { searchGeocodingQuerySchema, reverseGeocodingQuerySchema, lookupGeocodingQuerySchema } from '../schemas/geocoding.schema.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import type { SearchGeocodingUseCase } from '../../application/use-cases/geocoding/search-geocoding.use-case.js';
 import type { ReverseGeocodingUseCase } from '../../application/use-cases/geocoding/reverse-geocoding.use-case.js';
 import type { LookupGeocodingUseCase } from '../../application/use-cases/geocoding/lookup-geocoding.use-case.js';
@@ -17,7 +18,9 @@ export async function geocodingRoutes(app: FastifyInstance): Promise<void> {
   const reverseGeocodingUseCase = app.diContainer.resolve<ReverseGeocodingUseCase>('reverseGeocodingUseCase');
   const lookupGeocodingUseCase = app.diContainer.resolve<LookupGeocodingUseCase>('lookupGeocodingUseCase');
 
-  app.get('/search', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/search', {
+    schema: { description: 'Rechercher une adresse par texte', tags: ['Geocodage'], querystring: zodToSwagger(searchGeocodingQuerySchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = parseBody(searchGeocodingQuerySchema, request.query);
     const result = await searchGeocodingUseCase.execute(query.q, {
       viewbox: query.viewbox,
@@ -28,13 +31,17 @@ export async function geocodingRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(successResponse(result));
   });
 
-  app.get('/reverse', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/reverse', {
+    schema: { description: 'Geocodage inverse (coordonnees vers adresse)', tags: ['Geocodage'], querystring: zodToSwagger(reverseGeocodingQuerySchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = parseBody(reverseGeocodingQuerySchema, request.query);
     const result = await reverseGeocodingUseCase.execute(query.lat, query.lon);
     return reply.send(successResponse(result));
   });
 
-  app.get('/lookup', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/lookup', {
+    schema: { description: 'Rechercher par identifiants OSM', tags: ['Geocodage'], querystring: zodToSwagger(lookupGeocodingQuerySchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = parseBody(lookupGeocodingQuerySchema, request.query);
     const osmIds = query.osm_ids.split(',');
     const result = await lookupGeocodingUseCase.execute(osmIds);

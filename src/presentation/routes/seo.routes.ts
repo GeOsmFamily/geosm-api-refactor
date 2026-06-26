@@ -16,7 +16,9 @@ export async function seoRoutes(app: FastifyInstance): Promise<void> {
   const getSeoMetadataUseCase = app.diContainer.resolve<GetSeoMetadataUseCase>('getSeoMetadataUseCase');
 
   // GET /api/v1/seo/:instanceSlug
-  app.get('/:instanceSlug', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:instanceSlug', {
+    schema: { description: 'Obtenir les metadonnees SEO d\'une instance', tags: ['SEO'] },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceSlug } = parseBody(instanceSlugParamSchema, request.params);
     const baseUrl = `${request.protocol}://${request.hostname}`;
     const metadata = await getSeoMetadataUseCase.execute(instanceSlug, baseUrl);

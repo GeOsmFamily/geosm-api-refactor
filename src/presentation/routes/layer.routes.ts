@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { listLayersQuerySchema, createLayerSchema, updateLayerSchema } from '../schemas/layer.schema.js';
 import { successResponse, paginatedResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 
@@ -29,7 +30,10 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
   const updateLayerUseCase = app.diContainer.resolve<UpdateLayerUseCase>('updateLayerUseCase');
   const deleteLayerUseCase = app.diContainer.resolve<DeleteLayerUseCase>('deleteLayerUseCase');
 
-  app.get('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister les couches', tags: ['Couches'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(listLayersQuerySchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const query = parseBody(listLayersQuerySchema, request.query);
     const result = await listLayersUseCase.execute(instanceId, query);
@@ -37,27 +41,39 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(paginatedResponse(result.data, { page: query.page ?? 1, limit: query.limit ?? 20, total: result.total, totalPages }));
   });
 
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    schema: { description: 'Obtenir une couche par ID', tags: ['Couches'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(layerIdParamSchema, request.params);
     const result = await getLayerUseCase.execute(id);
     return reply.send(successResponse(result));
   });
 
-  app.post('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: { description: 'Créer une couche', tags: ['Couches'], security: [{ bearerAuth: [] }], body: zodToSwagger(createLayerSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId } = parseBody(instanceIdParamSchema, request.params);
     const dto = parseBody(createLayerSchema, request.body);
     const result = await createLayerUseCase.execute(instanceId, dto);
     return reply.status(201).send(successResponse(result));
   });
 
-  app.patch('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id', {
+    schema: { description: 'Mettre à jour une couche', tags: ['Couches'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateLayerSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(layerIdParamSchema, request.params);
     const dto = parseBody(updateLayerSchema, request.body);
     const result = await updateLayerUseCase.execute(id, dto);
     return reply.send(successResponse(result));
   });
 
-  app.delete('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    schema: { description: 'Supprimer une couche', tags: ['Couches'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(layerIdParamSchema, request.params);
     await deleteLayerUseCase.execute(id);
     return reply.send(successResponse(null));
@@ -65,7 +81,10 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
 
   // GET /:id/source-file — get the original source file from MinIO
   const getSourceFileUseCase = app.diContainer.resolve<GetSourceFileUseCase>('getSourceFileUseCase');
-  app.get('/:id/source-file', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id/source-file', {
+    schema: { description: 'Obtenir le fichier source d\'une couche', tags: ['Couches'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(layerIdParamSchema, request.params);
     const result = await getSourceFileUseCase.execute(id);
     return reply.send(successResponse(result));

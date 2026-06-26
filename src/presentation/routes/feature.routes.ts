@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { successResponse } from '../schemas/common.schema.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
@@ -49,7 +50,10 @@ export async function featureRoutes(app: FastifyInstance): Promise<void> {
   const deleteFeatureUseCase = app.diContainer.resolve<DeleteFeatureUseCase>('deleteFeatureUseCase');
 
   // GET /api/v1/layers/:layerId/features
-  app.get('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister les features d\'une couche', tags: ['Features'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(getFeaturesQuerySchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { layerId } = parseBody(layerIdParamSchema, request.params);
     const query = parseBody(getFeaturesQuerySchema, request.query);
     const result = await getFeaturesUseCase.execute({
@@ -62,14 +66,20 @@ export async function featureRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /api/v1/layers/:layerId/features/:featureId
-  app.get('/:featureId', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:featureId', {
+    schema: { description: 'Obtenir une feature par ID', tags: ['Features'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { layerId, featureId } = parseBody(featureIdParamSchema, request.params);
     const result = await getFeatureUseCase.execute(layerId, featureId);
     return reply.send(successResponse(result));
   });
 
   // POST /api/v1/layers/:layerId/features
-  app.post('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: { description: 'Ajouter une feature', tags: ['Features'], security: [{ bearerAuth: [] }], body: zodToSwagger(addFeatureBodySchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { layerId } = parseBody(layerIdParamSchema, request.params);
     const body = parseBody(addFeatureBodySchema, request.body);
     const result = await addFeatureUseCase.execute({
@@ -81,7 +91,10 @@ export async function featureRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // PATCH /api/v1/layers/:layerId/features/:featureId
-  app.patch('/:featureId', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:featureId', {
+    schema: { description: 'Mettre à jour une feature', tags: ['Features'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateFeatureBodySchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { layerId, featureId } = parseBody(featureIdParamSchema, request.params);
     const body = parseBody(updateFeatureBodySchema, request.body);
     await updateFeatureUseCase.execute({
@@ -94,7 +107,10 @@ export async function featureRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // DELETE /api/v1/layers/:layerId/features/:featureId
-  app.delete('/:featureId', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:featureId', {
+    schema: { description: 'Supprimer une feature', tags: ['Features'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { layerId, featureId } = parseBody(featureIdParamSchema, request.params);
     await deleteFeatureUseCase.execute(layerId, featureId);
     return reply.send(successResponse(null));

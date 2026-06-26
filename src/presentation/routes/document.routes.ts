@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 
 import { UploadDocumentUseCase } from '../../application/use-cases/documents/upload-document.use-case.js';
 import { ListDocumentsUseCase } from '../../application/use-cases/documents/list-documents.use-case.js';
@@ -27,21 +28,30 @@ export async function documentRoutes(app: FastifyInstance): Promise<void> {
   const deleteUseCase = app.diContainer.resolve<DeleteDocumentUseCase>('deleteDocumentUseCase');
 
   // GET /api/v1/documents?instanceId=...&layerId=...
-  app.get('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister les documents', tags: ['Documents'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(listQuerySchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId, layerId } = parseBody(listQuerySchema, request.query);
     const docs = await listUseCase.execute(instanceId, layerId);
     return reply.send(successResponse(docs));
   });
 
   // GET /api/v1/documents/:id
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    schema: { description: 'Obtenir un document par ID', tags: ['Documents'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const doc = await getUseCase.execute(id);
     return reply.send(successResponse(doc));
   });
 
   // POST /api/v1/documents
-  app.post('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: { description: 'Telecharger un document (multipart)', tags: ['Documents'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const data = await request.file();
     if (!data) throw new ValidationError('No file uploaded', {});
 
@@ -70,7 +80,10 @@ export async function documentRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // DELETE /api/v1/documents/:id
-  app.delete('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    schema: { description: 'Supprimer un document', tags: ['Documents'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     await deleteUseCase.execute(id);
     return reply.status(204).send();

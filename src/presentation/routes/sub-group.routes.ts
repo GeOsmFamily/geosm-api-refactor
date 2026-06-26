@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createSubGroupSchema, updateSubGroupSchema } from '../schemas/sub-group.schema.js';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 
@@ -28,33 +29,48 @@ export async function subGroupRoutes(app: FastifyInstance): Promise<void> {
   const updateSubGroupUseCase = app.diContainer.resolve<UpdateSubGroupUseCase>('updateSubGroupUseCase');
   const deleteSubGroupUseCase = app.diContainer.resolve<DeleteSubGroupUseCase>('deleteSubGroupUseCase');
 
-  app.get('/', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Lister les sous-groupes', tags: ['Sous-groupes'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { groupId } = parseBody(groupIdParamSchema, request.params);
     const result = await listSubGroupsUseCase.execute(groupId);
     return reply.send(successResponse(result));
   });
 
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id', {
+    schema: { description: 'Obtenir un sous-groupe par ID', tags: ['Sous-groupes'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(subGroupIdParamSchema, request.params);
     const result = await getSubGroupUseCase.execute(id);
     return reply.send(successResponse(result));
   });
 
-  app.post('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    schema: { description: 'Créer un sous-groupe', tags: ['Sous-groupes'], security: [{ bearerAuth: [] }], body: zodToSwagger(createSubGroupSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { groupId } = parseBody(groupIdParamSchema, request.params);
     const dto = parseBody(createSubGroupSchema, request.body);
     const result = await createSubGroupUseCase.execute(groupId, dto);
     return reply.status(201).send(successResponse(result));
   });
 
-  app.patch('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id', {
+    schema: { description: 'Mettre à jour un sous-groupe', tags: ['Sous-groupes'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateSubGroupSchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(subGroupIdParamSchema, request.params);
     const dto = parseBody(updateSubGroupSchema, request.body);
     const result = await updateSubGroupUseCase.execute(id, dto);
     return reply.send(successResponse(result));
   });
 
-  app.delete('/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    schema: { description: 'Supprimer un sous-groupe', tags: ['Sous-groupes'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(subGroupIdParamSchema, request.params);
     await deleteSubGroupUseCase.execute(id);
     return reply.send(successResponse(null));
