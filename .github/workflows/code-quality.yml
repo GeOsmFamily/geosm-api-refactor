@@ -1,0 +1,108 @@
+name: Qualité du code
+
+on:
+  push:
+    branches: [main, dev, 'claude/**']
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  lint:
+    name: Linting ESLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - run: npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
+      - name: ESLint avec rapport
+        run: npx eslint src/ --format json --output-file eslint-report.json || true
+      - name: Vérification ESLint
+        run: npm run lint
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eslint-report
+          path: eslint-report.json
+          retention-days: 14
+
+  typecheck:
+    name: Vérification TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - run: npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
+      - name: Vérification des types
+        run: npx tsc --noEmit
+
+  coverage:
+    name: Couverture de code
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: geosm_test
+          POSTGRES_USER: geosm
+          POSTGRES_PASSWORD: geosm_secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U geosm"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://geosm:geosm_secret@localhost:5432/geosm_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: test-access-secret
+      JWT_REFRESH_SECRET: test-refresh-secret
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - run: npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
+      - run: npx prisma db push --schema=src/infrastructure/database/prisma/schema.prisma --skip-generate
+      - name: Tests avec couverture
+        run: npx vitest run --coverage --reporter=json --outputFile=test-results.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+  duplicates:
+    name: Détection de code dupliqué
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - name: Détection de doublons (jscpd)
+        run: npx jscpd src/ --reporters console --threshold 5 --min-lines 10 --min-tokens 50 || true

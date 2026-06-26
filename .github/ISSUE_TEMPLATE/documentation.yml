@@ -1,0 +1,27 @@
+name: "📚 Documentation"
+description: "Signaler un problème ou proposer une amélioration de la documentation"
+labels: ["documentation", "à trier"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: "Décrivez le problème ou l'amélioration souhaitée pour la documentation."
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - Documentation manquante
+        - Documentation incorrecte
+        - Documentation obsolète
+        - Amélioration de la clarté
+    validations:
+      required: true
+  - type: textarea
+    id: location
+    attributes:
+      label: Emplacement
+      description: "Où se trouve la documentation concernée ? (fichier, URL, section)"

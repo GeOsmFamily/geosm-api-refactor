@@ -1,0 +1,43 @@
+name: "✨ Demande de fonctionnalité"
+description: "Proposer une nouvelle fonctionnalité ou amélioration"
+labels: ["amélioration", "à trier"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de proposer une amélioration pour GeOSM API.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problème ou besoin
+      description: "Décrivez le problème que cette fonctionnalité résoudrait."
+      placeholder: "Je suis souvent frustré quand..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution proposée
+      description: "Décrivez la solution que vous aimeriez voir implémentée."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées
+      description: "Avez-vous envisagé d'autres solutions ? Lesquelles ?"
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priorité suggérée
+      options:
+        - Haute (nécessaire pour la prochaine release)
+        - Moyenne (amélioration importante)
+        - Basse (nice-to-have)
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexte additionnel
+      description: "Ajoutez tout contexte, maquette, ou référence utile."
