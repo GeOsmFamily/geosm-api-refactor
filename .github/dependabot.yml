@@ -1,0 +1,75 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Africa/Douala"
+    target-branch: "dev"
+    labels:
+      - "dépendances"
+      - "maintenance"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    open-pull-requests-limit: 10
+    groups:
+      prisma:
+        patterns:
+          - "@prisma/*"
+          - "prisma"
+      fastify:
+        patterns:
+          - "fastify"
+          - "@fastify/*"
+      opentelemetry:
+        patterns:
+          - "@opentelemetry/*"
+      testing:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "supertest"
+      typescript:
+        patterns:
+          - "typescript"
+          - "tsx"
+          - "@types/*"
+      lint:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "prettier"
+          - "@typescript-eslint/*"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Africa/Douala"
+    target-branch: "dev"
+    labels:
+      - "dépendances"
+      - "docker"
+      - "maintenance"
+    commit-message:
+      prefix: "docker"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Africa/Douala"
+    target-branch: "dev"
+    labels:
+      - "dépendances"
+      - "ci/cd"
+      - "maintenance"
+    commit-message:
+      prefix: "ci"

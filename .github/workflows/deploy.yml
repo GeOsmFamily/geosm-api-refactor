@@ -1,0 +1,160 @@
+name: Déploiement
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  version-tag:
+    name: Création du tag de version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.tag }}
+      build_number: ${{ steps.version.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Générer le tag de version
+        id: version
+        run: |
+          DATE=$(date +'%Y%m%d')
+          EXISTING=$(git tag -l "${DATE}.*" | sort -t. -k2 -n | tail -1)
+          if [ -z "$EXISTING" ]; then
+            BUILD_NUMBER=1
+          else
+            LAST_BUILD=$(echo "$EXISTING" | cut -d. -f2)
+            BUILD_NUMBER=$((LAST_BUILD + 1))
+          fi
+          TAG="${DATE}.${BUILD_NUMBER}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "build_number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "📦 Version: ${TAG}"
+
+  test:
+    name: Tests avant déploiement
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: geosm_test
+          POSTGRES_USER: geosm
+          POSTGRES_PASSWORD: geosm_secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U geosm"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://geosm:geosm_secret@localhost:5432/geosm_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: test-access-secret
+      JWT_REFRESH_SECRET: test-refresh-secret
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - run: npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
+      - run: npx prisma db push --schema=src/infrastructure/database/prisma/schema.prisma --skip-generate
+      - run: npm run test:coverage
+
+  build-and-push:
+    name: Build et push image Docker
+    runs-on: ubuntu-latest
+    needs: [version-tag, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Connexion au registre
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build et push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.version-tag.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_VERSION=${{ needs.version-tag.outputs.version }}
+
+  create-tag:
+    name: Créer le tag Git
+    runs-on: ubuntu-latest
+    needs: [version-tag, build-and-push]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Créer et pousser le tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ needs.version-tag.outputs.version }}" -m "Release ${{ needs.version-tag.outputs.version }}"
+          git push origin "${{ needs.version-tag.outputs.version }}"
+
+  create-release:
+    name: Créer la release GitHub
+    runs-on: ubuntu-latest
+    needs: [version-tag, create-tag]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Générer les notes de release
+        id: notes
+        run: |
+          PREV_TAG=$(git tag -l "*.?" --sort=-creatordate | head -2 | tail -1)
+          if [ -n "$PREV_TAG" ]; then
+            CHANGES=$(git log --oneline "$PREV_TAG"..HEAD)
+          else
+            CHANGES=$(git log --oneline -20)
+          fi
+          echo "changes<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+      - name: Créer la release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version-tag.outputs.version }}
+          name: "GeOSM API v${{ needs.version-tag.outputs.version }}"
+          body: |
+            ## 🚀 Release ${{ needs.version-tag.outputs.version }}
+
+            ### Image Docker
+            ```
+            ghcr.io/${{ github.repository }}:${{ needs.version-tag.outputs.version }}
+            ```
+
+            ### Changements
+            ${{ steps.notes.outputs.changes }}
+          draft: false
+          prerelease: false
