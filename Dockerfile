@@ -34,6 +34,7 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY src/infrastructure/database/prisma/ ./src/infrastructure/database/prisma/
 COPY python_scripts/ ./python_scripts/
 COPY docker/entrypoint.sh ./docker/entrypoint.sh
+RUN chmod +x ./docker/entrypoint.sh
 
 ENV NODE_ENV=production
 ENV PORT=3000
