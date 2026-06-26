@@ -1,7 +1,4 @@
 import { describe, it, expect, afterAll, beforeAll } from 'vitest';
-import Fastify, { type FastifyInstance } from 'fastify';
-import { setupContainer } from '../../src/container.js';
-import { authPlugin } from '../../src/presentation/plugins/auth.plugin.js';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const shouldSkip = !DATABASE_URL;
@@ -213,11 +210,13 @@ const CRADLE_KEYS = [
 ] as const;
 
 describe.skipIf(shouldSkip)('Container Wiring Integration', () => {
-  let app: FastifyInstance;
+  let app: any;
 
   beforeAll(async () => {
+    const { default: Fastify } = await import('fastify');
+    const { authPlugin } = await import('../../src/presentation/plugins/auth.plugin.js');
+    const { setupContainer } = await import('../../src/container.js');
     app = Fastify({ logger: false });
-    // authPlugin is needed because JwtTokenService requires the Fastify JWT decorator
     await authPlugin(app);
     await setupContainer(app);
     await app.ready();
