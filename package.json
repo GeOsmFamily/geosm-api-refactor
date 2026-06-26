@@ -53,7 +53,7 @@
     "uuid": "^14.0.1",
     "winston": "^3.0.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "zod": "^3.0.0",
+    "zod": "^4.4.3",
     "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
