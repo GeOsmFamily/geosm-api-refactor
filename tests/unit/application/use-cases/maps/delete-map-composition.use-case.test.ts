@@ -1,22 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DeleteSubGroupUseCase } from '../../../../../src/application/use-cases/sub-groups/delete-sub-group.use-case.js';
+import { DeleteMapCompositionUseCase } from '../../../../../src/application/use-cases/maps/delete-map-composition.use-case.js';
 import { NotFoundError } from '../../../../../src/domain/errors/not-found.error.js';
 
-describe('DeleteSubGroupUseCase', () => {
-  let useCase: DeleteSubGroupUseCase;
+describe('DeleteMapCompositionUseCase', () => {
+  let useCase: DeleteMapCompositionUseCase;
   let repository: { findById: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     repository = { findById: vi.fn(), delete: vi.fn() };
-    useCase = new DeleteSubGroupUseCase(repository as any);
+    useCase = new DeleteMapCompositionUseCase(repository as any);
   });
 
-  it('should delete an existing sub-group', async () => {
-    repository.findById.mockResolvedValue({ id: 'sg-1' });
+  it('should delete an existing map composition', async () => {
+    repository.findById.mockResolvedValue({ id: 'mc-1' });
     repository.delete.mockResolvedValue(undefined);
 
-    await useCase.execute('sg-1');
-    expect(repository.delete).toHaveBeenCalledWith('sg-1');
+    await useCase.execute('mc-1');
+
+    expect(repository.findById).toHaveBeenCalledWith('mc-1');
+    expect(repository.delete).toHaveBeenCalledWith('mc-1');
   });
 
   it('should throw NotFoundError if not found', async () => {

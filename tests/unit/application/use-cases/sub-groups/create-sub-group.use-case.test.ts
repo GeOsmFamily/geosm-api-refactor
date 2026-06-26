@@ -2,44 +2,48 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateSubGroupUseCase } from '../../../../../src/application/use-cases/sub-groups/create-sub-group.use-case.js';
 import { NotFoundError } from '../../../../../src/domain/errors/not-found.error.js';
 import { ConflictError } from '../../../../../src/domain/errors/conflict.error.js';
-import type { ISubGroupRepository } from '../../../../../src/domain/repositories/sub-group.repository.js';
-import type { IGroupRepository } from '../../../../../src/domain/repositories/group.repository.js';
-import { Group } from '../../../../../src/domain/entities/group.entity.js';
-import { SubGroup } from '../../../../../src/domain/entities/sub-group.entity.js';
+
+vi.mock('uuid', () => ({ v4: () => 'mock-uuid' }));
 
 describe('CreateSubGroupUseCase', () => {
   let useCase: CreateSubGroupUseCase;
-  let subGroupRepository: ISubGroupRepository;
-  let groupRepository: IGroupRepository;
-  const now = new Date();
-  const mockGroup = new Group({
-    id: 'g1', name: 'Group', slug: 'group', description: null, icon: null,
-    color: null, order: 0, isActive: true, instanceId: 'i1', createdAt: now, updatedAt: now,
-  });
+  let subGroupRepo: { findBySlug: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+  let groupRepo: { findById: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    subGroupRepository = { findById: vi.fn(), findBySlug: vi.fn(), findByGroup: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() };
-    groupRepository = { findById: vi.fn(), findBySlug: vi.fn(), findByInstance: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), updateOrder: vi.fn() };
-    useCase = new CreateSubGroupUseCase(subGroupRepository, groupRepository);
+    subGroupRepo = { findBySlug: vi.fn(), create: vi.fn() };
+    groupRepo = { findById: vi.fn() };
+    useCase = new CreateSubGroupUseCase(subGroupRepo as any, groupRepo as any);
   });
 
-  it('should create sub-group successfully', async () => {
-    vi.mocked(groupRepository.findById).mockResolvedValue(mockGroup);
-    vi.mocked(subGroupRepository.findBySlug).mockResolvedValue(null);
-    const mockSub = new SubGroup({ id: 'sg1', name: 'Sub', slug: 'sub', description: null, icon: null, order: 0, isActive: true, groupId: 'g1', createdAt: now, updatedAt: now });
-    vi.mocked(subGroupRepository.create).mockResolvedValue(mockSub);
-    const result = await useCase.execute('g1', { name: 'Sub', slug: 'sub' });
-    expect(result.name).toBe('Sub');
+  it('should create a sub-group successfully', async () => {
+    groupRepo.findById.mockResolvedValue({ id: 'g-1' });
+    subGroupRepo.findBySlug.mockResolvedValue(null);
+    const created = { id: 'mock-uuid', name: 'Sub' };
+    subGroupRepo.create.mockResolvedValue(created);
+
+    const result = await useCase.execute('g-1', { name: 'Sub', slug: 'sub' });
+
+    expect(result).toEqual(created);
+    expect(subGroupRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'mock-uuid',
+        name: 'Sub',
+        slug: 'sub',
+        groupId: 'g-1',
+        isActive: true,
+      }),
+    );
   });
 
-  it('should throw NotFoundError when group not found', async () => {
-    vi.mocked(groupRepository.findById).mockResolvedValue(null);
-    await expect(useCase.execute('g1', { name: 'Sub', slug: 'sub' })).rejects.toThrow(NotFoundError);
+  it('should throw NotFoundError if group does not exist', async () => {
+    groupRepo.findById.mockResolvedValue(null);
+    await expect(useCase.execute('missing', { name: 'x', slug: 'x' })).rejects.toThrow(NotFoundError);
   });
 
-  it('should throw ConflictError when slug already exists', async () => {
-    vi.mocked(groupRepository.findById).mockResolvedValue(mockGroup);
-    vi.mocked(subGroupRepository.findBySlug).mockResolvedValue({} as any);
-    await expect(useCase.execute('g1', { name: 'Sub', slug: 'sub' })).rejects.toThrow(ConflictError);
+  it('should throw ConflictError if slug already exists in group', async () => {
+    groupRepo.findById.mockResolvedValue({ id: 'g-1' });
+    subGroupRepo.findBySlug.mockResolvedValue({ id: 'existing' });
+    await expect(useCase.execute('g-1', { name: 'x', slug: 'x' })).rejects.toThrow(ConflictError);
   });
 });
