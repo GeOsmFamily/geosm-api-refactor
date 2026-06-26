@@ -113,8 +113,8 @@ services:
     ports:
       - "7700:7700"
     environment:
-      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY:-masterkey123}
-      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY:-geosm-meilisearch-dev-key-2026}
+      MEILI_ENV: ${MEILI_ENV:-development}
     volumes:
       - meili-data:/meili_data
     deploy:
