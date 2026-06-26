@@ -37,6 +37,19 @@ export function errorHandler(
     return;
   }
 
+  if ('statusCode' in error && typeof error.statusCode === 'number' && error.statusCode === 400) {
+    const response: ErrorResponse = {
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: error.message,
+      },
+      meta: { timestamp, requestId },
+    };
+    reply.status(400).send(response);
+    return;
+  }
+
   if ('statusCode' in error && typeof error.statusCode === 'number' && error.statusCode === 429) {
     const response: ErrorResponse = {
       success: false,
