@@ -8,3 +8,4 @@ coverage/
 .idea/
 .vscode/
 *.tsbuildinfo
+python_scripts/__pycache__/
