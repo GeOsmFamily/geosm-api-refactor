@@ -31,7 +31,9 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY src/infrastructure/database/prisma/ ./src/infrastructure/database/prisma/
 COPY python_scripts/ ./python_scripts/
+COPY docker/entrypoint.sh ./docker/entrypoint.sh
 
 ENV NODE_ENV=production
 ENV PORT=3000
@@ -50,4 +52,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
 
-CMD ["node", "dist/server.js"]
+ENTRYPOINT ["./docker/entrypoint.sh"]
