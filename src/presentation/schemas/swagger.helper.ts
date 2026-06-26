@@ -21,7 +21,8 @@ function fixExclusiveMinMax(obj: unknown): unknown {
 }
 
 export function zodToSwagger(schema: ZodTypeAny): Record<string, unknown> {
-  const jsonSchema = zodToJsonSchema(schema, { target: 'openApi3' });
-  const { $schema, ...rest } = jsonSchema as Record<string, unknown>;
+  const jsonSchema = zodToJsonSchema(schema, { target: 'openApi3' }) as Record<string, unknown>;
+  const rest = { ...jsonSchema };
+  delete rest.$schema;
   return fixExclusiveMinMax(rest) as Record<string, unknown>;
 }
