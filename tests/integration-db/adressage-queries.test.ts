@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { DB_AVAILABLE, getPrisma, applyMigrations, disconnectPrisma } from './setup.js';
+import { DB_AVAILABLE, getPrisma,  disconnectPrisma } from './setup.js';
 import { AdressageService } from '../../src/infrastructure/database/adressage.service.js';
 import { ManageSequenceUseCase } from '../../src/application/use-cases/admin/manage-sequence.use-case.js';
 import { FindAdminBoundaryUseCase } from '../../src/application/use-cases/geoportail/find-admin-boundary.use-case.js';
@@ -9,7 +9,6 @@ import { SaveCoordPdfUseCase } from '../../src/application/use-cases/maps/save-c
 const TEST_SCHEMA = 'test_adressage';
 
 beforeAll(async () => {
-  if (DB_AVAILABLE) await applyMigrations();
 }, 60_000);
 
 afterAll(async () => {

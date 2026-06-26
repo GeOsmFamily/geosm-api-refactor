@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { DB_AVAILABLE, getPrisma, applyMigrations, disconnectPrisma } from './setup.js';
+import { DB_AVAILABLE, getPrisma,  disconnectPrisma } from './setup.js';
 import { OsmQueryService } from '../../src/infrastructure/database/osm-query.service.js';
 
 const TEST_SCHEMA = 'test_osm';
 
 beforeAll(async () => {
-  if (DB_AVAILABLE) await applyMigrations();
 }, 60_000);
 
 afterAll(async () => {

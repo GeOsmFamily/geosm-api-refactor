@@ -1,12 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { DB_AVAILABLE, getPrisma, applyMigrations, disconnectPrisma } from './setup.js';
+import { DB_AVAILABLE, getPrisma,  disconnectPrisma } from './setup.js';
 import { PostGISService, GeoJSONFeature } from '../../src/infrastructure/database/postgis.service.js';
 import { SpatialAnalysisUseCase } from '../../src/application/use-cases/analysis/spatial-analysis.use-case.js';
 
 const TEST_SCHEMA = 'test_postgis';
 
 beforeAll(async () => {
-  if (DB_AVAILABLE) await applyMigrations();
 }, 60_000);
 
 afterAll(async () => {

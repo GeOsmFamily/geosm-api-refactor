@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
-import { DB_AVAILABLE, getPrisma, applyMigrations, cleanDatabase, disconnectPrisma } from './setup.js';
+import { DB_AVAILABLE, getPrisma,  cleanDatabase, disconnectPrisma } from './setup.js';
 import { PrismaInstanceRepository } from '../../src/infrastructure/database/repositories/prisma-instance.repository.js';
 import { PrismaUserRepository } from '../../src/infrastructure/database/repositories/prisma-user.repository.js';
 import { Role } from '../../src/domain/enums.js';
 
 beforeAll(async () => {
-  if (DB_AVAILABLE) await applyMigrations();
 }, 60_000);
 
 afterAll(async () => {
