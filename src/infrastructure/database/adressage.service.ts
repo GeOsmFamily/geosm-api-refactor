@@ -28,10 +28,10 @@ export class AdressageService {
     const s = schema.replace(/[^a-zA-Z0-9_]/g, '');
     const t = table.replace(/[^a-zA-Z0-9_]/g, '');
     const safeGeom = geom.replace(/'/g, "''");
-    const results = await this.prisma.$queryRawUnsafe<AdresseResult[]>(
-      `SELECT *, ST_AsGeoJSON(geom) AS geometry FROM "${s}"."${t}" WHERE ST_Within(ST_SetSRID(geom, 4326), ST_SetSRID(ST_GeomFromText('${safeGeom}'), 4326))`
+    const rows = await this.prisma.$queryRawUnsafe<{ props: Record<string, unknown>; geometry: string }[]>(
+      `SELECT (to_jsonb(t) - 'geom') AS props, ST_AsGeoJSON(t.geom) AS geometry FROM "${s}"."${t}" t WHERE ST_Within(ST_SetSRID(t.geom, 4326), ST_SetSRID(ST_GeomFromText('${safeGeom}'), 4326))`
     );
-    return results;
+    return rows.map(r => ({ ...r.props, geometry: r.geometry }) as AdresseResult);
   }
 
   async getPosition(adresse: string): Promise<{ geometry: unknown }[]> {
@@ -93,13 +93,14 @@ export class AdressageService {
     for (const item of data) {
       const s = item.shema.replace(/[^a-zA-Z0-9_]/g, '');
       const t = item.table.replace(/[^a-zA-Z0-9_]/g, '');
-      const rows = await this.prisma.$queryRawUnsafe<AdresseResult[]>(
-        `SELECT *, ST_AsGeoJSON(geom) AS geometry FROM "${s}"."${t}" WHERE id = ${Number(item.id)}`
+      const rawRows = await this.prisma.$queryRawUnsafe<{ props: Record<string, unknown>; geometry: string }[]>(
+        `SELECT (to_jsonb(t) - 'geom') AS props, ST_AsGeoJSON(t.geom) AS geometry FROM "${s}"."${t}" t WHERE t.id = ${Number(item.id)}`
       );
-      if (rows[0]) {
-        rows[0].shema = s;
-        rows[0].key_couche = item.key_couche;
-        results.push(rows[0]);
+      const flat = rawRows.map(r => ({ ...r.props, geometry: r.geometry }) as AdresseResult);
+      if (flat[0]) {
+        flat[0].shema = s;
+        flat[0].key_couche = item.key_couche;
+        results.push(flat[0]);
       }
     }
     return results;
