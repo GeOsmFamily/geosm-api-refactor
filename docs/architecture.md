@@ -161,7 +161,7 @@ Implementations concretes des interfaces definies par les couches superieures.
 | Geocodage | Nominatim via `nominatim.service.ts` | Recherche d'adresses |
 | Routage | OSRM via `osrm.service.ts` | Calcul d'itineraires |
 | WebSocket | `notification.service.ts` | Notifications temps reel |
-| Observabilite | Winston + prom-client | Logs et metriques |
+| Observabilite | Winston + prom-client + OpenTelemetry | Logs (Winston/GELF), metriques (Prometheus), tracing (Jaeger/OTLP), alertes (Slack/Email) |
 | Adressage | `adressage.service.ts` | Service de geocodage adresse |
 | SVG | `svg-generator.service.ts` | Generation d'icones |
 
@@ -472,3 +472,44 @@ L'API est servie sous le prefixe `/api/v1` (configurable via `API_PREFIX`). Au t
 ### Verification d'email
 - L'inscription necessite la verification de l'email
 - Reinitialisation du mot de passe via tokens a duree limitee
+
+---
+
+## Observabilite
+
+L'architecture d'observabilite repose sur 4 piliers :
+
+### Metriques (Prometheus + Grafana)
+
+- **prom-client** collecte les metriques applicatives (duree HTTP, compteurs, memoire, event loop)
+- **Prometheus** scrape l'endpoint `GET /metrics` toutes les 15 secondes
+- **Grafana** (port 3001) fournit des tableaux de bord preconfigures
+
+### Tracing distribue (Jaeger + OpenTelemetry)
+
+- L'API envoie les traces via le protocole **OTLP** au collecteur Jaeger (port 4318)
+- **Jaeger UI** (port 16686) permet de visualiser les traces et analyser les latences
+- Variable : `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318`
+
+### Logs centralises (Graylog + GELF)
+
+- **Winston** envoie les logs au format GELF (UDP) vers Graylog
+- **Graylog** (port 9009) centralise, indexe et permet la recherche dans les logs
+- Backends : MongoDB (stockage config) + OpenSearch (indexation)
+- Variables : `GRAYLOG_HOST`, `GRAYLOG_PORT=12201`
+
+### Alertes
+
+- **Slack** : notifications via webhook (`SLACK_WEBHOOK_URL`)
+- **Email** : alertes par email (`ALERT_EMAIL_TO`)
+- Le service `AlertingService` gere l'envoi des alertes critiques
+
+### Diagramme d'observabilite
+
+```
+GeOSM API
+  |-- metriques --> Prometheus --> Grafana (dashboards)
+  |-- traces    --> Jaeger (OTLP, port 4318) --> Jaeger UI (port 16686)
+  |-- logs      --> Graylog (GELF, port 12201) --> OpenSearch
+  |-- alertes   --> Slack / Email
+```
