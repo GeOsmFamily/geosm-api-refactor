@@ -76,8 +76,8 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
-      - run: npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
-      - run: npx prisma db push --schema=src/infrastructure/database/prisma/schema.prisma --skip-generate
+      - run: npx --no prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
+      - run: npx --no prisma db push --schema=src/infrastructure/database/prisma/schema.prisma --skip-generate
       - run: npm run test:coverage
 
   build-and-push:
