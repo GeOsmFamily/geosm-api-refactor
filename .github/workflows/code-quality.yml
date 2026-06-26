@@ -17,7 +17,7 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
-      - run: npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
+      - run: npx --no prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
       - name: ESLint avec rapport
         run: npx eslint src/ --format json --output-file eslint-report.json || true
       - name: Vérification ESLint
@@ -39,7 +39,7 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
-      - run: npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
+      - run: npx --no prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
       - name: Vérification des types
         run: npx tsc --noEmit
 
@@ -83,8 +83,8 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
-      - run: npx prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
-      - run: npx prisma db push --schema=src/infrastructure/database/prisma/schema.prisma --skip-generate
+      - run: npx --no prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
+      - run: npx --no prisma db push --schema=src/infrastructure/database/prisma/schema.prisma --skip-generate
       - name: Tests avec couverture
         run: npx vitest run --coverage --reporter=json --outputFile=test-results.json
       - uses: actions/upload-artifact@v4
