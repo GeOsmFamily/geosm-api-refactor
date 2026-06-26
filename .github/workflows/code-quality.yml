@@ -11,8 +11,8 @@ jobs:
     name: Linting ESLint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: 'npm'
@@ -22,7 +22,7 @@ jobs:
         run: npx eslint src/ --format json --output-file eslint-report.json || true
       - name: Vérification ESLint
         run: npm run lint
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: eslint-report
@@ -33,8 +33,8 @@ jobs:
     name: Vérification TypeScript
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: 'npm'
@@ -77,8 +77,8 @@ jobs:
       JWT_REFRESH_SECRET: test-refresh-secret
       NODE_ENV: test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: 'npm'
@@ -87,7 +87,7 @@ jobs:
       - run: npx prisma db push --schema=src/infrastructure/database/prisma/schema.prisma --skip-generate
       - name: Tests avec couverture
         run: npx vitest run --coverage --reporter=json --outputFile=test-results.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
@@ -98,8 +98,8 @@ jobs:
     name: Détection de code dupliqué
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: 'npm'
