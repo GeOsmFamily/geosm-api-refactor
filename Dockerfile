@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM node:20-bookworm-slim AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ RUN npx prisma generate --schema=src/infrastructure/database/prisma/schema.prism
 RUN npm run build
 
 # Stage 2: Production
-FROM node:20-bookworm-slim AS production
+FROM node:22-bookworm-slim AS production
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gdal-bin \
