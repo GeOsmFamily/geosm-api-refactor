@@ -6,16 +6,29 @@ Ce document decrit le deploiement de l'API GeOSM en production avec Docker.
 
 ## Architecture des services
 
-Le deploiement complet comprend 6 services :
+Le deploiement complet comprend **13 services** :
+
+### Services principaux
 
 | Service | Image | Port | Role |
 |---|---|---|---|
-| **api** | Build local (Dockerfile) | 3000 | API GeOSM (Fastify) |
+| **api** | Build local (Node.js 22) | 3000 | API GeOSM (Fastify 5) |
 | **postgres** | `postgis/postgis:16-3.4` | 5432 | Base de donnees PostgreSQL + PostGIS |
 | **redis** | `redis:7-alpine` | 6379 | Cache + backend BullMQ |
 | **minio** | `minio/minio:RELEASE.2024-01-16` | 9000, 9001 | Stockage objet (S3) |
 | **meilisearch** | `getmeili/meilisearch:v1.6` | 7700 | Moteur de recherche full-text |
 | **qgis-server** | `camptocamp/qgis-server:3.28` | 8380 | Serveur cartographique WMS/WFS |
+
+### Stack d'observabilite
+
+| Service | Image | Port | Role |
+|---|---|---|---|
+| **grafana** | `grafana/grafana:10.2.0` | 3001 | Tableaux de bord et visualisation |
+| **prometheus** | `prom/prometheus:v2.48.0` | 9090 | Collecte de metriques |
+| **jaeger** | `jaegertracing/all-in-one:1.52` | 16686, 4318 | Tracing distribue (OpenTelemetry) |
+| **graylog** | `graylog/graylog:5.2` | 9009, 12201/udp | Gestion centralisee des logs (GELF) |
+| **mongodb** | `mongo:6.0` | -- | Backend Graylog |
+| **opensearch** | `opensearchproject/opensearch:2.11.0` | -- | Indexation des logs (Graylog) |
 
 ---
 
@@ -149,6 +162,12 @@ Le `docker-compose.yml` inclut des limites de ressources :
 | minio | 0.5 | 512 Mo | 0.1 | 128 Mo |
 | meilisearch | 1.0 | 512 Mo | 0.1 | 128 Mo |
 | qgis-server | 2.0 | 1 Go | 0.25 | 256 Mo |
+| grafana | 0.5 | 256 Mo | 0.1 | 64 Mo |
+| prometheus | 0.5 | 512 Mo | 0.1 | 128 Mo |
+| jaeger | 1.0 | 512 Mo | 0.1 | 128 Mo |
+| graylog | 1.0 | 1 Go | 0.25 | 256 Mo |
+| mongodb | 0.5 | 512 Mo | 0.1 | 128 Mo |
+| opensearch | 1.0 | 512 Mo | 0.25 | 256 Mo |
 
 Ajustez ces valeurs selon votre charge.
 
@@ -303,6 +322,40 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
 ```
 
+### Stack d'observabilite complete
+
+Le `docker-compose.yml` inclut une stack d'observabilite complete :
+
+#### Grafana (port 3001)
+
+Tableaux de bord preconfigures pour visualiser les metriques Prometheus. Acces : `http://localhost:3001` (admin/admin par defaut).
+
+#### Jaeger (port 16686)
+
+Tracing distribue via OpenTelemetry (OTLP). L'API envoie les traces au collecteur Jaeger sur le port 4318. Interface : `http://localhost:16686`.
+
+Variables d'environnement :
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+OTEL_SERVICE_NAME=geosm-api
+```
+
+#### Graylog (port 9009)
+
+Gestion centralisee des logs via GELF (UDP port 12201). Interface : `http://localhost:9009`. Necessite MongoDB et OpenSearch comme backends.
+
+Variables d'environnement :
+```bash
+GRAYLOG_HOST=graylog
+GRAYLOG_PORT=12201
+```
+
+#### Alerting
+
+L'API supporte les alertes via :
+- **Slack** : `SLACK_WEBHOOK_URL`
+- **Email** : `ALERT_EMAIL_TO`
+
 ### Logs
 
 Les logs sont geres par Winston avec le niveau configurable via `LOG_LEVEL`. En production, utiliser `info` ou `warn`.
@@ -313,6 +366,24 @@ docker compose logs -f api
 
 # Filtrer par niveau
 docker compose logs api | grep "error"
+```
+
+---
+
+## CI/CD et versionnage
+
+Le deploiement automatique est gere par GitHub Actions (`deploy.yml`) :
+
+1. **Tests** : Execution de la suite de tests complete (800+ tests)
+2. **Build Docker** : Construction de l'image avec Node.js 22
+3. **Push GHCR** : Publication sur GitHub Container Registry
+4. **Tag de version** : Format `yyyyMMdd.numBuild` (ex: `20260626.1`)
+5. **Release GitHub** : Creation automatique avec changelog
+
+L'image Docker est disponible sur :
+```
+ghcr.io/geosmfamily/geosm-api-refactor:<version>
+ghcr.io/geosmfamily/geosm-api-refactor:latest
 ```
 
 ---

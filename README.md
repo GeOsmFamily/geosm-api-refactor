@@ -1,8 +1,10 @@
 # GeOSM API v3.0 -- Backend du geoportail open-source base sur OpenStreetMap
 
-![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![CI](https://github.com/GeOsmFamily/geosm-api-refactor/actions/workflows/ci.yml/badge.svg)
+![Securite](https://github.com/GeOsmFamily/geosm-api-refactor/actions/workflows/security.yml/badge.svg)
+![Qualite](https://github.com/GeOsmFamily/geosm-api-refactor/actions/workflows/code-quality.yml/badge.svg)
 ![Licence](https://img.shields.io/badge/licence-MIT-blue)
-![Node.js](https://img.shields.io/badge/node-20%2B-green)
+![Node.js](https://img.shields.io/badge/node-22%2B-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)
 
 ---
@@ -21,7 +23,7 @@ Ce depot contient l'**API REST backend** construite avec Fastify 5, suivant les 
 
 | Categorie | Technologie |
 |---|---|
-| Runtime | Node.js 20+ |
+| Runtime | Node.js 22+ |
 | Langage | TypeScript 5.7 (mode strict) |
 | Framework | Fastify 5 |
 | Base de donnees | PostgreSQL 16 + PostGIS 3.4 |
@@ -35,18 +37,155 @@ Ce depot contient l'**API REST backend** construite avec Fastify 5, suivant les 
 | Scripts serveur carto | PyQGIS (Python 3) |
 | Geocodage | Nominatim |
 | Itineraire | OSRM |
-| Observabilite | Winston (logs), Prometheus (metriques) |
+| Observabilite | Winston (logs), Prometheus (metriques), OpenTelemetry/Jaeger (traces), Graylog/GELF (centralisation), AlertingService (Slack + email) |
 | Validation | Zod |
-| Injection de dependances | Awilix |
+| Injection de dependances | Awilix (166+ composants) |
 | WebSocket | @fastify/websocket |
 | Documentation API | Swagger / Swagger UI |
-| Tests | Vitest |
+| Tests | Vitest (800+ tests unitaires et d'integration) |
+| CI/CD | GitHub Actions (CI, qualite, securite, deploiement automatique) |
+| Conteneurisation | Docker + Docker Compose |
+
+---
+
+## Demarrage rapide (test en local)
+
+### Option 1 : Avec Docker Compose (recommande)
+
+C'est la methode la plus simple pour tester l'application avec tous ses services.
+
+```bash
+# 1. Cloner le depot
+git clone https://github.com/GeOsmFamily/geosm-api-refactor.git
+cd geosm-api-refactor
+
+# 2. Configurer l'environnement
+cp .env.example .env
+
+# 3. Demarrer tous les services (API + PostgreSQL + Redis + MinIO + MeiliSearch + QGIS Server)
+docker compose up -d
+
+# 4. Verifier que tous les services sont en bonne sante
+docker compose ps
+
+# 5. Executer les migrations de la base de donnees
+docker compose exec api npx prisma migrate deploy --schema=src/infrastructure/database/prisma/schema.prisma
+
+# 6. Initialiser la base (creer le super administrateur)
+docker compose exec api npm run db:seed
+
+# 7. Verifier que l'API fonctionne
+curl http://localhost:3000/health
+```
+
+L'API est accessible sur `http://localhost:3000`. La documentation Swagger est sur `http://localhost:3000/docs`.
+
+### Option 2 : En mode developpement (sans Docker pour l'API)
+
+Pour developper avec hot-reload, vous pouvez lancer les services de support via Docker et l'API en local.
+
+```bash
+# 1. Cloner et installer les dependances
+git clone https://github.com/GeOsmFamily/geosm-api-refactor.git
+cd geosm-api-refactor
+npm install
+
+# 2. Configurer l'environnement
+cp .env.example .env
+# Modifier .env : remplacer les noms d'hotes Docker par localhost
+# DATABASE_URL=postgresql://geosm:geosm_secret@localhost:5432/geosm?schema=public
+# REDIS_HOST=localhost
+# MINIO_ENDPOINT=localhost
+# MEILISEARCH_HOST=http://localhost:7700
+
+# 3. Demarrer les services de support (sans l'API)
+docker compose up -d postgres redis minio meilisearch
+
+# 4. Generer le client Prisma
+npm run db:generate
+
+# 5. Executer les migrations
+npm run db:migrate
+
+# 6. Initialiser la base
+npm run db:seed
+
+# 7. Demarrer l'API en mode developpement (hot-reload)
+npm run dev
+```
+
+### Premiere connexion
+
+Une fois l'API demarree :
+
+```bash
+# 1. Se connecter avec le super admin
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@geosm.org","password":"AdminP@ssw0rd!"}'
+
+# 2. Copier l'accessToken de la reponse et l'utiliser pour les requetes suivantes
+export TOKEN="votre_access_token_ici"
+
+# 3. Verifier la sante detaillee (PostgreSQL, Redis, MinIO, MeiliSearch)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/health/detailed
+
+# 4. Consulter la documentation Swagger
+# Ouvrir http://localhost:3000/docs dans un navigateur
+```
+
+### URLs des services
+
+| Service | URL | Description |
+|---|---|---|
+| API GeOSM | http://localhost:3000 | API REST principale |
+| Swagger UI | http://localhost:3000/docs | Documentation interactive |
+| Metriques Prometheus | http://localhost:3000/metrics | Metriques de l'API |
+| Console MinIO | http://localhost:9001 | Interface de gestion MinIO (minioadmin/minioadmin) |
+| Grafana | http://localhost:3001 | Tableaux de bord (admin/admin) |
+| Prometheus | http://localhost:9090 | Metriques et alertes |
+| Jaeger UI | http://localhost:16686 | Traces distribuees |
+| Graylog | http://localhost:9009 | Centralisation des logs |
+
+### Stack de monitoring (optionnel)
+
+Pour activer la stack de monitoring complete :
+
+```bash
+# Demarrer tous les services y compris monitoring
+docker compose up -d
+
+# Ou demarrer uniquement les services de monitoring
+docker compose up -d grafana prometheus jaeger graylog mongodb opensearch
+```
+
+---
+
+## Tests
+
+```bash
+# Lancer tous les tests unitaires
+npm test
+
+# Lancer les tests en mode watch
+npm run test:watch
+
+# Lancer les tests avec couverture de code
+npm run test:coverage
+
+# Lancer les tests d'integration (necessite PostgreSQL, Redis, MinIO, MeiliSearch)
+npm run test:integration
+```
+
+Le projet contient **800+ tests** repartis en :
+- **~494 tests unitaires** : cas d'utilisation, services, validations
+- **314 tests d'integration** : PostGIS (32), Adressage (12), OSM (12), Boot applicatif (4), Validation SQL (4), Conteneur DI (166), Services externes (13), Depots Prisma (13), Observabilite (43), Charge (1), Scripts QGIS (14)
 
 ---
 
 ## Prerequis
 
-- **Node.js** 20+
+- **Node.js** 22+
 - **PostgreSQL** 16 avec l'extension **PostGIS** 3.4
 - **Redis** 7+
 - **MinIO** (stockage objet compatible S3)
@@ -55,43 +194,6 @@ Ce depot contient l'**API REST backend** construite avec Fastify 5, suivant les 
 - **GDAL** avec `ogr2ogr` en ligne de commande (conversion de donnees spatiales)
 - **Python 3** avec les bindings PyQGIS (scripts de gestion de projets QGIS)
 - **osm2pgsql** (import de donnees OpenStreetMap)
-- **Nominatim** (geocodage)
-- **OSRM** (calcul d'itineraires)
-
----
-
-## Installation
-
-```bash
-# 1. Cloner le depot
-git clone https://github.com/geosm/geosm-api.git
-cd geosm-api
-
-# 2. Installer les dependances
-npm install
-
-# 3. Configurer les variables d'environnement
-cp .env.example .env
-# Editer .env avec votre configuration (voir la section ci-dessous)
-
-# 4. Generer le client Prisma
-npm run db:generate
-
-# 5. Executer les migrations de la base de donnees
-npm run db:migrate
-
-# 6. Initialiser la base de donnees (cree le super administrateur)
-npm run db:seed
-
-# 7. Demarrer en mode developpement
-npm run dev
-
-# 8. Ou compiler et demarrer en production
-npm run build
-npm start
-```
-
-L'API sera disponible sur `http://localhost:3000`. La documentation Swagger est accessible sur `http://localhost:3000/docs`.
 
 ---
 
@@ -195,6 +297,12 @@ Toutes les variables sont validees au demarrage avec Zod. Les variables sans val
 |---|---|---|---|
 | `LOG_LEVEL` | Niveau de log (debug, info, warn, error) | `info` | Non |
 | `PROMETHEUS_ENABLED` | Activer l'endpoint de metriques Prometheus | `true` | Non |
+| `GRAYLOG_HOST` | Hote Graylog pour les logs GELF | `""` | Non |
+| `GRAYLOG_PORT` | Port Graylog GELF (UDP) | `12201` | Non |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Endpoint OpenTelemetry pour Jaeger | `""` | Non |
+| `OTEL_SERVICE_NAME` | Nom du service pour les traces | `geosm-api` | Non |
+| `SLACK_WEBHOOK_URL` | Webhook Slack pour les alertes | `""` | Non |
+| `ALERT_EMAIL_TO` | Email destinataire des alertes | `""` | Non |
 
 ### Super administrateur
 
@@ -244,9 +352,10 @@ L'API est servie sous le prefixe `/api/v1`. La documentation interactive Swagger
 
 ### Sante et metriques
 - `GET /health` -- Verification de sante
-- `GET /health/ready` -- Sonde de disponibilite
-- `GET /health/live` -- Sonde de vivacite
-- `GET /metrics` -- Metriques Prometheus
+- `GET /health/detailed` -- Sante detaillee (PostgreSQL, Redis, MinIO, MeiliSearch, QGIS, disque, memoire)
+- `GET /health/ready` -- Sonde de disponibilite (Kubernetes readinessProbe)
+- `GET /health/live` -- Sonde de vivacite (Kubernetes livenessProbe)
+- `GET /metrics` -- Metriques Prometheus (25+ compteurs/histogrammes/jauges)
 
 ### Authentification (`/api/v1/auth`)
 - Inscription, connexion, rafraichissement de token, deconnexion
@@ -345,6 +454,33 @@ Pour la reference API complete, voir [docs/reference-api.md](./docs/reference-ap
 
 ---
 
+## CI/CD
+
+Le projet dispose d'un pipeline CI/CD complet via GitHub Actions :
+
+| Workflow | Declencheur | Description |
+|---|---|---|
+| **CI** | push/PR sur main, dev | Linting, TypeScript, tests unitaires avec couverture, tests d'integration (PostgreSQL, Redis, MinIO, MeiliSearch), build |
+| **Qualite du code** | push/PR sur main, dev | ESLint detaille, verification TypeScript, couverture de code, detection de code duplique (jscpd) |
+| **Securite** | push/PR + hebdomadaire | Audit npm, detection de secrets (Gitleaks), analyse SAST, scan Docker (Trivy), verification d'injection SQL |
+| **Deploiement** | push sur main | Tests, build Docker, push GHCR, creation de tag `yyyyMMdd.numBuild`, release GitHub |
+| **Labels** | manuel | Initialisation de 30+ labels du projet en francais |
+
+### Dependabot
+
+Dependabot est configure pour verifier hebdomadairement (lundi 8h, fuseau Africa/Douala) les mises a jour de :
+- **npm** : dependances Node.js (groupees par categorie : Prisma, Fastify, OpenTelemetry, etc.)
+- **Docker** : images du Dockerfile
+- **GitHub Actions** : actions utilisees dans les workflows
+
+Les PRs de Dependabot ciblent la branche `dev`.
+
+### Versionnement
+
+Les versions suivent le format `yyyyMMdd.numBuild` (ex: `20260626.1`, `20260626.2`). Chaque push sur `main` cree automatiquement un tag Git et une release GitHub avec l'image Docker correspondante sur GHCR.
+
+---
+
 ## Schema de base de donnees
 
 La base de donnees utilise PostgreSQL avec les extensions PostGIS. Elle contient **19 modeles Prisma** :
@@ -377,6 +513,20 @@ En plus des modeles Prisma, la base contient :
 
 ---
 
+## Observabilite
+
+L'API integre une stack d'observabilite complete :
+
+| Composant | Technologie | Description |
+|---|---|---|
+| **Metriques** | Prometheus (prom-client) | 25+ metriques custom : HTTP, WebSocket, jobs, DB, PostGIS, ogr2ogr, stockage, recherche, cache, QGIS, auth, email |
+| **Traces** | OpenTelemetry + Jaeger | Traces distribuees via OTLP/HTTP |
+| **Logs** | Winston + Graylog (GELF) | Logs structures avec transport GELF pour centralisation |
+| **Alertes** | AlertingService | Alertes via webhook Slack et email SMTP (erreurs, latence, disque, memoire) |
+| **Tableaux de bord** | Grafana | Dashboards preconfigures pour l'API |
+
+---
+
 ## Scripts PyQGIS
 
 Situes dans `python_scripts/`, ces 14 scripts gerent les projets QGIS Server :
@@ -402,98 +552,28 @@ Ces scripts necessitent Python 3 avec les bindings PyQGIS et sont invoques par l
 
 ---
 
-## Tests
-
-```bash
-# Lancer tous les tests
-npm test
-
-# Lancer les tests en mode watch
-npm run test:watch
-
-# Lancer les tests avec couverture de code
-npm run test:coverage
-```
-
-Les tests sont ecrits avec **Vitest** et respectent les memes limites architecturales que le code source.
-
----
-
-## Docker
-
-Le deploiement se fait via Docker et Docker Compose. Voir [docs/deploiement.md](./docs/deploiement.md) pour le guide complet.
-
-```bash
-# Demarrer tous les services
-docker compose up -d
-
-# Executer les migrations
-docker compose exec api npx prisma migrate deploy
-
-# Initialiser la base de donnees
-docker compose exec api npm run db:seed
-```
-
-Le fichier `docker-compose.yml` inclut tous les services necessaires :
-- **api** -- L'API GeOSM (Fastify)
-- **postgres** -- PostgreSQL 16 + PostGIS 3.4
-- **redis** -- Redis 7 Alpine
-- **minio** -- MinIO (stockage objet)
-- **meilisearch** -- MeiliSearch v1.6
-- **qgis-server** -- QGIS Server 3.28
-
----
-
 ## Structure du projet
 
 ```
 src/
 +-- server.ts                    # Point d'entree de l'application
-+-- container.ts                 # Configuration du conteneur DI Awilix
++-- container.ts                 # Configuration du conteneur DI Awilix (166+ composants)
 +-- config/                      # Configuration (environnement, application)
 +-- domain/                      # Couche domaine (entites, enums, erreurs, interfaces)
 +-- application/                 # Couche application
 |   +-- dtos/                    # Objets de transfert de donnees
 |   +-- services/                # Interfaces de services
-|   +-- use-cases/               # Logique metier organisee par module
-|       +-- admin/               # Administration
-|       +-- adressage/           # Adressage
-|       +-- analysis/            # Analyse spatiale
-|       +-- analytics/           # Analytiques
-|       +-- auth/                # Authentification
-|       +-- base-maps/           # Fonds de carte
-|       +-- catalog/             # Catalogue
-|       +-- default-themes/      # Themes par defaut
-|       +-- documents/           # Documents
-|       +-- drawings/            # Dessins
-|       +-- exports/             # Exports
-|       +-- features/            # Features (entites geographiques)
-|       +-- geocoding/           # Geocodage
-|       +-- geoportail/          # Geoportail
-|       +-- groups/              # Groupes
-|       +-- instances/           # Instances
-|       +-- layers/              # Couches
-|       +-- maps/                # Compositions de carte
-|       +-- osm/                 # OpenStreetMap
-|       +-- qgis-projects/       # Projets QGIS
-|       +-- rasters/             # Rasters
-|       +-- routing/             # Itineraire
-|       +-- search/              # Recherche
-|       +-- seo/                 # SEO
-|       +-- sharing/             # Partage
-|       +-- styles/              # Styles
-|       +-- sub-groups/          # Sous-groupes
-|       +-- users/               # Utilisateurs
+|   +-- use-cases/               # Logique metier organisee par module (27 modules)
 +-- infrastructure/              # Couche infrastructure
 |   +-- auth/                    # Services Argon2, JWT
 |   +-- cache/                   # Service Redis
-|   +-- database/                # Depots Prisma, PostGIS, requetes OSM
+|   +-- database/                # Depots Prisma, PostGIS, requetes OSM, adressage
 |   |   +-- prisma/              # Schema et migrations
 |   |   +-- repositories/        # Implementations Prisma des depots
 |   +-- email/                   # Service SMTP
 |   +-- external-apis/           # Nominatim, OSRM, MeiliSearch, QGIS Server
 |   +-- gdal/                    # Service ogr2ogr, service raster
-|   +-- observability/           # Logger Winston
+|   +-- observability/           # Metriques Prometheus, traces OpenTelemetry, logs Winston/GELF, alertes
 |   +-- osm/                     # Service osm2pgsql
 |   +-- qgis/                    # Service de gestion de projets QGIS
 |   +-- queue/                   # Service de file d'attente BullMQ et workers
@@ -501,13 +581,17 @@ src/
 |   +-- utils/                   # Utilitaires (generateur SVG)
 |   +-- websocket/               # Service de notifications WebSocket
 +-- presentation/                # Couche presentation (HTTP)
-    +-- middleware/               # Gestionnaire d'erreurs, RBAC, logger, metriques
+    +-- middleware/               # Gestionnaire d'erreurs, RBAC, logger, metriques Prometheus
     +-- plugins/                  # Plugins Fastify (auth, CORS, Swagger, WebSocket, multipart)
     +-- routes/                   # Gestionnaires de routes (31 modules)
     +-- schemas/                  # Schemas de validation Zod
 
 python_scripts/                  # Scripts PyQGIS pour la gestion des projets QGIS
-prisma/                          # Script de seed Prisma
+tests/                           # Tests d'integration
+  +-- integration-db/            # Tests avec base de donnees reelle
+monitoring/                      # Configuration Grafana et Prometheus
+docker/                          # Scripts Docker (entrypoint)
+.github/                         # CI/CD, templates d'issues/PR, Dependabot
 ```
 
 ---
@@ -522,4 +606,4 @@ Consultez [CONTRIBUTING.md](./CONTRIBUTING.md) pour les directives de contributi
 
 Ce projet est sous licence MIT. Voir [LICENSE](./LICENSE) pour les details.
 
-Copyright (c) 2024-2025 GeOSM Family
+Copyright (c) 2024-2026 GeOSM Family

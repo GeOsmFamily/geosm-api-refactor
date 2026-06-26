@@ -1739,7 +1739,10 @@ Voir [Section 7.1 - Import des Donnees OSM Brutes](#71-import-des-donnees-osm-br
 | Injection de dependances | Awilix |
 | Validation | Zod |
 | WebSocket | @fastify/websocket |
-| Monitoring | Prometheus |
+| Monitoring | Prometheus, Grafana |
+| Tracing | Jaeger, OpenTelemetry |
+| Logs centralises | Graylog (GELF), Winston |
+| Alertes | Slack, Email |
 
 ### Roles et Permissions
 

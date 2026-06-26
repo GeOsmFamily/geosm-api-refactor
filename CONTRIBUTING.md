@@ -83,17 +83,35 @@ Ce projet suit la **Clean Architecture** (Architecture Hexagonale). Placez votre
 
 ## Tests
 
-- Ecrire les tests avec **Vitest**
+Le projet contient **800+ tests** (unitaires et integration) ecrits avec **Vitest**.
+
 - Placer les fichiers de test a cote des fichiers source ou dans un repertoire `__tests__`
 - Tester les cas d'utilisation independamment de l'infrastructure (mocker les depots)
+- Les tests d'integration necessitent PostgreSQL/PostGIS, Redis, MinIO et MeiliSearch
 
 ```bash
-npm test              # Lancer tous les tests
-npm run test:watch    # Mode watch
-npm run test:coverage # Avec rapport de couverture
+npm test                  # Lancer tous les tests unitaires
+npm run test:watch        # Mode watch
+npm run test:coverage     # Avec rapport de couverture
+npm run test:integration  # Tests d'integration (necessite les services)
 ```
 
 Toutes les PRs doivent passer les tests existants. Les nouvelles fonctionnalites doivent inclure des tests.
+
+---
+
+## CI/CD
+
+Le projet utilise **GitHub Actions** avec 4 pipelines :
+
+| Pipeline | Declencheur | Description |
+|---|---|---|
+| **CI** (`ci.yml`) | Push/PR sur `main`, `dev`, `claude/**` | Lint, TypeScript, tests unitaires, tests d'integration, build, Docker |
+| **Qualite du code** (`code-quality.yml`) | Push/PR sur `main`, `dev`, `claude/**` | ESLint avec rapport, verification TypeScript, couverture, detection de doublons (jscpd) |
+| **Securite** (`security.yml`) | Push/PR + hebdomadaire | Audit npm, scan de secrets (Gitleaks), analyse SAST, scan Docker (Trivy), verification injection SQL |
+| **Deploiement** (`deploy.yml`) | Push sur `main` | Tests, build Docker, push GHCR, tag de version `yyyyMMdd.numBuild`, release GitHub |
+
+**Dependabot** est configure pour les mises a jour hebdomadaires (npm, Docker, GitHub Actions) sur la branche `dev`.
 
 ---
 
@@ -140,7 +158,9 @@ Avant de soumettre votre PR, verifiez :
 
 - [ ] Le code compile sans erreurs (`npm run build`)
 - [ ] Le linting passe (`npm run lint`)
+- [ ] La verification TypeScript passe (`npx tsc --noEmit`)
 - [ ] Tous les tests existants passent (`npm test`)
+- [ ] Les tests d'integration passent (`npm run test:integration`)
 - [ ] Des tests sont ecrits pour les nouvelles fonctionnalites ou corrections
 - [ ] Les messages de commit suivent le format conventional commits
 - [ ] Le titre de la PR est concis et descriptif
@@ -160,4 +180,8 @@ Soyez respectueux, constructif et collaboratif. Nous nous engageons a offrir une
 
 ## Questions ?
 
-Ouvrez une issue sur GitHub pour les questions, demandes de fonctionnalites ou rapports de bogues.
+Ouvrez une issue sur GitHub en utilisant les templates disponibles (bug, fonctionnalite, performance, securite, documentation) pour les questions, demandes de fonctionnalites ou rapports de bogues.
+
+---
+
+*Derniere mise a jour : Juin 2026*
