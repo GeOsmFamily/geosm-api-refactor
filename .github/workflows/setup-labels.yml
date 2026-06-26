@@ -5,20 +5,21 @@ on:
 
 permissions:
   issues: write
+  contents: read
 
 jobs:
   create-labels:
     name: Créer les labels du projet
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - name: Créer les labels
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
           create_label() {
             local name="$1" color="$2" description="$3"
-            gh label create "$name" --color "$color" --description "$description" --force
+            gh label create "$name" --repo "$REPO" --color "$color" --description "$description" --force
           }
 
           # Types
