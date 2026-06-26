@@ -103,11 +103,11 @@ services:
           memory: 128M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
-      interval: 30s
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/minio/health/live"]
+      interval: 15s
       timeout: 10s
-      start_period: 10s
-      retries: 5
+      start_period: 30s
+      retries: 10
 
   meilisearch:
     image: getmeili/meilisearch:v1.6
