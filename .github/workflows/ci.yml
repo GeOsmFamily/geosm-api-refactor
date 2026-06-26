@@ -132,6 +132,7 @@ jobs:
             minio/minio:RELEASE.2024-01-16T16-07-38Z server /data
           for i in $(seq 1 30); do
             curl -sf http://localhost:9000/minio/health/live && break
+            [ "$i" -eq 30 ] && echo "MinIO health check timeout" && exit 1
             sleep 2
           done
       - uses: actions/setup-node@v4
