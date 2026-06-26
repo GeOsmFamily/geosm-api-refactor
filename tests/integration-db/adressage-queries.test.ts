@@ -122,7 +122,7 @@ describe.skipIf(!DB_AVAILABLE)('Adressage raw SQL queries', () => {
     // so we test the first query only
     const prisma = getPrisma();
     const voie = await prisma.$queryRawUnsafe<{ id_voie: number }[]>(
-      `SELECT * FROM adressage.voies WHERE ST_DWithin(trace, 'POINT(11.5 3.85)'::geography, 50) ORDER BY ST_Distance(trace, 'POINT(11.5 3.85)'::geography)`,
+      `SELECT id_voie FROM adressage.voies WHERE ST_DWithin(trace, 'POINT(11.5 3.85)'::geography, 50) ORDER BY ST_Distance(trace, 'POINT(11.5 3.85)'::geography)`,
     );
     expect(Array.isArray(voie)).toBe(true);
     expect(voie.length).toBeGreaterThanOrEqual(1);

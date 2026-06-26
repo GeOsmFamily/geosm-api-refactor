@@ -15,7 +15,7 @@ export class SaveCoordPdfUseCase {
     // Store coordinate annotation metadata
     const result = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
       `INSERT INTO public.coord_pdf_annotations (instance_id, coordinates, title, description, user_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
+       VALUES ($1, $2::jsonb, $3, $4, $5, NOW())
        RETURNING id::text`,
       input.instanceId,
       JSON.stringify(input.coordinates),

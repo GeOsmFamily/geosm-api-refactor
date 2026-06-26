@@ -64,7 +64,7 @@ export class AdressageService {
     const lon = Number(coord[0]);
     const lat = Number(coord[1]);
     const voie = await this.prisma.$queryRawUnsafe<{ id_voie: number }[]>(
-      `SELECT * FROM adressage.voies WHERE ST_DWithin(trace, 'POINT(${lon} ${lat})'::geography, 50) ORDER BY ST_Distance(trace, 'POINT(${lon} ${lat})'::geography)`
+      `SELECT id_voie FROM adressage.voies WHERE ST_DWithin(trace, 'POINT(${lon} ${lat})'::geography, 50) ORDER BY ST_Distance(trace, 'POINT(${lon} ${lat})'::geography)`
     );
     if (voie.length === 0) return 'off';
     const adresse = await this.prisma.$queryRawUnsafe<{ founit_adresse_yde: string }[]>(

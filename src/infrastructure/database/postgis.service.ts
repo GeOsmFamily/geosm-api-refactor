@@ -230,12 +230,10 @@ export class PostGISService {
     const result = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
       SELECT
         COUNT(*)::integer as feature_count,
-        CASE WHEN GeometryType(geom) IN ('POLYGON', 'MULTIPOLYGON')
-          THEN ROUND(SUM(ST_Area(ST_Transform(geom, 32632)) / 1000000)::numeric, 2)
-          ELSE NULL END as total_area,
-        CASE WHEN GeometryType(geom) IN ('LINESTRING', 'MULTILINESTRING')
-          THEN ROUND(SUM(ST_Length(ST_Transform(geom, 32632)) / 1000)::numeric, 2)
-          ELSE NULL END as total_length,
+        ROUND(SUM(CASE WHEN GeometryType(geom) IN ('POLYGON', 'MULTIPOLYGON')
+          THEN ST_Area(ST_Transform(geom, 32632)) / 1000000 ELSE 0 END)::numeric, 2) as total_area,
+        ROUND(SUM(CASE WHEN GeometryType(geom) IN ('LINESTRING', 'MULTILINESTRING')
+          THEN ST_Length(ST_Transform(geom, 32632)) / 1000 ELSE 0 END)::numeric, 2) as total_length,
         ST_XMin(ST_Extent(geom)) as xmin,
         ST_YMin(ST_Extent(geom)) as ymin,
         ST_XMax(ST_Extent(geom)) as xmax,
