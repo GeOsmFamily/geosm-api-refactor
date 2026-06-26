@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { successResponse } from '../schemas/common.schema.js';
 import { jobIdParamSchema } from '../schemas/admin.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 
@@ -72,19 +73,19 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   const manageSequenceUseCase = app.diContainer.resolve<ManageSequenceUseCase>('manageSequenceUseCase');
 
   // GET /dashboard — returns stats
-  app.get('/dashboard', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/dashboard', { schema: { description: 'Obtenir le tableau de bord', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const result = await getDashboardUseCase.execute();
     return reply.send(successResponse(result));
   });
 
   // GET /jobs — returns job list with real queue data
-  app.get('/jobs', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/jobs', { schema: { description: 'Lister les taches en file d\'attente', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const result = await listJobsUseCase.execute();
     return reply.send(successResponse(result));
   });
 
   // GET /jobs/:id — returns job details
-  app.get('/jobs/:id', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/jobs/:id', { schema: { description: 'Obtenir les details d\'une tache', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = parseBody(jobIdParamSchema, request.params);
     const result = await getJobDetailsUseCase.execute(params.id);
     if (!result) {
@@ -94,7 +95,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /jobs/:id/retry — retry a failed job
-  app.post('/jobs/:id/retry', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/jobs/:id/retry', { schema: { description: 'Relancer une tache echouee', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(jobIdParamSchema, request.params);
     const result = await retryJobUseCase.execute(id);
     const status = result.success ? 200 : 400;
@@ -102,59 +103,59 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /osm/import — import OSM data via osm2pgsql
-  app.post('/osm/import', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/osm/import', { schema: { description: 'Importer des donnees OSM via osm2pgsql', tags: ['Administration'], security: [{ bearerAuth: [] }], body: zodToSwagger(importOsmSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = parseBody(importOsmSchema, request.body);
     const result = await importOsmDataUseCase.execute(body);
     return reply.send(successResponse(result));
   });
 
   // GET /health — returns system health
-  app.get('/health', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/health', { schema: { description: 'Obtenir l\'etat de sante du systeme', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const result = await getSystemHealthUseCase.execute();
     return reply.send(successResponse(result));
   });
 
   // POST /cache/clear — clears Redis cache
-  app.post('/cache/clear', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/cache/clear', { schema: { description: 'Vider le cache Redis', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
     await redisService.getClient().flushdb();
     return reply.send(successResponse({ message: 'Cache cleared successfully' }));
   });
 
   // POST /icons/generate — generate SVG marker icons
-  app.post('/icons/generate', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/icons/generate', { schema: { description: 'Generer des icones SVG', tags: ['Administration'], security: [{ bearerAuth: [] }], body: zodToSwagger(generateIconsSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const input = parseBody(generateIconsSchema, request.body);
     const result = await generateIconUseCase.execute(input);
     return reply.send(successResponse(result));
   });
 
   // GET /config/db — returns sanitized DB connection info
-  app.get('/config/db', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/config/db', { schema: { description: 'Obtenir la configuration de la base de donnees', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const result = await configDbUseCase.execute();
     return reply.send(successResponse(result));
   });
 
   // POST /instances/template — create instance with default structure
-  app.post('/instances/template', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/instances/template', { schema: { description: 'Creer un modele d\'instance', tags: ['Administration'], security: [{ bearerAuth: [] }], body: zodToSwagger(createInstanceTemplateSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const input = parseBody(createInstanceTemplateSchema, request.body);
     const result = await createInstanceTemplateUseCase.execute(input);
     return reply.status(201).send(successResponse(result));
   });
 
   // GET /sequences — list sequences
-  app.get('/sequences', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/sequences', { schema: { description: 'Lister les sequences', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const result = await manageSequenceUseCase.listSequences();
     return reply.send(successResponse(result));
   });
 
   // POST /sequences — create a sequence
-  app.post('/sequences', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/sequences', { schema: { description: 'Creer une sequence', tags: ['Administration'], security: [{ bearerAuth: [] }], body: zodToSwagger(createSequenceSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { name, start, increment } = parseBody(createSequenceSchema, request.body);
     const result = await manageSequenceUseCase.createSequence(name, start, increment);
     return reply.status(201).send(successResponse(result));
   });
 
   // DELETE /sequences — drop a sequence
-  app.delete('/sequences', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/sequences', { schema: { description: 'Supprimer une sequence', tags: ['Administration'], security: [{ bearerAuth: [] }], body: zodToSwagger(deleteSequenceSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { name } = parseBody(deleteSequenceSchema, request.body);
     const result = await manageSequenceUseCase.dropSequence(name);
     return reply.send(successResponse(result));

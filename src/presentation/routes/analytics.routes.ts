@@ -4,6 +4,7 @@ import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
+import { zodToSwagger } from '../schemas/swagger.helper.js';
 
 import { TrackEventUseCase, TrackEventDTO } from '../../application/use-cases/analytics/track-event.use-case.js';
 import { GetAnalyticsUseCase } from '../../application/use-cases/analytics/get-analytics.use-case.js';
@@ -39,7 +40,9 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   const incrementViewUseCase = app.diContainer.resolve<IncrementViewUseCase>('incrementViewUseCase');
 
   // POST /api/v1/analytics/track
-  app.post('/track', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/track', {
+    schema: { description: 'Enregistrer un evenement analytique', tags: ['Analytiques'], body: zodToSwagger(trackEventSchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const dto = parseBody(trackEventSchema, request.body);
     const userId = (request.user as { sub: string } | undefined)?.sub;
     const ipAddress = request.ip;
@@ -53,7 +56,9 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /api/v1/analytics/view
-  app.post('/view', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/view', {
+    schema: { description: 'Incrementer une vue', tags: ['Analytiques'], body: zodToSwagger(incrementViewSchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { type, id } = parseBody(incrementViewSchema, request.body);
     const userId = (request.user as { sub: string } | undefined)?.sub;
     const event = await incrementViewUseCase.execute(type, id, request.ip, userId);
@@ -61,7 +66,10 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /api/v1/analytics (admin only)
-  app.get('/', { preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    schema: { description: 'Obtenir les statistiques analytiques (admin)', tags: ['Analytiques'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(getAnalyticsQuerySchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId, startDate, endDate } = parseBody(getAnalyticsQuerySchema, request.query);
     const stats = await getAnalyticsUseCase.execute(instanceId, startDate, endDate);
     return reply.send(successResponse(stats));

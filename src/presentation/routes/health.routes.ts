@@ -102,7 +102,9 @@ function getMemoryUsage(): { usagePercent: number; totalMB: number; freeMB: numb
 }
 
 export async function healthRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/health', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/health', {
+    schema: { description: 'Verifier l\'etat de sante de l\'API', tags: ['Sante'] },
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send(
       successResponse({
         status: 'ok',
@@ -112,7 +114,9 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     );
   });
 
-  app.get('/health/detailed', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/health/detailed', {
+    schema: { description: 'Verifier l\'etat de sante detaille de l\'API', tags: ['Sante'] },
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const checks: Record<string, HealthCheckResult | Record<string, unknown>> = {};
 
     const [postgres, redis, minio, meilisearch, qgis] = await Promise.allSettled([
@@ -159,7 +163,9 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     );
   });
 
-  app.get('/health/ready', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/health/ready', {
+    schema: { description: 'Verifier si l\'API est prete', tags: ['Sante'] },
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       const [postgres, redis] = await Promise.all([
         checkPostgres(app),
@@ -175,11 +181,15 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.get('/health/live', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/health/live', {
+    schema: { description: 'Verifier si l\'API est en vie', tags: ['Sante'] },
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send(successResponse({ status: 'live', pid: process.pid, uptime: process.uptime() }));
   });
 
-  app.get('/metrics', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/metrics', {
+    schema: { description: 'Obtenir les metriques Prometheus', tags: ['Sante'] },
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const metrics = await metricsRegister.metrics();
     return reply.type(metricsRegister.contentType).send(metrics);
   });
