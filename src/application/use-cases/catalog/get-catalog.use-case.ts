@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { localize } from '../../utils/localize.js';
 
 export interface CatalogLayer {
   id: string;
@@ -39,7 +40,7 @@ export interface CatalogInstance {
 export class GetCatalogUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async execute(instanceSlug?: string): Promise<CatalogInstance[]> {
+  async execute(instanceSlug?: string, lang: string = 'fr'): Promise<CatalogInstance[]> {
     const where: Record<string, unknown> = { isActive: true };
     if (instanceSlug) {
       where.slug = instanceSlug;
@@ -66,6 +67,8 @@ export class GetCatalogUseCase {
                     description: true,
                     geometryType: true,
                     sourceType: true,
+                    sourceUrl: true,
+                    tableName: true,
                   },
                 },
               },
@@ -78,25 +81,35 @@ export class GetCatalogUseCase {
 
     return instances.map((inst) => ({
       id: inst.id,
-      name: inst.name,
+      name: localize(inst.name, lang),
       slug: inst.slug,
-      description: inst.description,
+      description: localize(inst.description, lang),
       logo: inst.logo,
       groups: inst.groups.map((g) => ({
         id: g.id,
-        name: g.name,
+        name: localize(g.name, lang),
         slug: g.slug,
-        description: g.description,
+        description: localize(g.description, lang),
         icon: g.icon,
         color: g.color,
         subGroups: g.subGroups.map((sg) => ({
           id: sg.id,
-          name: sg.name,
+          name: localize(sg.name, lang),
           slug: sg.slug,
-          description: sg.description,
-          layers: sg.layers,
+          description: localize(sg.description, lang),
+          layers: sg.layers.map((l) => ({
+            id: l.id,
+            name: localize(l.name, lang),
+            slug: l.slug,
+            description: localize(l.description, lang),
+            geometryType: l.geometryType,
+            sourceType: l.sourceType,
+            url: l.sourceUrl,
+            tableName: l.tableName,
+          })),
         })),
       })),
     }));
   }
 }
+

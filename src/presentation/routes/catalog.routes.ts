@@ -18,8 +18,9 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/catalog
   app.get('/', {
     schema: { description: 'Obtenir le catalogue complet', tags: ['Catalogue'] },
-  }, async (_request: FastifyRequest, reply: FastifyReply) => {
-    const catalog = await getCatalogUseCase.execute();
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const lang = request.headers['accept-language']?.startsWith('en') ? 'en' : 'fr';
+    const catalog = await getCatalogUseCase.execute(undefined, lang);
     return reply.send(successResponse(catalog));
   });
 
@@ -28,7 +29,9 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
     schema: { description: 'Obtenir le catalogue par instance', tags: ['Catalogue'] },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceSlug } = parseBody(instanceSlugParamSchema, request.params);
-    const catalog = await getCatalogUseCase.execute(instanceSlug);
+    const lang = request.headers['accept-language']?.startsWith('en') ? 'en' : 'fr';
+    const catalog = await getCatalogUseCase.execute(instanceSlug, lang);
     return reply.send(successResponse(catalog));
   });
 }
+

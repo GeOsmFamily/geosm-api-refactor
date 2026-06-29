@@ -38,6 +38,8 @@ import { uploadRoutes } from './presentation/routes/upload.routes.js';
 import { featureRoutes } from './presentation/routes/feature.routes.js';
 import { geoportailRoutes } from './presentation/routes/geoportail.routes.js';
 import { drawingRoutes } from './presentation/routes/drawing.routes.js';
+import { geosignetRoutes } from './presentation/routes/geosignet.routes.js';
+import { commentRoutes } from './presentation/routes/comment.routes.js';
 import { sharingRoutes } from './presentation/routes/sharing.routes.js';
 import { analyticsRoutes } from './presentation/routes/analytics.routes.js';
 import { catalogRoutes } from './presentation/routes/catalog.routes.js';
@@ -126,6 +128,8 @@ async function bootstrap(): Promise<void> {
   await app.register(featureRoutes, { prefix: `${appConfig.apiPrefix}/layers/:layerId/features` });
   await app.register(geoportailRoutes, { prefix: `${appConfig.apiPrefix}/geoportail` });
   await app.register(drawingRoutes, { prefix: `${appConfig.apiPrefix}/drawings` });
+  await app.register(geosignetRoutes, { prefix: `${appConfig.apiPrefix}/geosignets` });
+  await app.register(commentRoutes, { prefix: `${appConfig.apiPrefix}/comments` });
   await app.register(sharingRoutes, { prefix: `${appConfig.apiPrefix}/share` });
   await app.register(analyticsRoutes, { prefix: `${appConfig.apiPrefix}/analytics` });
   await app.register(catalogRoutes, { prefix: `${appConfig.apiPrefix}/catalog` });

@@ -9,8 +9,10 @@ export interface NominatimResult {
   lon: string;
   display_name: string;
   boundingbox: string[];
+  class: string;
   type: string;
   importance: number;
+  geojson?: unknown;
 }
 
 export class NominatimService {
@@ -21,7 +23,7 @@ export class NominatimService {
   }
 
   async search(query: string, options?: { viewbox?: string; bounded?: boolean; limit?: number; countrycodes?: string }): Promise<NominatimResult[]> {
-    const params = new URLSearchParams({ q: query, format: 'json' });
+    const params = new URLSearchParams({ q: query, format: 'json', polygon_geojson: '1' });
     if (options?.viewbox) params.set('viewbox', options.viewbox);
     if (options?.bounded) params.set('bounded', '1');
     if (options?.limit) params.set('limit', String(options.limit));
@@ -43,7 +45,7 @@ export class NominatimService {
   }
 
   async lookup(osmIds: string[]): Promise<NominatimResult[]> {
-    const params = new URLSearchParams({ osm_ids: osmIds.join(','), format: 'json' });
+    const params = new URLSearchParams({ osm_ids: osmIds.join(','), format: 'json', polygon_geojson: '1' });
     const response = await fetch(`${this.baseUrl}/lookup?${params}`, {
       headers: { 'User-Agent': 'GeOSM-API/1.0' },
     });

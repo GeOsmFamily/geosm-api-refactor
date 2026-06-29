@@ -123,6 +123,18 @@ import { GetDrawingsUseCase } from './application/use-cases/drawings/get-drawing
 import { GetDrawingUseCase } from './application/use-cases/drawings/get-drawing.use-case.js';
 import { DeleteDrawingUseCase } from './application/use-cases/drawings/delete-drawing.use-case.js';
 
+// Geosignet use cases
+import { PrismaGeosignetRepository } from './infrastructure/database/repositories/prisma-geosignet.repository.js';
+import { SaveGeosignetUseCase } from './application/use-cases/geosignets/save-geosignet.use-case.js';
+import { GetGeosignetsUseCase } from './application/use-cases/geosignets/get-geosignets.use-case.js';
+import { DeleteGeosignetUseCase } from './application/use-cases/geosignets/delete-geosignet.use-case.js';
+
+// Comment use cases
+import { PrismaCommentRepository } from './infrastructure/database/repositories/prisma-comment.repository.js';
+import { SaveCommentUseCase } from './application/use-cases/comments/save-comment.use-case.js';
+import { GetCommentsUseCase } from './application/use-cases/comments/get-comments.use-case.js';
+import { DeleteCommentUseCase } from './application/use-cases/comments/delete-comment.use-case.js';
+
 // Sharing use cases
 import { PrismaSharedMapRepository } from './infrastructure/database/repositories/prisma-shared-map.repository.js';
 import { CreateSharedMapUseCase } from './application/use-cases/sharing/create-shared-map.use-case.js';
@@ -387,6 +399,16 @@ interface Cradle {
   getDrawingsUseCase: GetDrawingsUseCase;
   getDrawingUseCase: GetDrawingUseCase;
   deleteDrawingUseCase: DeleteDrawingUseCase;
+  // Geosignets
+  geosignetRepository: PrismaGeosignetRepository;
+  saveGeosignetUseCase: SaveGeosignetUseCase;
+  getGeosignetsUseCase: GetGeosignetsUseCase;
+  deleteGeosignetUseCase: DeleteGeosignetUseCase;
+  // Comments
+  commentRepository: PrismaCommentRepository;
+  saveCommentUseCase: SaveCommentUseCase;
+  getCommentsUseCase: GetCommentsUseCase;
+  deleteCommentUseCase: DeleteCommentUseCase;
   // Sharing
   sharedMapRepository: PrismaSharedMapRepository;
   createSharedMapUseCase: CreateSharedMapUseCase;
@@ -657,6 +679,18 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     getDrawingsUseCase: asFunction((c: Cradle) => new GetDrawingsUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
     getDrawingUseCase: asFunction((c: Cradle) => new GetDrawingUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
     deleteDrawingUseCase: asFunction((c: Cradle) => new DeleteDrawingUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Geosignet repositories and use cases
+    geosignetRepository: asFunction(() => new PrismaGeosignetRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    saveGeosignetUseCase: asFunction((c: Cradle) => new SaveGeosignetUseCase(c.geosignetRepository), { lifetime: Lifetime.SCOPED }),
+    getGeosignetsUseCase: asFunction((c: Cradle) => new GetGeosignetsUseCase(c.geosignetRepository), { lifetime: Lifetime.SCOPED }),
+    deleteGeosignetUseCase: asFunction((c: Cradle) => new DeleteGeosignetUseCase(c.geosignetRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Comment repositories and use cases
+    commentRepository: asFunction(() => new PrismaCommentRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    saveCommentUseCase: asFunction((c: Cradle) => new SaveCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
+    getCommentsUseCase: asFunction((c: Cradle) => new GetCommentsUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
+    deleteCommentUseCase: asFunction((c: Cradle) => new DeleteCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
 
     // Sharing repositories and use cases
     sharedMapRepository: asFunction(() => new PrismaSharedMapRepository(prisma), { lifetime: Lifetime.SINGLETON }),

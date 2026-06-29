@@ -1,11 +1,12 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { listInstancesQuerySchema, createInstanceSchema, updateInstanceSchema, addInstanceUserSchema, changeInstanceUserRoleSchema } from '../schemas/instance.schema.js';
-import { idParamSchema, successResponse, paginatedResponse } from '../schemas/common.schema.js';
+import { idParamSchema, slugParamSchema, successResponse, paginatedResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
+import { localize } from '../../application/utils/localize.js';
 
 import { ListInstancesUseCase } from '../../application/use-cases/instances/list-instances.use-case.js';
 import { GetInstanceUseCase } from '../../application/use-cases/instances/get-instance.use-case.js';
@@ -45,6 +46,24 @@ export async function instanceRoutes(app: FastifyInstance): Promise<void> {
     const result = await listInstancesUseCase.execute(query);
     const totalPages = Math.ceil(result.total / (query.limit ?? 20));
     return reply.send(paginatedResponse(result.data, { page: query.page ?? 1, limit: query.limit ?? 20, total: result.total, totalPages }));
+  });
+
+  app.get('/slug/:slug', {
+    schema: { description: 'Obtenir une instance par slug', tags: ['Instances'], params: zodToSwagger(slugParamSchema) },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { slug } = parseBody(slugParamSchema, request.params);
+    const instanceRepository = app.diContainer.resolve<any>('instanceRepository');
+    const result = await instanceRepository.findBySlug(slug);
+    if (!result) {
+      return reply.status(404).send({ message: `Instance with slug ${slug} not found` });
+    }
+    const lang = request.headers['accept-language']?.startsWith('en') ? 'en' : 'fr';
+    const localized = {
+      ...result,
+      name: localize(result.name, lang),
+      description: localize(result.description, lang),
+    };
+    return reply.send(successResponse(localized));
   });
 
   app.get('/:id', {

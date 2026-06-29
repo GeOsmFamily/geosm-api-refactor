@@ -28,7 +28,12 @@ export class MeiliSearchService {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
       body: JSON.stringify(body),
     });
-    if (!response.ok) throw new Error(`MeiliSearch search failed: ${response.statusText}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { hits: [], estimatedTotalHits: 0, offset: 0, limit: 10, processingTimeMs: 0, query };
+      }
+      throw new Error(`MeiliSearch search failed: ${response.statusText}`);
+    }
     return response.json() as Promise<MeiliSearchResult>;
   }
 

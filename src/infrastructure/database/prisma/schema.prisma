@@ -423,3 +423,31 @@ model DefaultTag {
   @@unique([slug, themeId])
   @@map("default_tags")
 }
+
+model Geosignet {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String
+  center    Float[]
+  zoom      Float
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("geosignets")
+}
+
+model Comment {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  instanceId String   @map("instance_id") @db.Uuid
+  text       String
+  lat        Float
+  lon        Float
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([instanceId])
+  @@map("comments")
+}

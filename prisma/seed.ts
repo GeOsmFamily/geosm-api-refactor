@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 
@@ -37,9 +38,9 @@ async function main(): Promise<void> {
     where: { slug: 'cameroon' },
     update: {},
     create: {
-      name: 'Cameroon',
+      name: JSON.stringify({ fr: 'Cameroun', en: 'Cameroon' }),
       slug: 'cameroon',
-      description: 'GeOSM Cameroon instance',
+      description: JSON.stringify({ fr: 'Instance GeOSM Cameroun', en: 'GeOSM Cameroon instance' }),
       bbox: [8.4, 1.6, 16.2, 13.1],
       centerLat: 7.37,
       centerLon: 12.35,
@@ -61,28 +62,36 @@ async function main(): Promise<void> {
   // Groups
   const groups = [
     {
-      name: 'Santé',
+      name_fr: 'Santé',
+      name_en: 'Health',
+      name: JSON.stringify({ fr: 'Santé', en: 'Health' }),
       slug: 'sante',
       icon: 'local_hospital',
       color: '#e74c3c',
       order: 1,
     },
     {
-      name: 'Éducation',
+      name_fr: 'Éducation',
+      name_en: 'Education',
+      name: JSON.stringify({ fr: 'Éducation', en: 'Education' }),
       slug: 'education',
       icon: 'school',
       color: '#3498db',
       order: 2,
     },
     {
-      name: 'Transport',
+      name_fr: 'Transport',
+      name_en: 'Transport',
+      name: JSON.stringify({ fr: 'Transport', en: 'Transport' }),
       slug: 'transport',
       icon: 'directions_bus',
       color: '#2ecc71',
       order: 3,
     },
     {
-      name: 'Environnement',
+      name_fr: 'Environnement',
+      name_en: 'Environment',
+      name: JSON.stringify({ fr: 'Environnement', en: 'Environment' }),
       slug: 'environnement',
       icon: 'eco',
       color: '#27ae60',
@@ -96,25 +105,86 @@ async function main(): Promise<void> {
         slug_instanceId: { slug: g.slug, instanceId: instance.id },
       },
       update: {},
-      create: { ...g, instanceId: instance.id, isActive: true },
+      create: {
+        name: g.name,
+        slug: g.slug,
+        icon: g.icon,
+        color: g.color,
+        order: g.order,
+        instanceId: instance.id,
+        isActive: true,
+      },
     });
 
     // Create a default sub-group per group
-    await prisma.subGroup.upsert({
+    const subGroup = await prisma.subGroup.upsert({
       where: {
         slug_groupId: { slug: `${g.slug}-default`, groupId: group.id },
       },
       update: {},
       create: {
-        name: `${g.name} - Général`,
+        name: JSON.stringify({ fr: `${g.name_fr} - Général`, en: `${g.name_en} - General` }),
         slug: `${g.slug}-default`,
         order: 0,
         isActive: true,
         groupId: group.id,
       },
     });
+
+    // Seed a layer for this subgroup
+    let layerName = '';
+    let layerDesc = '';
+    let geomType: 'POINT' | 'LINESTRING' | 'POLYGON' = 'POINT';
+    let layerSlug = '';
+
+    if (g.slug === 'sante') {
+      layerName = JSON.stringify({ fr: 'Hôpitaux', en: 'Hospitals' });
+      layerDesc = JSON.stringify({ fr: 'Liste des hôpitaux et centres de santé', en: 'List of hospitals and health centers' });
+      layerSlug = 'hopitaux';
+    } else if (g.slug === 'education') {
+      layerName = JSON.stringify({ fr: 'Écoles', en: 'Schools' });
+      layerDesc = JSON.stringify({ fr: 'Établissements scolaires primaires et secondaires', en: 'Primary and secondary school facilities' });
+      layerSlug = 'ecoles';
+    } else if (g.slug === 'transport') {
+      layerName = JSON.stringify({ fr: 'Réseau Routier', en: 'Road Network' });
+      layerDesc = JSON.stringify({ fr: 'Axes routiers majeurs et secondaires', en: 'Major and secondary highways' });
+      geomType = 'LINESTRING';
+      layerSlug = 'routes';
+    } else if (g.slug === 'environnement') {
+      layerName = JSON.stringify({ fr: 'Zones Protégées', en: 'Protected Areas' });
+      layerDesc = JSON.stringify({ fr: 'Parcs nationaux et forêts classées', en: 'National parks and reserves' });
+      geomType = 'POLYGON';
+      layerSlug = 'zones-protegees';
+    }
+
+    if (layerSlug) {
+      await prisma.layer.upsert({
+        where: {
+          slug_instanceId: { slug: layerSlug, instanceId: instance.id }
+        },
+        update: {},
+        create: {
+          name: layerName,
+          slug: layerSlug,
+          description: layerDesc,
+          geometryType: geomType,
+          sourceType: 'WMS',
+          sourceUrl: 'https://geoserver.geosm.org/geoserver/wms',
+          sourceLayer: `cameroon:${layerSlug}`,
+          tableName: layerSlug,
+          schemaName: 'public',
+          isVisible: true,
+          isQueryable: true,
+          opacity: 1,
+          order: 1,
+          subGroupId: subGroup.id,
+          instanceId: instance.id
+        }
+      });
+    }
   }
   console.log('Groups and sub-groups created');
+
 
   // Default themes
   const themes = [
@@ -187,9 +257,13 @@ async function main(): Promise<void> {
   console.log('Seed completed successfully');
 }
 
-main()
-  .catch((e) => {
+(async () => {
+  try {
+    await main();
+  } catch (e) {
     console.error('Seed failed:', e);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  } finally {
+    await prisma.$disconnect();
+  }
+})();
