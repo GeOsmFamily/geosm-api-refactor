@@ -7,11 +7,12 @@ import type { SearchGeocodingUseCase } from '../../application/use-cases/geocodi
 import type { ReverseGeocodingUseCase } from '../../application/use-cases/geocoding/reverse-geocoding.use-case.js';
 import type { LookupGeocodingUseCase } from '../../application/use-cases/geocoding/lookup-geocoding.use-case.js';
 import { z } from 'zod';
-import { writeFile, unlink } from 'fs/promises';
+import { writeFile, unlink, rm } from 'fs/promises';
 import { createReadStream, existsSync } from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import os from 'os';
 
 const execAsync = promisify(exec);
 
@@ -75,7 +76,7 @@ export async function geocodingRoutes(app: FastifyInstance): Promise<void> {
 
     const safeFileName = body.fileName.replace(/[^a-zA-Z0-9_-]/g, '_') || 'export';
     const timestamp = Date.now();
-    const tempDir = '/tmp';
+    const tempDir = os.tmpdir();
 
     if (body.format === 'geojson') {
       const exportFileName = `${safeFileName}.geojson`;
@@ -85,15 +86,20 @@ export async function geocodingRoutes(app: FastifyInstance): Promise<void> {
     } else {
       // Shapefile
       const geojsonPath = path.join(tempDir, `boundary_${timestamp}.geojson`);
+      const shpDir = path.join(tempDir, `shp_${timestamp}`);
       const zipPath = path.join(tempDir, `boundary_${timestamp}.zip`);
 
       try {
         // Write the GeoJSON to a temp file
         await writeFile(geojsonPath, JSON.stringify(body.geojson), 'utf-8');
 
-        // Run ogr2ogr to convert the GeoJSON to a zipped shapefile
-        const cmd = `ogr2ogr -f "ESRI Shapefile" "${zipPath}" "${geojsonPath}" -lco ENCODING=UTF-8`;
-        await execAsync(cmd, { timeout: 30000 });
+        // Run ogr2ogr to convert the GeoJSON to shapefile inside shpDir folder
+        const ogrCmd = `ogr2ogr -f "ESRI Shapefile" "${shpDir}" "${geojsonPath}" -lco ENCODING=UTF-8`;
+        await execAsync(ogrCmd, { timeout: 30000 });
+
+        // Use python3 to zip the files in the directory to zipPath (root level files, no nested directories)
+        const zipCmd = `python3 -c "import zipfile, os; zipf = zipfile.ZipFile('${zipPath.replace(/\\/g, '/')}', 'w'); [zipf.write(os.path.join('${shpDir.replace(/\\/g, '/')}', f), f) for f in os.listdir('${shpDir.replace(/\\/g, '/')}')]; zipf.close()"`;
+        await execAsync(zipCmd, { timeout: 15000 });
 
         if (!existsSync(zipPath)) {
           throw new Error('Failed to generate shapefile archive');
@@ -109,6 +115,7 @@ export async function geocodingRoutes(app: FastifyInstance): Promise<void> {
           try {
             if (existsSync(geojsonPath)) await unlink(geojsonPath);
             if (existsSync(zipPath)) await unlink(zipPath);
+            if (existsSync(shpDir)) await rm(shpDir, { recursive: true, force: true });
           } catch { /* ignore */ }
         });
 
@@ -117,6 +124,7 @@ export async function geocodingRoutes(app: FastifyInstance): Promise<void> {
         try {
           if (existsSync(geojsonPath)) await unlink(geojsonPath);
           if (existsSync(zipPath)) await unlink(zipPath);
+          if (existsSync(shpDir)) await rm(shpDir, { recursive: true, force: true });
         } catch { /* ignore */ }
         throw err;
       }
