@@ -43,8 +43,8 @@ ENV HOST=0.0.0.0
 RUN addgroup --system --gid 1001 appgroup && \
     adduser --system --uid 1001 --ingroup appgroup appuser
 
-RUN mkdir -p /data /qgis-projects /qgis-styles && \
-    chown -R appuser:appgroup /app /data /qgis-projects /qgis-styles
+RUN mkdir -p /data /projects /projects/icons /qgis-styles && \
+    chown -R appuser:appgroup /app /data /projects /qgis-styles
 
 USER appuser
 

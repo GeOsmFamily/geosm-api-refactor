@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 // Initialize OpenTelemetry tracing BEFORE other imports
 import { initTracing } from './infrastructure/observability/tracing.js';
 await initTracing();
@@ -60,7 +63,10 @@ async function bootstrap(): Promise<void> {
 
   app.setErrorHandler(errorHandler);
 
-  await app.register(fastifyHelmet, { contentSecurityPolicy: false });
+  await app.register(fastifyHelmet, { 
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: false
+  });
   await corsPlugin(app);
   await swaggerPlugin(app);
   await authPlugin(app);
@@ -104,6 +110,19 @@ async function bootstrap(): Promise<void> {
     notificationService,
     ogr2ogrService: app.diContainer.resolve('ogr2ogrService') as import('./infrastructure/gdal/ogr2ogr.service.js').Ogr2OgrService,
   }));
+
+  // Route publique pour servir les icônes SVG personnalisées des couches
+  app.get('/api/v1/layers/icons/:filename', async (request, reply) => {
+    const { filename } = request.params as { filename: string };
+    const iconPath = path.join('/projects/icons', filename);
+    if (!fs.existsSync(iconPath)) {
+      return reply.status(404).send({ error: 'Icon not found' });
+    }
+    const content = fs.readFileSync(iconPath);
+    reply.header('Cross-Origin-Resource-Policy', 'cross-origin');
+    reply.type('image/svg+xml');
+    return reply.send(content);
+  });
 
   await app.register(healthRoutes);
   await app.register(authRoutes, { prefix: `${appConfig.apiPrefix}/auth` });

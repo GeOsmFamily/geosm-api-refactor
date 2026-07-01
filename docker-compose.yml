@@ -32,7 +32,7 @@ services:
       retries: 3
     volumes:
       - data-volume:/data
-      - qgis-projects:/qgis-projects
+      - qgis-projects:/projects
       - qgis-styles:/qgis-styles
 
   postgres:

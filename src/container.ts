@@ -556,7 +556,16 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     // Instances use cases
     listInstancesUseCase: asFunction((c: Cradle) => new ListInstancesUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
     getInstanceUseCase: asFunction((c: Cradle) => new GetInstanceUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    createInstanceUseCase: asFunction((c: Cradle) => new CreateInstanceUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
+    createInstanceUseCase: asFunction((c: Cradle) => new CreateInstanceUseCase(
+      c.instanceRepository,
+      c.groupRepository,
+      c.subGroupRepository,
+      c.layerRepository,
+      c.osmQueryService,
+      c.qgisProjectService,
+      c.svgGeneratorService,
+      c.qgisProjectRepository,
+    ), { lifetime: Lifetime.SCOPED }),
     updateInstanceUseCase: asFunction((c: Cradle) => new UpdateInstanceUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
     deleteInstanceUseCase: asFunction((c: Cradle) => new DeleteInstanceUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
     getInstanceUsersUseCase: asFunction((c: Cradle) => new GetInstanceUsersUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
@@ -637,7 +646,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     listJobsUseCase: asFunction((c: Cradle) => new ListJobsUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
     getJobDetailsUseCase: asFunction((c: Cradle) => new GetJobDetailsUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
     retryJobUseCase: asFunction((c: Cradle) => new RetryJobUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
-    importOsmDataUseCase: asFunction((c: Cradle) => new ImportOsmDataUseCase(c.osm2pgsqlService), { lifetime: Lifetime.SCOPED }),
+    importOsmDataUseCase: asFunction((c: Cradle) => new ImportOsmDataUseCase(c.osm2pgsqlService, c.prisma), { lifetime: Lifetime.SCOPED }),
     getSystemHealthUseCase: asFunction((c: Cradle) => new GetSystemHealthUseCase(c.prisma, c.redisService), { lifetime: Lifetime.SCOPED }),
 
     // Phase 4: Layer Import Pipeline

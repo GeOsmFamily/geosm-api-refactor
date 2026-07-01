@@ -10,7 +10,10 @@ describe('ImportOsmDataUseCase', () => {
       importFile: vi.fn().mockResolvedValue({ success: true, message: 'Import complete' }),
       updateData: vi.fn().mockResolvedValue({ success: true, message: 'Update complete' }),
     };
-    useCase = new ImportOsmDataUseCase(osm2pgsqlService as any);
+    const prisma = {
+      $executeRawUnsafe: vi.fn().mockResolvedValue(undefined),
+    };
+    useCase = new ImportOsmDataUseCase(osm2pgsqlService as any, prisma as any);
   });
 
   it('should import a PBF file', async () => {

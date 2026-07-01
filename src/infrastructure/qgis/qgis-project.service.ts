@@ -53,11 +53,11 @@ export class QGISProjectService {
   }
 
   getProjectPath(instanceSlug: string, thematicId?: string): string {
-    const dir = path.join(this.projectsDir, instanceSlug);
+    const dir = path.posix.join(this.projectsDir, instanceSlug);
     if (thematicId) {
-      return path.join(dir, `${instanceSlug}_${thematicId}.qgs`);
+      return path.posix.join(dir, `${instanceSlug}_${thematicId}.qgs`);
     }
-    return path.join(dir, `${instanceSlug}.qgs`);
+    return path.posix.join(dir, `${instanceSlug}.qgs`);
   }
 
   async ensureProjectDir(instanceSlug: string): Promise<string> {

@@ -37,8 +37,13 @@ def main():
         if os.path.exists(project_path):
             project.read(project_path)
 
+        # Determine provider based on connection string / layer path
+        provider = 'ogr'
+        if 'dbname=' in layer_path or 'host=' in layer_path or 'port=' in layer_path or layer_path.startswith('postgres:'):
+            provider = 'postgres'
+
         # Add vector layer
-        layer = QgsVectorLayer(layer_path, layer_name, 'ogr')
+        layer = QgsVectorLayer(layer_path, layer_name, provider)
         if not layer.isValid():
             print(json.dumps({"success": False, "error": f"Invalid layer: {layer_path}"}))
             sys.exit(1)

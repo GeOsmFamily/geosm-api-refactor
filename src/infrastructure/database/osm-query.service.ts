@@ -67,22 +67,36 @@ export class OsmQueryService {
   /**
    * Query OSM data and return GeoJSON features.
    */
+  private async getTableColumns(tableName: string): Promise<Set<string>> {
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<{ column_name: string }[]>(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = '${this.sanitizeIdentifier(tableName)}' AND table_schema = 'osm'`
+      );
+      return new Set(rows.map(r => r.column_name));
+    } catch {
+      return new Set();
+    }
+  }
+
+  /**
+   * Query OSM data and return GeoJSON features.
+   */
   async queryFeatures(options: OsmQueryOptions): Promise<GeoJSONFeatureCollection> {
     const tables = options.tables ?? ['point', 'polygon'];
     const selectColumns = options.columns?.length
       ? options.columns.map(c => `"${this.sanitizeIdentifier(c)}"`).join(', ') + ', '
       : '"name", ';
 
-    const whereInline = this.buildWhereInline(options.conditions);
-
     const unions: string[] = [];
     for (const t of tables) {
       const tableName = `planet_osm_${t}`;
+      const existingColumns = await this.getTableColumns(tableName);
+      const whereInline = this.buildWhereInline(options.conditions, existingColumns);
       const geomExpr = t === 'polygon'
         ? 'ST_Centroid(ST_Transform(way, 4326))'
         : 'ST_Transform(way, 4326)';
 
-      let sql = `SELECT osm_id, ${selectColumns} ST_AsGeoJSON(${geomExpr})::json AS geometry FROM ${tableName} WHERE (${whereInline})`;
+      let sql = `SELECT osm_id, ${selectColumns} ST_AsGeoJSON(${geomExpr})::json AS geometry FROM osm.${tableName} WHERE (${whereInline})`;
 
       if (options.bbox) {
         const [minLon, minLat, maxLon, maxLat] = options.bbox;
@@ -118,13 +132,16 @@ export class OsmQueryService {
   async createTable(options: CreateOsmTableOptions): Promise<OsmTableStats> {
     const schema = this.sanitizeIdentifier(options.schema);
     const table = this.sanitizeIdentifier(options.table);
-    const whereInline = this.buildWhereInline(options.conditions);
+    
+    // Get existing columns of source table to prevent querying missing columns
+    const existingColumns = await this.getTableColumns(options.sourceTable);
+    const whereInline = this.buildWhereInline(options.conditions, existingColumns);
 
     // Determine geometry expression based on source table
     const geomExpr = 'ST_Transform(A.way, 4326) AS geometry';
     const selectCols = `A.osm_id, A."name", ${geomExpr}`;
 
-    let fromClause = `${options.sourceTable} AS A`;
+    let fromClause = `osm.${options.sourceTable} AS A`;
     let spatialFilter = '';
 
     if (options.boundaryTable && options.boundaryId != null) {
@@ -201,11 +218,15 @@ export class OsmQueryService {
   /**
    * Build inline WHERE (escaping values to prevent SQL injection).
    */
-  private buildWhereInline(conditions: OsmKeyValue[]): string {
+  private buildWhereInline(conditions: OsmKeyValue[], existingColumns?: Set<string>): string {
     if (conditions.length === 0) return 'TRUE';
 
     return conditions.map(cond => {
       const col = this.sanitizeIdentifier(cond.key);
+      if (existingColumns && !existingColumns.has(col)) {
+        logger.warn(`Column "${col}" does not exist in the source OSM table. Treating condition as FALSE.`);
+        return 'FALSE';
+      }
       if (cond.value === '*') {
         return `"${col}" IS NOT NULL`;
       }
