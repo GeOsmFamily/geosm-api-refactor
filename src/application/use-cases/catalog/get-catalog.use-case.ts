@@ -8,6 +8,10 @@ export interface CatalogLayer {
   description: string | null;
   geometryType: string;
   sourceType: string;
+  url: string | null;
+  sourceLayer: string | null;
+  tableName: string | null;
+  metadata: unknown;
 }
 
 export interface CatalogSubGroup {
@@ -68,7 +72,9 @@ export class GetCatalogUseCase {
                     geometryType: true,
                     sourceType: true,
                     sourceUrl: true,
+                    sourceLayer: true,
                     tableName: true,
+                    metadata: true,
                   },
                 },
               },
@@ -105,7 +111,9 @@ export class GetCatalogUseCase {
             geometryType: l.geometryType,
             sourceType: l.sourceType,
             url: l.sourceUrl,
+            sourceLayer: l.sourceLayer,
             tableName: l.tableName,
+            metadata: l.metadata,
           })),
         })),
       })),
