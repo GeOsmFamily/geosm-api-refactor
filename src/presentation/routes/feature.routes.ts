@@ -50,9 +50,12 @@ export async function featureRoutes(app: FastifyInstance): Promise<void> {
   const deleteFeatureUseCase = app.diContainer.resolve<DeleteFeatureUseCase>('deleteFeatureUseCase');
 
   // GET /api/v1/layers/:layerId/features
+  // Route publique : ce sont les mêmes données géographiques en lecture seule que celles
+  // déjà exposées sans authentification via WMS/GetFeatureInfo (QGIS Server) et le
+  // catalogue. Nécessaire notamment pour que les liens de partage (/share/:code) restent
+  // consultables par un visiteur non connecté - seules les mutations restent protégées.
   app.get('/', {
-    schema: { description: 'Lister les features d\'une couche', tags: ['Features'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(getFeaturesQuerySchema) },
-    preHandler: [app.authenticate],
+    schema: { description: 'Lister les features d\'une couche', tags: ['Features'], querystring: zodToSwagger(getFeaturesQuerySchema) },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { layerId } = parseBody(layerIdParamSchema, request.params);
     const query = parseBody(getFeaturesQuerySchema, request.query);
@@ -65,10 +68,9 @@ export async function featureRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(successResponse(result));
   });
 
-  // GET /api/v1/layers/:layerId/features/:featureId
+  // GET /api/v1/layers/:layerId/features/:featureId - route publique, voir commentaire ci-dessus.
   app.get('/:featureId', {
-    schema: { description: 'Obtenir une feature par ID', tags: ['Features'], security: [{ bearerAuth: [] }] },
-    preHandler: [app.authenticate],
+    schema: { description: 'Obtenir une feature par ID', tags: ['Features'] },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { layerId, featureId } = parseBody(featureIdParamSchema, request.params);
     const result = await getFeatureUseCase.execute(layerId, featureId);

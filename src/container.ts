@@ -708,7 +708,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     // Sharing repositories and use cases
     sharedMapRepository: asFunction(() => new PrismaSharedMapRepository(prisma), { lifetime: Lifetime.SINGLETON }),
     createSharedMapUseCase: asFunction((c: Cradle) => new CreateSharedMapUseCase(c.sharedMapRepository), { lifetime: Lifetime.SCOPED }),
-    getSharedMapUseCase: asFunction((c: Cradle) => new GetSharedMapUseCase(c.sharedMapRepository), { lifetime: Lifetime.SCOPED }),
+    getSharedMapUseCase: asFunction((c: Cradle) => new GetSharedMapUseCase(c.sharedMapRepository, c.instanceRepository), { lifetime: Lifetime.SCOPED }),
 
     // Analytics repositories and use cases
     analyticsRepository: asFunction(() => new PrismaAnalyticsRepository(prisma), { lifetime: Lifetime.SINGLETON }),
