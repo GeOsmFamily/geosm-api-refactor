@@ -95,8 +95,10 @@ export class OsmQueryService {
       const geomExpr = t === 'polygon'
         ? 'ST_Centroid(ST_Transform(way, 4326))'
         : 'ST_Transform(way, 4326)';
+      const tagsExpr = existingColumns.has('tags') ? 'hstore_to_json(tags) AS tags, ' : '';
 
-      let sql = `SELECT osm_id, ${selectColumns} ST_AsGeoJSON(${geomExpr})::json AS geometry FROM osm.${tableName} WHERE (${whereInline})`;
+      // osm_id::text - un bigint Postgres devient un BigInt JS non sérialisable en JSON tel quel.
+      let sql = `SELECT osm_id::text AS osm_id, ${selectColumns} ${tagsExpr}ST_AsGeoJSON(${geomExpr})::json AS geometry FROM osm.${tableName} WHERE (${whereInline})`;
 
       if (options.bbox) {
         const [minLon, minLat, maxLon, maxLat] = options.bbox;
@@ -139,7 +141,21 @@ export class OsmQueryService {
 
     // Determine geometry expression based on source table
     const geomExpr = 'ST_Transform(A.way, 4326) AS geometry';
-    const selectCols = `A.osm_id, A."name", ${geomExpr}`;
+    // Inclure les tags OSM bruts (hstore -> json) quand la table source en dispose,
+    // pour permettre l'enrichissement des fiches descriptives (horaires, contacts...).
+    const sourceColumns = await this.getTableColumns(options.sourceTable);
+    const tagsCol = sourceColumns.has('tags') ? 'hstore_to_json(A.tags)::jsonb AS tags, ' : '';
+    // Colonnes dédiées ajoutées via le style osm2pgsql personnalisé (voir
+    // scripts d'import) - sélectionnées seulement si présentes sur la source,
+    // pour rester compatible avec des tables important via le style par défaut.
+    const enrichmentColumns = [
+      'opening_hours', 'phone', 'contact:phone', 'website', 'contact:website',
+      'email', 'contact:email', 'addr:housenumber', 'addr:street', 'addr:city',
+    ].filter((c) => sourceColumns.has(c));
+    const enrichmentCols = enrichmentColumns.length
+      ? enrichmentColumns.map((c) => `A."${c}"`).join(', ') + ', '
+      : '';
+    const selectCols = `A.osm_id, A."name", ${tagsCol}${enrichmentCols}${geomExpr}`;
 
     let fromClause = `osm.${options.sourceTable} AS A`;
     let spatialFilter = '';

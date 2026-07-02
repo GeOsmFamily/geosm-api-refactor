@@ -5,6 +5,12 @@ export const createExportSchema = z.object({
   format: z.nativeEnum(ExportFormat),
   layerId: z.string().uuid(),
   bbox: z.array(z.number()).length(4).optional(),
+  featureId: z.string().regex(/^\d+$/).optional(),
+});
+
+export const createBulkExportSchema = z.object({
+  format: z.nativeEnum(ExportFormat),
+  layerIds: z.array(z.string().uuid()).min(1),
 });
 
 export const listExportsQuerySchema = z.object({

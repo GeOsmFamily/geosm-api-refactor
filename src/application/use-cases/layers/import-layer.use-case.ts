@@ -34,6 +34,8 @@ export class ImportLayerUseCase {
       format: dto.format as ExportFormat,
       status: JobStatus.PENDING,
       layerId: dto.layerId,
+      layerIds: null,
+      isBulk: false,
       userId: dto.userId,
       filePath: fileKey,
       fileSize: dto.fileBuffer.length,

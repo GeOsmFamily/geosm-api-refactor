@@ -15,6 +15,7 @@ import { Osm2pgsqlService } from '../src/infrastructure/osm/osm2pgsql.service.js
 import { QGISProjectService } from '../src/infrastructure/qgis/qgis-project.service.js';
 import { SvgGeneratorService } from '../src/infrastructure/utils/svg-generator.service.js';
 import { PrismaQgisProjectRepository } from '../src/infrastructure/database/repositories/prisma-qgis-project.repository.js';
+import { PrismaBaseMapRepository } from '../src/infrastructure/database/repositories/prisma-base-map.repository.js';
 
 const prisma = new PrismaClient();
 const execAsync = promisify(exec);
@@ -22,6 +23,7 @@ const execAsync = promisify(exec);
 async function createMockOsmSchema(prismaClient: PrismaClient): Promise<void> {
   console.log('Creating mock OSM schema and data...');
   await prismaClient.$executeRawUnsafe('CREATE EXTENSION IF NOT EXISTS postgis');
+  await prismaClient.$executeRawUnsafe('CREATE EXTENSION IF NOT EXISTS hstore');
   await prismaClient.$executeRawUnsafe('CREATE SCHEMA IF NOT EXISTS osm');
 
   await prismaClient.$executeRawUnsafe(`
@@ -40,6 +42,7 @@ async function createMockOsmSchema(prismaClient: PrismaClient): Promise<void> {
       "aeroway" TEXT,
       "railway" TEXT,
       "government" TEXT,
+      tags hstore,
       way geometry(Point, 3857)
     )
   `);
@@ -50,6 +53,7 @@ async function createMockOsmSchema(prismaClient: PrismaClient): Promise<void> {
       "name" TEXT,
       "highway" TEXT,
       "waterway" TEXT,
+      tags hstore,
       way geometry(LineString, 3857)
     )
   `);
@@ -62,20 +66,25 @@ async function createMockOsmSchema(prismaClient: PrismaClient): Promise<void> {
       "man_made" TEXT,
       "tourism" TEXT,
       "aeroway" TEXT,
+      tags hstore,
       way geometry(Polygon, 3857)
     )
   `);
 
-  // Un hôpital (Santé)
+  // Un hôpital (Santé) - avec quelques tags OSM enrichis (horaires, contacts)
   await prismaClient.$executeRawUnsafe(`
-    INSERT INTO osm.planet_osm_point (osm_id, "name", "amenity", way)
-    VALUES (101, 'Hôpital Général de Yaoundé', 'hospital', ST_Transform(ST_SetSRID(ST_MakePoint(11.52, 3.86), 4326), 3857))
+    INSERT INTO osm.planet_osm_point (osm_id, "name", "amenity", tags, way)
+    VALUES (101, 'Hôpital Général de Yaoundé', 'hospital',
+      'opening_hours=>"24/7", phone=>"+237 222 23 40 20", website=>"https://hgy.cm", "addr:street"=>"Avenue Henri Dunant"'::hstore,
+      ST_Transform(ST_SetSRID(ST_MakePoint(11.52, 3.86), 4326), 3857))
   `);
-  
+
   // Une microfinance (Finance)
   await prismaClient.$executeRawUnsafe(`
-    INSERT INTO osm.planet_osm_point (osm_id, "name", "office", "finance", way)
-    VALUES (102, 'Coopérative Epargne', 'financial', 'microcredit', ST_Transform(ST_SetSRID(ST_MakePoint(11.51, 3.85), 4326), 3857))
+    INSERT INTO osm.planet_osm_point (osm_id, "name", "office", "finance", tags, way)
+    VALUES (102, 'Coopérative Epargne', 'financial', 'microcredit',
+      'opening_hours=>"Mo-Fr 08:00-16:00", phone=>"+237 233 42 10 05"'::hstore,
+      ST_Transform(ST_SetSRID(ST_MakePoint(11.51, 3.85), 4326), 3857))
   `);
 
   // Un aéroport (Automobile et Transport - POLYGON)
@@ -240,6 +249,7 @@ async function main(): Promise<void> {
     new QGISProjectService(),
     new SvgGeneratorService(),
     new PrismaQgisProjectRepository(prisma),
+    new PrismaBaseMapRepository(prisma),
   );
 
   await createInstanceUseCase.initializeInstanceData(

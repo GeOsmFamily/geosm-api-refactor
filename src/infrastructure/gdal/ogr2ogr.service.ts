@@ -113,7 +113,9 @@ export class Ogr2OgrService {
       const t = options.table.replace(/[^a-zA-Z0-9_]/g, '');
       sql = `SELECT * FROM "${s}"."${t}"`;
 
-      if (options.bbox) {
+      // bbox peut être un tableau vide ([] plutôt que null/undefined - la colonne
+      // Prisma ne permet pas null) : ne pas construire une clause WHERE cassée dans ce cas.
+      if (options.bbox?.length === 4) {
         const [minLon, minLat, maxLon, maxLat] = options.bbox;
         sql += ` WHERE geom && ST_MakeEnvelope(${minLon}, ${minLat}, ${maxLon}, ${maxLat}, 4326)`;
       }

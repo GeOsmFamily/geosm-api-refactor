@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+// z.coerce.boolean() appelle Boolean(value) sur la chaîne brute de process.env,
+// donc Boolean("false") === true (chaîne non vide) - un piège classique qui
+// rendait MINIO_USE_SSL=false toujours vrai. On parse explicitement la chaîne.
+const booleanEnv = (defaultValue: boolean) =>
+  z
+    .string()
+    .optional()
+    .transform((v) => (v === undefined ? defaultValue : v.toLowerCase() === 'true' || v === '1'));
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3000),
@@ -39,7 +48,7 @@ const envSchema = z.object({
   MINIO_ACCESS_KEY: z.string().default('minio_access'),
   MINIO_SECRET_KEY: z.string().default('minio_secret'),
   MINIO_BUCKET: z.string().default('geosm'),
-  MINIO_USE_SSL: z.coerce.boolean().default(false),
+  MINIO_USE_SSL: booleanEnv(false),
 
   MEILISEARCH_HOST: z.string().default('http://localhost:7700'),
   MEILISEARCH_API_KEY: z.string().default('masterKey'),
@@ -50,9 +59,10 @@ const envSchema = z.object({
   DATA_DIR: z.string().default('/tmp/geosm-data'),
   NOMINATIM_URL: z.string().default('http://localhost:8081'),
   OSRM_URL: z.string().default('http://localhost:5000'),
+  MAPBOX_ACCESS_TOKEN: z.string().default('__ROTATED_MAPBOX_TOKEN_REMOVED__'),
 
   LOG_LEVEL: z.string().default('info'),
-  PROMETHEUS_ENABLED: z.coerce.boolean().default(true),
+  PROMETHEUS_ENABLED: booleanEnv(true),
 
   // Observability
   GRAYLOG_HOST: z.string().optional(),

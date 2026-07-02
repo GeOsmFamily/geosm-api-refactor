@@ -93,6 +93,7 @@ import { ListDefaultStylesUseCase } from './application/use-cases/styles/list-de
 
 // Exports use cases
 import { CreateExportUseCase } from './application/use-cases/exports/create-export.use-case.js';
+import { CreateBulkExportUseCase } from './application/use-cases/exports/create-bulk-export.use-case.js';
 import { ListExportsUseCase } from './application/use-cases/exports/list-exports.use-case.js';
 import { GetExportUseCase } from './application/use-cases/exports/get-export.use-case.js';
 import { DeleteExportUseCase } from './application/use-cases/exports/delete-export.use-case.js';
@@ -334,6 +335,7 @@ interface Cradle {
   listDefaultStylesUseCase: ListDefaultStylesUseCase;
   // Exports
   createExportUseCase: CreateExportUseCase;
+  createBulkExportUseCase: CreateBulkExportUseCase;
   listExportsUseCase: ListExportsUseCase;
   getExportUseCase: GetExportUseCase;
   deleteExportUseCase: DeleteExportUseCase;
@@ -565,6 +567,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       c.qgisProjectService,
       c.svgGeneratorService,
       c.qgisProjectRepository,
+      c.baseMapRepository,
     ), { lifetime: Lifetime.SCOPED }),
     updateInstanceUseCase: asFunction((c: Cradle) => new UpdateInstanceUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
     deleteInstanceUseCase: asFunction((c: Cradle) => new DeleteInstanceUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
@@ -609,6 +612,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     // Exports use cases
     createExportUseCase: asFunction((c: Cradle) => new CreateExportUseCase(c.exportRepository, c.queueService), { lifetime: Lifetime.SCOPED }),
+    createBulkExportUseCase: asFunction((c: Cradle) => new CreateBulkExportUseCase(c.exportRepository, c.queueService), { lifetime: Lifetime.SCOPED }),
     listExportsUseCase: asFunction((c: Cradle) => new ListExportsUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
     getExportUseCase: asFunction((c: Cradle) => new GetExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
     deleteExportUseCase: asFunction((c: Cradle) => new DeleteExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),

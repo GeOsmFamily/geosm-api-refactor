@@ -10,6 +10,8 @@ import { ConflictError } from '../../../domain/errors/conflict.error.js';
 import { Slug } from '../../../domain/value-objects/slug.vo.js';
 import { GeometryType, SourceType } from '../../../domain/enums.js';
 import { defaultCategories, defaultLayers } from '../../../domain/constants/default-layers.constants.js';
+import { defaultBaseMaps } from '../../../domain/constants/default-basemaps.constants.js';
+import { IBaseMapRepository } from '../../../domain/repositories/base-map.repository.js';
 import { logger } from '../../../infrastructure/observability/logger.js';
 import { QGISProjectService } from '../../../infrastructure/qgis/qgis-project.service.js';
 import { SvgGeneratorService } from '../../../infrastructure/utils/svg-generator.service.js';
@@ -65,9 +67,9 @@ const LAYER_SVG_CONFIG: Record<string, { shape: 'circle' | 'square' | 'triangle'
   'zoo-parc-animalier':                { shape: 'star',     label: 'ZO' },
   'piscine-publique':                  { shape: 'star',     label: 'PI' },
   'terrain-sport-stade':               { shape: 'star',     label: 'ST' },
-  'aire-jeux-enfants':                 { shape: 'star',     label: 'AJ' },
+  'aire-jeux-enfants':                 { shape: 'star',     label: 'JE' },
   // Administration
-  'mairies-communes':                  { shape: 'pin',      label: 'MA' },
+  'mairies-communes':                  { shape: 'pin',      label: 'MC' },
   'tribunaux':                         { shape: 'pin',      label: 'TR' },
   'police-gendarmerie':                { shape: 'pin',      label: 'PO' },
   'prefectures':                       { shape: 'pin',      label: 'PR' },
@@ -90,6 +92,7 @@ export class CreateInstanceUseCase {
     private readonly qgisProjectService: QGISProjectService,
     private readonly svgGeneratorService: SvgGeneratorService,
     private readonly qgisProjectRepository: IQgisProjectRepository,
+    private readonly baseMapRepository: IBaseMapRepository,
   ) {}
 
   async execute(dto: CreateInstanceDTO): Promise<Instance> {
@@ -158,6 +161,28 @@ export class CreateInstanceUseCase {
     });
     logger.info('Projet QGIS créé en BD', { qgisProjectId, projectFilePath });
 
+    // ─── Étape 1bis : Création des fonds de carte par défaut ──────────────────
+    for (const bm of defaultBaseMaps) {
+      try {
+        await this.baseMapRepository.create({
+          id: uuidv4(),
+          name: bm.name,
+          slug: bm.slug,
+          type: bm.type,
+          url: bm.url,
+          thumbnail: null,
+          attribution: bm.attribution,
+          isDefault: bm.isDefault,
+          order: bm.order,
+          config: bm.config ?? null,
+          instanceId,
+        });
+      } catch (bmErr) {
+        logger.warn('Échec création fond de carte par défaut', { slug: bm.slug, instanceId, error: String(bmErr) });
+      }
+    }
+    logger.info('Fonds de carte par défaut créés pour l\'instance', { instanceId });
+
     // ─── Étape 2 : Création de toutes les thématiques (Groupes) ───────────────
     const createdGroups = new Map<number, string>(); // categoryId -> groupId
 
@@ -222,6 +247,7 @@ export class CreateInstanceUseCase {
         strokeColor: '#ffffff',
         strokeWidth: 2,
         label: svgConf.label,
+        iconKey: layerConfig.slug,
       });
 
       // Chemin dans le volume partagé (accessible par QGIS Server et l'API)

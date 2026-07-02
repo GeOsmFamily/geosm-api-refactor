@@ -12,6 +12,14 @@ export interface Osm2pgsqlOptions {
   cache?: number;
   flatNodes?: string;
   extraArgs?: string[];
+  /**
+   * Ajoute une colonne hstore "tags" contenant tous les tags OSM non couverts
+   * par une colonne dédiée (horaires, contacts, adresse...). Activé par défaut
+   * car c'est la seule façon de récupérer ces attributs pour enrichir les
+   * fiches descriptives - désactiver uniquement si un style file personnalisé
+   * gère déjà ces tags autrement.
+   */
+  hstore?: boolean;
 }
 
 export class Osm2pgsqlService {
@@ -50,6 +58,10 @@ export class Osm2pgsqlService {
 
     if (options.styleFile) {
       args.push('-S', options.styleFile);
+    }
+
+    if (options.hstore !== false) {
+      args.push('--hstore');
     }
 
     if (options.flatNodes) {

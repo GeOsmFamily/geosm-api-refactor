@@ -85,6 +85,11 @@ async function bootstrap(): Promise<void> {
 
   await setupContainer(app);
 
+  // S'assure que le bucket MinIO existe (jamais créé automatiquement sinon -
+  // les exports échouaient avec "The specified bucket does not exist").
+  const bootstrapStorageService = app.diContainer.resolve('storageService') as import('./infrastructure/storage/minio.service.js').MinioStorageService;
+  await bootstrapStorageService.ensureBucket();
+
   // Register WebSocket notification routes
   const notificationService = app.diContainer.resolve('notificationService') as import('./infrastructure/websocket/notification.service.js').NotificationService;
   notificationService.registerRoutes(app);

@@ -294,7 +294,9 @@ model Export {
   id           String       @id @default(uuid()) @db.Uuid
   format       ExportFormat
   status       JobStatus    @default(PENDING)
-  layerId      String       @map("layer_id") @db.Uuid
+  layerId      String?      @map("layer_id") @db.Uuid
+  layerIds     Json?        @map("layer_ids")
+  isBulk       Boolean      @default(false) @map("is_bulk")
   userId       String       @map("user_id") @db.Uuid
   filePath     String?      @map("file_path")
   fileSize     Int?         @map("file_size")
@@ -305,8 +307,8 @@ model Export {
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
-  layer Layer @relation(fields: [layerId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  layer Layer? @relation(fields: [layerId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([layerId])

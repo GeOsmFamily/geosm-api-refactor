@@ -48,6 +48,17 @@ export class PostGISService {
     }
   }
 
+  /**
+   * Deux formes de table coexistent : les couches importées génériques (id,
+   * properties jsonb) et les couches dérivées d'OSM créées par OsmQueryService
+   * (osm_id, colonnes plates, tags). Sans cette détection, un SELECT id/properties
+   * codé en dur échoue sur les tables OSM qui n'ont ni l'une ni l'autre.
+   */
+  private async getColumnNames(schema: string, table: string): Promise<Set<string>> {
+    const columns = await this.getTableColumns(schema, table);
+    return new Set(columns.map(c => c.name));
+  }
+
   // Create a schema for a thematic group
   async createSchema(schemaName: string): Promise<void> {
     return this.trackOperation('createSchema', async () => {
@@ -184,12 +195,31 @@ export class PostGISService {
     const t = this.sanitizeIdentifier(options.table);
     const srid = options.srid ?? 4326;
 
-    let selectCols = `id, ST_AsGeoJSON(ST_Transform(geom, ${srid}))::json as geometry`;
+    const columnNames = await this.getColumnNames(s, t);
+    // Couches OSM-dérivées (osm_id) vs couches importées génériques (id).
+    let idExpr = 'NULL::bigint AS id';
+    if (columnNames.has('id')) {
+      idExpr = 'id';
+    } else if (columnNames.has('osm_id')) {
+      // osm_id est un bigint Postgres -> BigInt côté JS, non sérialisable en JSON tel quel.
+      idExpr = 'osm_id::text AS id';
+    }
+
+    let selectCols = `${idExpr}, ST_AsGeoJSON(ST_Transform(geom, ${srid}))::json as geometry`;
     if (options.columns && options.columns.length > 0) {
       const cols = options.columns.map(c => `"${this.sanitizeIdentifier(c)}"`).join(', ');
       selectCols += `, ${cols}`;
-    } else {
+    } else if (columnNames.has('properties')) {
       selectCols += `, properties`;
+    } else {
+      // Table à colonnes plates (OSM) : reprendre toutes les colonnes hors geom/id/osm_id.
+      // Ces noms viennent d'information_schema (source fiable) - on les quote tels quels
+      // plutôt que de les passer par sanitizeIdentifier(), qui supprime les ":" et casse
+      // des colonnes légitimes comme "contact:phone".
+      const extraCols = [...columnNames].filter(c => !['geom', 'id', 'osm_id'].includes(c));
+      if (extraCols.length > 0) {
+        selectCols += ', ' + extraCols.map(c => this.quoteIdent(c)).join(', ');
+      }
     }
 
     let sql = `SELECT ${selectCols} FROM "${s}"."${t}" WHERE geom IS NOT NULL`;
@@ -256,11 +286,24 @@ export class PostGISService {
     const s = this.sanitizeIdentifier(schema);
     const t = this.sanitizeIdentifier(table);
 
-    let selectCols = `a.id, ST_AsGeoJSON(a.geom)::json as geometry`;
+    const columnNames = await this.getColumnNames(s, t);
+    let idExpr = 'NULL::bigint AS id';
+    if (columnNames.has('id')) {
+      idExpr = 'a.id';
+    } else if (columnNames.has('osm_id')) {
+      idExpr = 'a.osm_id::text AS id';
+    }
+
+    let selectCols = `${idExpr}, ST_AsGeoJSON(a.geom)::json as geometry`;
     if (columns && columns.length > 0) {
       selectCols += ', ' + columns.map(c => `a."${this.sanitizeIdentifier(c)}"`).join(', ');
-    } else {
+    } else if (columnNames.has('properties')) {
       selectCols += `, a.properties`;
+    } else {
+      const extraCols = [...columnNames].filter(c => !['geom', 'id', 'osm_id'].includes(c));
+      if (extraCols.length > 0) {
+        selectCols += ', ' + extraCols.map(c => `a.${this.quoteIdent(c)}`).join(', ');
+      }
     }
 
     const safeGeojson = boundaryGeojson.replace(/'/g, "''");
@@ -290,15 +333,27 @@ export class PostGISService {
     const s = this.sanitizeIdentifier(schema);
     const t = this.sanitizeIdentifier(table);
 
-    let selectCols = `id, ST_AsGeoJSON(geom)::json as geometry`;
+    const columnNames = await this.getColumnNames(s, t);
+    let pkCol = 'id';
+    if (!columnNames.has('id') && columnNames.has('osm_id')) {
+      pkCol = 'osm_id';
+    }
+    const idExpr = pkCol === 'id' ? 'id' : `${pkCol}::text AS id`;
+
+    let selectCols = `${idExpr}, ST_AsGeoJSON(geom)::json as geometry`;
     if (columns && columns.length > 0) {
       selectCols += ', ' + columns.map(c => `"${this.sanitizeIdentifier(c)}"`).join(', ');
-    } else {
+    } else if (columnNames.has('properties')) {
       selectCols += `, properties`;
+    } else {
+      const extraCols = [...columnNames].filter(c => !['geom', 'id', 'osm_id'].includes(c));
+      if (extraCols.length > 0) {
+        selectCols += ', ' + extraCols.map(c => this.quoteIdent(c)).join(', ');
+      }
     }
 
     const rows = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(
-      `SELECT ${selectCols} FROM "${s}"."${t}" WHERE id = ${Number(featureId)}`
+      `SELECT ${selectCols} FROM "${s}"."${t}" WHERE ${pkCol} = ${Number(featureId)}`
     );
 
     if (rows.length === 0) return null;
@@ -506,5 +561,15 @@ export class PostGISService {
   // Sanitize SQL identifiers to prevent injection
   private sanitizeIdentifier(name: string): string {
     return name.replace(/[^a-zA-Z0-9_-]/g, '');
+  }
+
+  /**
+   * Quote a column name known to come from information_schema (trusted source),
+   * escaping embedded double-quotes. Unlike sanitizeIdentifier(), this preserves
+   * characters like ":" that are legitimate in real OSM-derived column names
+   * (e.g. "contact:phone") but would otherwise be silently stripped.
+   */
+  private quoteIdent(name: string): string {
+    return `"${name.replace(/"/g, '""')}"`;
   }
 }
