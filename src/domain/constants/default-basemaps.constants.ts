@@ -41,7 +41,11 @@ export const defaultBaseMaps: DefaultBaseMapConfig[] = [
     order: 2,
     config: {
       layer: 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2',
-      matrixSet: 'PM',
+      // Vérifié dans le GetCapabilities réel (data.geopf.fr/wmts) : ce flux est lié au
+      // TileMatrixSet "PM_0_19" (zooms 0-19), pas un simple "PM" générique - c'est la
+      // cause du fond de carte qui ne s'affichait pas (toutes les requêtes de tuile
+      // échouaient, le WMTS server ne reconnaissant pas de matrix set nommé "PM").
+      matrixSet: 'PM_0_19',
       format: 'image/png',
       style: 'normal',
     },
