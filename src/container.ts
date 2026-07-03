@@ -12,6 +12,7 @@ import { PrismaLayerRepository } from './infrastructure/database/repositories/pr
 import { PrismaBaseMapRepository } from './infrastructure/database/repositories/prisma-base-map.repository.js';
 import { PrismaLayerStyleRepository } from './infrastructure/database/repositories/prisma-layer-style.repository.js';
 import { PrismaExportRepository } from './infrastructure/database/repositories/prisma-export.repository.js';
+import { PrismaLocationPlanRepository } from './infrastructure/database/repositories/prisma-location-plan.repository.js';
 import { PrismaQgisProjectRepository } from './infrastructure/database/repositories/prisma-qgis-project.repository.js';
 import { PrismaDefaultThemeRepository } from './infrastructure/database/repositories/prisma-default-theme.repository.js';
 import { Argon2PasswordService } from './infrastructure/auth/argon2-password.service.js';
@@ -97,6 +98,10 @@ import { CreateBulkExportUseCase } from './application/use-cases/exports/create-
 import { ListExportsUseCase } from './application/use-cases/exports/list-exports.use-case.js';
 import { GetExportUseCase } from './application/use-cases/exports/get-export.use-case.js';
 import { DeleteExportUseCase } from './application/use-cases/exports/delete-export.use-case.js';
+
+// Location plans use cases
+import { CreateLocationPlanUseCase } from './application/use-cases/location-plans/create-location-plan.use-case.js';
+import { GetLocationPlanUseCase } from './application/use-cases/location-plans/get-location-plan.use-case.js';
 
 // Geocoding use cases
 import { SearchGeocodingUseCase } from './application/use-cases/geocoding/search-geocoding.use-case.js';
@@ -264,6 +269,7 @@ interface Cradle {
   baseMapRepository: PrismaBaseMapRepository;
   layerStyleRepository: PrismaLayerStyleRepository;
   exportRepository: PrismaExportRepository;
+  locationPlanRepository: PrismaLocationPlanRepository;
   qgisProjectRepository: PrismaQgisProjectRepository;
   defaultThemeRepository: PrismaDefaultThemeRepository;
   nominatimService: NominatimService;
@@ -339,6 +345,9 @@ interface Cradle {
   listExportsUseCase: ListExportsUseCase;
   getExportUseCase: GetExportUseCase;
   deleteExportUseCase: DeleteExportUseCase;
+  // Location plans
+  createLocationPlanUseCase: CreateLocationPlanUseCase;
+  getLocationPlanUseCase: GetLocationPlanUseCase;
   // Geocoding
   searchGeocodingUseCase: SearchGeocodingUseCase;
   reverseGeocodingUseCase: ReverseGeocodingUseCase;
@@ -495,6 +504,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     baseMapRepository: asFunction(() => new PrismaBaseMapRepository(prisma), { lifetime: Lifetime.SINGLETON }),
     layerStyleRepository: asFunction(() => new PrismaLayerStyleRepository(prisma), { lifetime: Lifetime.SINGLETON }),
     exportRepository: asFunction(() => new PrismaExportRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    locationPlanRepository: asFunction(() => new PrismaLocationPlanRepository(prisma), { lifetime: Lifetime.SINGLETON }),
     qgisProjectRepository: asFunction(() => new PrismaQgisProjectRepository(prisma), { lifetime: Lifetime.SINGLETON }),
     defaultThemeRepository: asFunction(() => new PrismaDefaultThemeRepository(prisma), { lifetime: Lifetime.SINGLETON }),
 
@@ -616,6 +626,10 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     listExportsUseCase: asFunction((c: Cradle) => new ListExportsUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
     getExportUseCase: asFunction((c: Cradle) => new GetExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
     deleteExportUseCase: asFunction((c: Cradle) => new DeleteExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
+
+    // Location plans use cases
+    createLocationPlanUseCase: asFunction((c: Cradle) => new CreateLocationPlanUseCase(c.locationPlanRepository, c.instanceRepository, c.queueService), { lifetime: Lifetime.SCOPED }),
+    getLocationPlanUseCase: asFunction((c: Cradle) => new GetLocationPlanUseCase(c.locationPlanRepository), { lifetime: Lifetime.SCOPED }),
 
     // Geocoding use cases
     searchGeocodingUseCase: asFunction((c: Cradle) => new SearchGeocodingUseCase(c.nominatimService), { lifetime: Lifetime.SCOPED }),

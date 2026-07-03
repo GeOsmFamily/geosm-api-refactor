@@ -28,6 +28,7 @@ import { layerRoutes } from './presentation/routes/layer.routes.js';
 import { baseMapRoutes } from './presentation/routes/base-map.routes.js';
 import { styleRoutes } from './presentation/routes/style.routes.js';
 import { exportRoutes } from './presentation/routes/export.routes.js';
+import { locationPlanRoutes } from './presentation/routes/location-plan.routes.js';
 import { geocodingRoutes } from './presentation/routes/geocoding.routes.js';
 import { routingRoutes } from './presentation/routes/routing.routes.js';
 import { searchRoutes } from './presentation/routes/search.routes.js';
@@ -54,6 +55,7 @@ import { analysisRoutes } from './presentation/routes/analysis.routes.js';
 import { rasterRoutes } from './presentation/routes/raster.routes.js';
 import { createLayerImportProcessor } from './infrastructure/queue/workers/layer-import.worker.js';
 import { createExportProcessor } from './infrastructure/queue/workers/export.worker.js';
+import { createLocationPlanProcessor } from './infrastructure/queue/workers/location-plan.worker.js';
 
 async function bootstrap(): Promise<void> {
   const app = Fastify({
@@ -116,6 +118,15 @@ async function bootstrap(): Promise<void> {
     ogr2ogrService: app.diContainer.resolve('ogr2ogrService') as import('./infrastructure/gdal/ogr2ogr.service.js').Ogr2OgrService,
   }));
 
+  // Register location plan worker (génération PDF via QGIS, cf. python_scripts/generate_location_plan.py)
+  queueService.createQueue('location-plan');
+  queueService.registerWorker('location-plan', createLocationPlanProcessor({
+    locationPlanRepository: app.diContainer.resolve('locationPlanRepository') as import('./infrastructure/database/repositories/prisma-location-plan.repository.js').PrismaLocationPlanRepository,
+    storageService: app.diContainer.resolve('storageService') as import('./infrastructure/storage/minio.service.js').MinioStorageService,
+    notificationService,
+    qgisProjectService: app.diContainer.resolve('qgisProjectService') as import('./infrastructure/qgis/qgis-project.service.js').QGISProjectService,
+  }));
+
   // Route publique pour servir les icônes SVG personnalisées des couches
   app.get('/api/v1/layers/icons/:filename', async (request, reply) => {
     const { filename } = request.params as { filename: string };
@@ -139,6 +150,7 @@ async function bootstrap(): Promise<void> {
   await app.register(baseMapRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/base-maps` });
   await app.register(styleRoutes, { prefix: `${appConfig.apiPrefix}/layers/:layerId/style` });
   await app.register(exportRoutes, { prefix: `${appConfig.apiPrefix}/exports` });
+  await app.register(locationPlanRoutes, { prefix: `${appConfig.apiPrefix}/location-plans` });
   await app.register(geocodingRoutes, { prefix: `${appConfig.apiPrefix}/geocode` });
   await app.register(routingRoutes, { prefix: `${appConfig.apiPrefix}/routing` });
   await app.register(searchRoutes, { prefix: `${appConfig.apiPrefix}/search` });

@@ -116,6 +116,38 @@ export class QGISProjectService {
     return this.runPythonScript('setup_wms_capabilities.py', [projectPath, JSON.stringify(wmsConfig)]);
   }
 
+  /**
+   * Génère un plan de localisation professionnel (PDF) avec QGIS : fond topographique
+   * neutre (routes/bâti/hydrographie/limites administratives), carte de situation,
+   * grille de coordonnées, flèche du nord, échelle et légende. Voir
+   * python_scripts/generate_location_plan.py pour le détail du rendu.
+   */
+  async generateLocationPlan(
+    lon: number,
+    lat: number,
+    outputPath: string,
+    options: {
+      title?: string;
+      description?: string;
+      landmark?: string;
+      scale?: number;
+      paperSize?: 'a4' | 'a3';
+      orientation?: 'portrait' | 'landscape';
+      instanceBbox?: [number, number, number, number];
+    },
+  ): Promise<PyQGISResult> {
+    const dir = path.dirname(outputPath);
+    if (!existsSync(dir)) await mkdir(dir, { recursive: true });
+
+    const logoPath = path.resolve(process.cwd(), 'python_scripts/assets/geosm-logo.svg');
+    return this.runPythonScript('generate_location_plan.py', [
+      String(lon),
+      String(lat),
+      outputPath,
+      JSON.stringify({ ...options, logoPath }),
+    ]);
+  }
+
   async clipExport(projectPath: string, layerName: string, boundaryPath: string, outputPath: string): Promise<PyQGISResult> {
     const dir = path.dirname(outputPath);
     if (!existsSync(dir)) await mkdir(dir, { recursive: true });
