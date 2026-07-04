@@ -491,3 +491,17 @@ model Comment {
   @@index([instanceId])
   @@map("comments")
 }
+
+// Table du MNT SRTM (profil altimétrique, voir PostGISService.drapeElevationProfile() et
+// scripts/import-srtm.sh) créée et peuplée directement par raster2pgsql, en dehors de Prisma.
+// Déclarée ici en lecture seule (@@ignore) uniquement pour que `prisma db push` sache qu'elle
+// est censée exister et ne tente pas de la supprimer au démarrage du conteneur (sans cela, tout
+// redémarrage échoue : "You are about to drop the srtm table, which is not empty").
+model Srtm {
+  rid      Int                  @id @default(autoincrement())
+  rast     Unsupported("raster")?
+  filename String?
+
+  @@map("srtm")
+  @@ignore
+}

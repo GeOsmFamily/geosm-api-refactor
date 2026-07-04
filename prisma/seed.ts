@@ -223,6 +223,25 @@ async function main(): Promise<void> {
   });
   console.log(`Instance created: ${instance.name}`);
 
+  // Chargement du MNT SRTM (profil altimétrique) pour l'emprise de l'instance - voir
+  // scripts/import-srtm.sh. Ne fait jamais échouer le seed : sans MNT, seul l'outil
+  // altimétrie est indisponible, le reste du géoportail fonctionne normalement.
+  const instanceBbox = instance.bbox as number[];
+  if (instanceBbox && instanceBbox.length === 4) {
+    console.log('Chargement du MNT SRTM pour le profil altimétrique (cela peut prendre plusieurs minutes)...');
+    try {
+      const [minLon, minLat, maxLon, maxLat] = instanceBbox;
+      const { stdout } = await execAsync(
+        `bash scripts/import-srtm.sh ${minLon} ${minLat} ${maxLon} ${maxLat}`,
+        { env: { ...process.env }, maxBuffer: 1024 * 1024 * 20 },
+      );
+      console.log(stdout);
+    } catch (srtmErr) {
+      const errMsg = srtmErr instanceof Error ? srtmErr.message : String(srtmErr);
+      console.warn('Échec du chargement SRTM (le profil altimétrique restera indisponible) :', errMsg);
+    }
+  }
+
   // Add admin to instance
   await prisma.instanceUser.upsert({
     where: {

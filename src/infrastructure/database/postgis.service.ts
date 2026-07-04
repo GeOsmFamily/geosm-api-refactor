@@ -447,27 +447,44 @@ export class PostGISService {
     }
   }
 
-  // Drape a line on elevation (elevation profile)
+  // Drape a line on elevation (elevation profile) - distance retournée en mètres (longueur
+  // géodésique réelle de la ligne, pas la fraction 0-1 brute) pour être directement
+  // utilisable comme axe X d'un graphique altitude/distance côté client.
   async drapeElevationProfile(lineGeojson: string, numPoints: number = 100): Promise<{ distance: number; altitude: number }[]> {
     try {
       const safeGeojson = lineGeojson.replace(/'/g, "''");
-      const rows = await this.prisma.$queryRawUnsafe<{ fraction: number; altitude: number }[]>(`
+      const rows = await this.prisma.$queryRawUnsafe<{ distance: number; altitude: number }[]>(`
         WITH line AS (
-          SELECT ST_SetSRID(ST_GeomFromGeoJSON('${safeGeojson}'), 4326) as geom
+          SELECT
+            ST_SetSRID(ST_GeomFromGeoJSON('${safeGeojson}'), 4326) as geom,
+            ST_Length(ST_SetSRID(ST_GeomFromGeoJSON('${safeGeojson}'), 4326)::geography) as length_m
         ),
         points AS (
           SELECT generate_series(0, ${Number(numPoints)}) / ${Number(numPoints)}::float as fraction
         )
         SELECT
-          p.fraction,
-          COALESCE(ST_Value(s.rast, ST_LineInterpolatePoint(l.geom, p.fraction)), 0) as altitude
+          p.fraction * l.length_m as distance,
+          COALESCE(alt.altitude, 0) as altitude
         FROM points p
         CROSS JOIN line l
-        LEFT JOIN srtm s ON ST_Intersects(s.rast, ST_LineInterpolatePoint(l.geom, p.fraction))
+        LEFT JOIN LATERAL (
+          SELECT ST_Value(s.rast, ST_LineInterpolatePoint(l.geom, p.fraction)) as altitude
+          FROM srtm s
+          -- "&&" contre ST_ConvexHull(rast) correspond exactement à l'expression indexée par
+          -- l'index GiST créé par raster2pgsql (voir scripts/import-srtm.sh, flag -I) : sans ce
+          -- filtre, ST_Intersects(s.rast, ...) seul ne matche pas l'index et force un Seq Scan
+          -- complet de la table "srtm" pour CHAQUE point du profil (39s+ pour 300 points sur un
+          -- import national ; avec l'index, <150ms). ST_Intersects reste nécessaire ensuite pour
+          -- une vérification exacte (le "&&" ne teste que les bounding boxes).
+          WHERE ST_ConvexHull(s.rast) && ST_LineInterpolatePoint(l.geom, p.fraction)
+            AND ST_Intersects(s.rast, ST_LineInterpolatePoint(l.geom, p.fraction))
+          LIMIT 1
+        ) alt ON true
+        ORDER BY p.fraction
       `);
 
       return rows.map(r => ({
-        distance: Number(r.fraction),
+        distance: Number(r.distance) || 0,
         altitude: Number(r.altitude) || 0,
       }));
     } catch {

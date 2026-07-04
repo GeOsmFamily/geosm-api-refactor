@@ -22,6 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     osm2pgsql \
     wget \
     ca-certificates \
+    postgis \
+    postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -33,8 +35,10 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY src/infrastructure/database/prisma/ ./src/infrastructure/database/prisma/
 COPY python_scripts/ ./python_scripts/
+COPY prisma/ ./prisma/
+COPY scripts/ ./scripts/
 COPY docker/entrypoint.sh ./docker/entrypoint.sh
-RUN sed -i 's/\r$//' ./docker/entrypoint.sh && chmod +x ./docker/entrypoint.sh
+RUN sed -i 's/\r$//' ./docker/entrypoint.sh ./scripts/*.sh && chmod +x ./docker/entrypoint.sh ./scripts/*.sh
 
 ENV NODE_ENV=production
 ENV PORT=3000

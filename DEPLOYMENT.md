@@ -24,7 +24,7 @@ Il couvre deux dépôts :
 6. [Mettre en place le reverse proxy HTTPS et le frontend](#6-mettre-en-place-le-reverse-proxy-https-et-le-frontend)
 7. [Sécuriser le docker-compose de production](#7-sécuriser-le-docker-compose-de-production)
 8. [Premier démarrage de la stack](#8-premier-démarrage-de-la-stack)
-9. [Initialisation des données (hstore, seed, import OSM)](#9-initialisation-des-données-hstore-seed-import-osm)
+9. [Initialisation des données (hstore, MNT SRTM, seed, import OSM)](#9-initialisation-des-données-hstore-mnt-srtm-seed-import-osm)
 10. [Vérification post-déploiement](#10-vérification-post-déploiement)
 11. [Sauvegardes](#11-sauvegardes)
 12. [Mises à jour de l'application](#12-mises-à-jour-de-lapplication)
@@ -356,7 +356,7 @@ Tous les services doivent afficher `healthy` (ou `running` pour ceux sans health
 
 ---
 
-## 9. Initialisation des données (hstore, seed, import OSM)
+## 9. Initialisation des données (hstore, MNT SRTM, seed, import OSM)
 
 Cette étape est **à faire une seule fois**, juste après le tout premier démarrage.
 
@@ -382,7 +382,52 @@ dc exec postgres psql -U geosm -d geosm -c "CREATE EXTENSION IF NOT EXISTS hstor
 > pour la partie utilisateur admin, mais **supprime et recrée entièrement** l'instance
 > "cameroon" à chaque exécution — voir l'avertissement ci-dessous).
 
-### 9.2. Lancer le seed (création complète des données initiales)
+### 9.2. MNT SRTM (profil altimétrique)
+
+L'outil « Altimétrie » du portail (tracé d'une ligne → graphique altitude/distance) s'appuie
+sur un MNT (modèle numérique de terrain) SRTM 30m hébergé directement dans PostGIS, table
+`srtm` (colonnes raster, une ligne par tuile de 1°×1°). Contrairement à `hstore`, l'extension
+nécessaire (`postgis_raster`) **n'a pas besoin d'être créée manuellement** : le script
+`scripts/import-srtm.sh` l'active lui-même (`CREATE EXTENSION IF NOT EXISTS postgis_raster`).
+
+**Pour l'instance Cameroun** : entièrement automatique. `npm run db:seed` (section 9.3)
+télécharge et importe les tuiles SRTM couvrant l'emprise de l'instance juste après l'import
+OSM — comptez plusieurs minutes supplémentaires pour le téléchargement (~220 Mo pour le
+Cameroun, mirroir public AWS Open Data `elevation-tiles-prod`, aucune authentification
+requise). Un échec de ce téléchargement (ex. mirroir temporairement indisponible) **ne fait
+pas échouer le seed** : l'instance se crée normalement, seul l'outil Altimétrie reste
+indisponible tant que le MNT n'est pas chargé (relancez alors la commande manuelle
+ci-dessous).
+
+L'import s'appuie sur `raster2pgsql`, fourni par le paquet Debian `postgis` (le client,
+distinct de l'extension serveur) — installé dans le `Dockerfile` de `api` aux côtés de
+`gdal-bin`/`osm2pgsql`. Si vous avez construit l'image `api` avant l'ajout de cette
+fonctionnalité, refaites `dc build api && dc up -d api`.
+
+**Pour toute autre instance** (créée via l'API d'administration, section 9.4) : lancez
+manuellement l'import avec la bbox `[minLon, minLat, maxLon, maxLat]` de l'instance :
+
+```bash
+dc exec api bash scripts/import-srtm.sh 8.3822176 1.6517945 16.1911011 13.083333
+```
+
+Le script est idempotent (au niveau de la base, pas seulement du disque) : le relancer avec
+la même emprise, ou une emprise chevauchante, ne re-télécharge et ne ré-importe que les
+tuiles manquantes. La table `srtm` est partagée entre toutes les instances (un MNT mondial
+constitué au fil des créations d'instances), donc importer la bbox d'une nouvelle instance
+n'affecte jamais les données déjà chargées pour les autres.
+
+> **Détail technique important si vous modifiez `PostGISService.drapeElevationProfile()`** :
+> l'index spatial créé par `raster2pgsql -I` porte sur `ST_ConvexHull(rast)`, pas sur `rast`
+> directement. Une clause `WHERE ST_Intersects(rast, ...)` seule ne matche pas cet index et
+> force un balayage séquentiel complet de la table à chaque point du profil (constaté : un
+> profil à 300 points sur l'emprise nationale passe de plus de 30s [timeout] à ~150ms une
+> fois corrigé). Toujours filtrer d'abord avec `ST_ConvexHull(rast) && <geometry>` (utilise
+> l'index) puis vérifier avec `ST_Intersects(rast, <geometry>)` (exact, sur les seules lignes
+> candidates) — voir le SQL actuel dans `postgis.service.ts` pour l'implémentation de
+> référence.
+
+### 9.3. Lancer le seed (création complète des données initiales)
 
 `prisma/seed.ts` fait, en une seule commande, **tout le travail d'initialisation** :
 
@@ -418,7 +463,7 @@ génération des ~46 couches par défaut). Suivez la progression dans le termina
 > fait une sauvegarde complète au préalable (section 11). Elle est prévue pour
 > l'initialisation, pas pour une réinitialisation régulière.
 
-### 9.3. Créer d'autres instances géographiques (facultatif)
+### 9.4. Créer d'autres instances géographiques (facultatif)
 
 Si vous souhaitez déployer GeOSM pour un autre pays/une autre zone que le Cameroun, ne
 passez pas par `db:seed` (qui est spécifique à la démo Cameroun) : utilisez l'API
@@ -509,7 +554,7 @@ dc up -d
 `prisma db push` s'exécute automatiquement à chaque redémarrage du conteneur `api` via
 `entrypoint.sh` — les nouvelles migrations de schéma (nouvelles colonnes, nouvelles tables)
 sont donc appliquées automatiquement au redémarrage. **Ne lancez jamais `npm run db:seed`
-lors d'une mise à jour** (voir l'avertissement de la section 9.2) : le seed est réservé au
+lors d'une mise à jour** (voir l'avertissement de la section 9.3) : le seed est réservé au
 tout premier déploiement.
 
 En cas de problème après une mise à jour, revenir à la version précédente :
@@ -603,13 +648,33 @@ corrigés (`export-format.util.ts` côté frontend, `export.worker.ts` côté ba
 symptôme réapparaît après une modification de ces fichiers, c'est le premier endroit à
 vérifier.
 
-### 14.4. Le bucket MinIO n'existe pas / erreurs de stockage au premier démarrage
+### 14.4. Le conteneur `api` boucle en crash-loop après un import SRTM manuel en dehors de `db:seed`
+
+**Symptôme** : identique au 14.1, mais `dc logs api` signale cette fois la table `srtm` :
+`Error: Use the --accept-data-loss flag [...] You are about to drop the "srtm" table, which
+is not empty`.
+
+**Cause** : la table `srtm` (MNT altimétrique, section 9.2) est créée par `raster2pgsql`, en
+dehors de Prisma. Elle est déclarée dans `schema.prisma` comme modèle `@@ignore` (voir
+`model Srtm`) précisément pour que `prisma db push` sache qu'elle est censée exister et ne la
+signale pas comme un drift à supprimer — ce mécanisme est déjà en place et ce problème ne
+devrait donc plus se produire en usage normal.
+
+**Ne jamais faire** : lancer `prisma db push --accept-data-loss` — cela supprimerait les
+117+ tuiles importées et il faudrait tout retélécharger.
+
+**Si le symptôme réapparaît malgré tout** (ex. après un renommage de colonne côté
+`raster2pgsql` ou une modification du schéma de la table `srtm`) : mettez à jour le modèle
+`Srtm` dans `schema.prisma` pour qu'il corresponde exactement aux colonnes réelles de la
+table (`\d srtm` en psql), puis `dc restart api`. Ne supprimez jamais le bloc `@@ignore`.
+
+### 14.5. Le bucket MinIO n'existe pas / erreurs de stockage au premier démarrage
 
 Ce problème est résolu automatiquement depuis l'ajout de `ensureBucket()` au démarrage du
 serveur (`server.ts`) — le bucket configuré par `MINIO_BUCKET` est créé s'il n'existe pas
 encore, à chaque démarrage de l'API. Aucune action manuelle requise.
 
-### 14.5. `MINIO_USE_SSL=false` ne semble pas pris en compte
+### 14.6. `MINIO_USE_SSL=false` ne semble pas pris en compte
 
 **Cause historique (corrigée)** : `z.coerce.boolean()` de la librairie de validation Zod
 convertit **toute chaîne non vide** en `true`, y compris la chaîne littérale `"false"`. Un
@@ -618,14 +683,14 @@ correctement `MINIO_USE_SSL` et `PROMETHEUS_ENABLED`. Si vous ajoutez vous-même
 variable d'environnement booléenne dans `env.config.ts`, utilisez `booleanEnv()` et non
 `z.coerce.boolean()`.
 
-### 14.6. Les tuiles de fond de carte ou les couches WMS ne s'affichent pas en production
+### 14.7. Les tuiles de fond de carte ou les couches WMS ne s'affichent pas en production
 
 **Vérifier en premier** : que la route `/ows` est bien proxyfiée par le conteneur
 `frontend` vers `qgis-server:8080/ows` (voir section 6.1 / `Dockerfile` du frontend). Sans
 ce proxy, `environment.prod.ts` (`qgisServerUrl: '/ows'`) pointe vers une route qui n'existe
 nulle part côté serveur web, et toutes les couches WMS échouent silencieusement.
 
-### 14.7. Logs et diagnostic général
+### 14.8. Logs et diagnostic général
 
 ```bash
 dc logs -f api                 # logs applicatifs en direct
@@ -648,9 +713,11 @@ dc exec api sh                 # shell dans le conteneur API
 - [ ] `dc up -d` : tous les services `healthy`
 - [ ] `CREATE EXTENSION hstore` exécutée avant le seed
 - [ ] `npm run db:seed` exécuté une seule fois, logs vérifiés (vraies données OSM, pas le
-      jeu de secours factice)
+      jeu de secours factice ; import SRTM terminé sans erreur)
 - [ ] Connexion au compte super-admin réussie depuis le site public
 - [ ] Une couche de points affiche des données réelles au clic
+- [ ] Outil Altimétrie : une ligne tracée sur une zone de relief affiche un profil
+      altimétrique non plat (sinon, vérifier la table `srtm`, section 9.2)
 - [ ] Export d'une couche (GeoJSON et Shapefile) téléchargé et vérifié
 - [ ] Sauvegarde PostgreSQL testée manuellement une première fois (`pg_dump` puis
       `pg_restore` sur une base de test)
