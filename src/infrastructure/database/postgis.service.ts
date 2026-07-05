@@ -252,6 +252,63 @@ export class PostGISService {
     return { type: 'FeatureCollection', features };
   }
 
+  /**
+   * Pré-sélectionne les N features d'une couche les plus proches à vol d'oiseau d'un point
+   * (opérateur KNN "<->" exploitant l'index GiST, donc rapide même sur une grande table) -
+   * point de départ pour un classement par distance ROUTIÈRE réelle (voir
+   * FindNearestFeatureUseCase, qui appelle OSRM sur chacun de ces candidats). Ne renvoie
+   * qu'un candidat "brut" par ligne : id, nom si disponible, coordonnées et distance à vol
+   * d'oiseau (utile en repli si OSRM échoue).
+   */
+  async findNearestCandidates(
+    schema: string,
+    table: string,
+    lon: number,
+    lat: number,
+    candidateCount: number,
+  ): Promise<{ id: string; name: string | null; lon: number; lat: number; straightDistance: number }[]> {
+    const s = this.sanitizeIdentifier(schema);
+    const t = this.sanitizeIdentifier(table);
+    const columnNames = await this.getColumnNames(s, t);
+
+    let idExpr = 'NULL::bigint AS id';
+    if (columnNames.has('id')) {
+      idExpr = 'id';
+    } else if (columnNames.has('osm_id')) {
+      idExpr = 'osm_id::text AS id';
+    }
+
+    let nameExpr = 'NULL::text AS name';
+    if (columnNames.has('name')) {
+      nameExpr = this.quoteIdent('name');
+    } else if (columnNames.has('properties')) {
+      nameExpr = `properties->>'name' AS name`;
+    }
+
+    const point = `ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)`;
+    const sql = `
+      SELECT
+        ${idExpr},
+        ${nameExpr},
+        ST_X(ST_Centroid(geom)) AS lon,
+        ST_Y(ST_Centroid(geom)) AS lat,
+        ST_Distance(geom::geography, ${point}::geography) AS straight_distance
+      FROM "${s}"."${t}"
+      WHERE geom IS NOT NULL
+      ORDER BY geom <-> ${point}
+      LIMIT ${Number(candidateCount)}
+    `;
+
+    const rows = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(sql);
+    return rows.map((r) => ({
+      id: String(r.id),
+      name: (r.name as string) || null,
+      lon: Number(r.lon),
+      lat: Number(r.lat),
+      straightDistance: Number(r.straight_distance),
+    }));
+  }
+
   // Get layer statistics (count, area, length, bbox)
   async getLayerStats(schema: string, table: string): Promise<LayerStats> {
     const s = this.sanitizeIdentifier(schema);

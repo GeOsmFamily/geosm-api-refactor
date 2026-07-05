@@ -10,6 +10,10 @@ options_json: {
   "scale": int | null,               # dénominateur d'échelle (ex. 5000 pour 1:5000), auto si null
   "paperSize": "a4" | "a3",
   "orientation": "portrait" | "landscape",
+  "includeLegend": bool,              # défaut true - constructeur de mise en page personnalisée
+  "includeScale": bool,               # défaut true
+  "includeGrid": bool,                # défaut true
+  "includeNorthArrow": bool,          # défaut true
   "instanceBbox": [minLon, minLat, maxLon, maxLat] | null,   # pour la carte de situation
   "logoPath": str,
 }
@@ -220,6 +224,10 @@ def main():
     scale = options.get('scale')
     paper_size = (options.get('paperSize') or 'a4').lower()
     orientation = (options.get('orientation') or 'portrait').lower()
+    include_legend = options.get('includeLegend', True)
+    include_scale = options.get('includeScale', True)
+    include_grid = options.get('includeGrid', True)
+    include_north_arrow = options.get('includeNorthArrow', True)
     instance_bbox = options.get('instanceBbox')
     logo_path = options.get('logoPath')
 
@@ -319,19 +327,22 @@ def main():
         main_map.setExtent(QgsRectangle(lon - half_w, lat - half_h, lon + half_w, lat + half_h))
 
         grid = main_map.grid()
-        grid.setEnabled(True)
-        grid.setStyle(QgsLayoutItemMapGrid.Solid)
-        interval = extent.width() / 4
-        grid.setIntervalX(interval)
-        grid.setIntervalY(interval)
-        grid.setAnnotationEnabled(True)
-        grid.setAnnotationPrecision(3)
-        grid.setAnnotationFont(QFont('Helvetica', 6))
-        grid.setFrameStyle(QgsLayoutItemMapGrid.Zebra)
-        grid.setLineSymbol(QgsLineSymbol.createSimple({'line_color': '#cccccc', 'line_width': '0.1'}))
+        if include_grid:
+            grid.setEnabled(True)
+            grid.setStyle(QgsLayoutItemMapGrid.Solid)
+            interval = extent.width() / 4
+            grid.setIntervalX(interval)
+            grid.setIntervalY(interval)
+            grid.setAnnotationEnabled(True)
+            grid.setAnnotationPrecision(3)
+            grid.setAnnotationFont(QFont('Helvetica', 6))
+            grid.setFrameStyle(QgsLayoutItemMapGrid.Zebra)
+            grid.setLineSymbol(QgsLineSymbol.createSimple({'line_color': '#cccccc', 'line_width': '0.1'}))
+        else:
+            grid.setEnabled(False)
 
         # --- Flèche du nord ---
-        if os.path.exists(NORTH_ARROW_SVG):
+        if include_north_arrow and os.path.exists(NORTH_ARROW_SVG):
             north = QgsLayoutItemPicture(layout)
             north.setPicturePath(NORTH_ARROW_SVG)
             layout.addLayoutItem(north)
@@ -357,33 +368,54 @@ def main():
         ov_overview.setLinkedMap(main_map)
         ov_overview.setFrameSymbol(QgsFillSymbol.createSimple({'color': '255,0,0,40', 'outline_color': '#e74c3c', 'outline_width': '0.4'}))
 
-        # --- Échelle graphique ---
-        scalebar_y = map_y + map_h + page_h * 0.015
-        scalebar = QgsLayoutItemScaleBar(layout)
-        scalebar.setStyle('Line Ticks Up')
-        scalebar.setLinkedMap(main_map)
-        scalebar.applyDefaultSize()
-        layout.addLayoutItem(scalebar)
-        scalebar.attemptSetSceneRect(QRectF(margin, scalebar_y, page_w * 0.35, page_h * 0.02))
+        # --- Échelle graphique, légende : positionnées via un curseur vertical courant
+        # (current_y) qui avance uniquement après un élément réellement dessiné - évite un
+        # trou vide dans la mise en page quand l'un des deux est masqué par l'utilisateur.
+        current_y = map_y + map_h + page_h * 0.015
 
-        add_label(layout, f"Échelle : 1:{used_scale:,}".replace(',', ' '), margin + page_w * 0.4, scalebar_y,
-                  page_w * 0.3, page_h * 0.02, size=8, bold=True)
+        if include_scale:
+            scalebar_y = current_y
+            scalebar = QgsLayoutItemScaleBar(layout)
+            scalebar.setStyle('Line Ticks Up')
+            scalebar.setLinkedMap(main_map)
+            scalebar.applyDefaultSize()
+            layout.addLayoutItem(scalebar)
+            scalebar.attemptSetSceneRect(QRectF(margin, scalebar_y, page_w * 0.35, page_h * 0.02))
 
-        # --- Légende ---
-        legend_y = scalebar_y + page_h * 0.03
-        legend_h = page_h * 0.16
-        legend = QgsLayoutItemLegend(layout)
-        legend.setLinkedMap(main_map)
-        legend.setTitle('Légende')
-        small_font = QFont('Helvetica', 7)
-        title_font = QFont('Helvetica', 8)
-        title_font.setBold(True)
-        legend.setStyleFont(QgsLegendStyle.Title, title_font)
-        legend.setStyleFont(QgsLegendStyle.SymbolLabel, small_font)
-        legend.setSymbolWidth(4)
-        legend.setSymbolHeight(3)
-        layout.addLayoutItem(legend)
-        legend.attemptSetSceneRect(QRectF(margin, legend_y, page_w * 0.45, legend_h))
+            add_label(layout, f"Échelle : 1:{used_scale:,}".replace(',', ' '), margin + page_w * 0.4, scalebar_y,
+                      page_w * 0.3, page_h * 0.02, size=8, bold=True)
+            current_y = scalebar_y + page_h * 0.03
+
+        if include_legend:
+            legend_y = current_y
+            legend_h = page_h * 0.16
+            legend = QgsLayoutItemLegend(layout)
+            legend.setLinkedMap(main_map)
+            legend.setTitle('Légende')
+            small_font = QFont('Helvetica', 7)
+            title_font = QFont('Helvetica', 8)
+            title_font.setBold(True)
+            legend.setStyleFont(QgsLegendStyle.Title, title_font)
+            legend.setStyleFont(QgsLegendStyle.SymbolLabel, small_font)
+            legend.setSymbolWidth(4)
+            legend.setSymbolHeight(3)
+            layout.addLayoutItem(legend)
+            legend.attemptSetSceneRect(QRectF(margin, legend_y, page_w * 0.45, legend_h))
+            current_y = legend_y + legend_h + page_h * 0.015
+        else:
+            current_y = current_y + page_h * 0.015
+
+        # Le cartouche est pleine largeur : contrairement à l'échelle/la légende (qui
+        # n'occupent qu'une partie de la largeur et ne chevauchent donc jamais visuellement
+        # les annotations de coordonnées de la grille), il lui faut un dégagement minimum
+        # garanti sous la carte pour ne jamais se superposer à ces annotations, même quand
+        # échelle ET légende sont toutes deux masquées.
+        # 0.1 déterminé empiriquement : l'annotation de coordonnées de la grille déborde du
+        # cadre de la carte sur une hauteur notable (dépend de QGIS, pas d'une valeur fixe
+        # documentée) - une marge plus faible (testé à 0.045) laissait encore un chevauchement
+        # visible entre le cartouche et cette annotation quand échelle+légende sont masquées.
+        min_gap_after_map = page_h * (0.1 if include_grid else 0.015)
+        current_y = max(current_y, map_y + map_h + min_gap_after_map)
 
         # --- Cartouche (coordonnées, titre, description) ---
         try:
@@ -394,7 +426,7 @@ def main():
         except Exception:
             utm_text = ''
 
-        info_y = legend_y + legend_h + page_h * 0.015
+        info_y = current_y
         info_html = (
             f"<b style='color:#023f5f;font-size:13px'>{title}</b><br>"
             f"{description}<br>"

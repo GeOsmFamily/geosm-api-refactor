@@ -56,6 +56,12 @@ La plateforme couvre le cycle de vie complet des donnees geographiques :
                         | import  |
                         | layer-  |
                         | export  |
+                        | location|
+                        | -plan   |
+                        | schedu- |
+                        | led-osm |
+                        | -import |
+                        | (cron)  |
                         +---------+
 
                     Services externes
@@ -150,7 +156,7 @@ Implementations concretes des interfaces definies par les couches superieures.
 | PostGIS | `postgis.service.ts` | Operations SQL spatiales (ST_GeomFromGeoJSON, ST_AsGeoJSON, ST_Intersects, etc.) |
 | Requetes OSM | `osm-query.service.ts` | Requetes sur les tables planet_osm_* |
 | osm2pgsql | `osm2pgsql.service.ts` | Import de fichiers PBF dans PostGIS |
-| File d'attente | BullMQ via `queue.service.ts` | Traitement asynchrone (layer-import, layer-export) |
+| File d'attente | BullMQ via `queue.service.ts` | Traitement asynchrone (layer-import, layer-export, location-plan) + job recurrent cron (scheduled-osm-import, voir `addRepeatableJob`) |
 | Stockage | MinIO via `minio.service.ts` | Stockage objet pour uploads/exports |
 | Cache | Redis via `redis.service.ts` | Cache, backend de file d'attente |
 | Recherche | MeiliSearch via `meilisearch.service.ts` | Indexation et recherche full-text |

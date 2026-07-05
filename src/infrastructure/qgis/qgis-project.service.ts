@@ -133,6 +133,10 @@ export class QGISProjectService {
       scale?: number;
       paperSize?: 'a4' | 'a3';
       orientation?: 'portrait' | 'landscape';
+      includeLegend?: boolean;
+      includeScale?: boolean;
+      includeGrid?: boolean;
+      includeNorthArrow?: boolean;
       instanceBbox?: [number, number, number, number];
     },
   ): Promise<PyQGISResult> {

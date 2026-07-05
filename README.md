@@ -290,6 +290,8 @@ Toutes les variables sont validees au demarrage avec Zod. Les variables sans val
 | `DATA_DIR` | Repertoire temporaire de donnees | `/tmp/geosm-data` | Non |
 | `NOMINATIM_URL` | URL du service de geocodage Nominatim | `http://localhost:8081` | Non |
 | `OSRM_URL` | URL du service de routage OSRM | `http://localhost:5000` | Non |
+| `OSM_IMPORT_PBF_PATH` | Chemin du fichier `.osm.pbf` reimporte par le job planifie mensuel (voir `ScheduledOsmImportUseCase`). Non defini = job no-op | - | Non |
+| `OSM_IMPORT_CRON` | Pattern cron du job d'import OSM programme | `0 2 1 * *` (1er du mois, 02h00) | Non |
 
 ### Observabilite
 

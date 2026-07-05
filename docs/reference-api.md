@@ -535,6 +535,13 @@ Obtenir les informations du fichier source.
 - **Auth** : Oui
 - **Reponse** : Informations du fichier source
 
+### `POST /:id/resync`
+
+Recree la table derivee d'une couche par defaut a partir de l'etat actuel des donnees OSM brutes (pas de nouveau telechargement/import OSM). Rejette (400) les couches qui ne sont pas des couches par defaut derivees d'OSM.
+
+- **Auth** : Oui (SUPER_ADMIN, ADMIN_INSTANCE)
+- **Reponse** : Couche mise a jour (`metadata.lastSyncedAt`, `featureCount`, `totalArea`, `totalLength`)
+
 ---
 
 ## Import de couche (`/api/v1/layers`)
@@ -799,6 +806,14 @@ Point le plus proche sur le reseau routier.
 - **Auth** : Non
 - **Parametres** : `lon`, `lat`, `number` (int, optionnel)
 - **Reponse** : Resultat OSRM
+
+### `GET /nearest-feature`
+
+Feature(s) d'une couche la/les plus proche(s) d'un point, classees par distance **routiere reelle** (OSRM), pas a vol d'oiseau. Prefiltre les candidats via PostGIS (KNN `<->`) puis calcule les distances/durees reelles via une matrice OSRM one-to-many. Repli sur la distance a vol d'oiseau si OSRM echoue.
+
+- **Auth** : Non
+- **Parametres** : `layerId` (UUID), `lon`, `lat`, `limit` (int, optionnel)
+- **Reponse** : Liste triee `[{ featureId, name, distanceMeters, durationSeconds }]`
 
 ---
 
@@ -1197,6 +1212,103 @@ Catalogue d'une instance.
 
 ---
 
+## Commentaires (`/api/v1/comments`)
+
+Commentaires geolocalises sur la carte avec fils de discussion (reponses) et statut de resolution.
+
+### `GET /`
+
+Liste des commentaires racine d'une instance, avec leurs reponses imbriquees et le nom d'auteur enrichi.
+
+- **Auth** : Oui
+- **Parametres** : `instanceId` (UUID, requis)
+- **Reponse** : Liste de commentaires avec `replies: []`
+
+### `POST /`
+
+Creer un commentaire.
+
+- **Auth** : Oui
+- **Corps** :
+  ```json
+  { "instanceId": "UUID", "text": "string (1-1000)", "lat": number, "lon": number }
+  ```
+- **Reponse** : `201`
+
+### `POST /:id/reply`
+
+Repondre a un commentaire. Herite `instanceId`/`lat`/`lon` du commentaire parent. Les reponses aux reponses sont aplaties (le `parentId` reste toujours celui du commentaire racine).
+
+- **Auth** : Oui
+- **Corps** :
+  ```json
+  { "text": "string (1-1000)" }
+  ```
+- **Reponse** : `201`
+
+### `PATCH /:id/resolve`
+
+Marquer un commentaire comme resolu/non resolu.
+
+- **Auth** : Oui
+- **Corps** :
+  ```json
+  { "resolved": boolean }
+  ```
+- **Reponse** : Commentaire mis a jour
+
+### `DELETE /:id`
+
+- **Auth** : Oui
+- **Reponse** : `204`
+
+---
+
+## Plans de localisation (`/api/v1/location-plans`)
+
+Generation asynchrone (BullMQ + QGIS) de plans de localisation professionnels au format PDF.
+
+### `POST /`
+
+Lance la generation d'un plan de localisation.
+
+- **Auth** : Oui
+- **Corps** :
+  ```json
+  {
+    "instanceId": "UUID",
+    "title": "string",
+    "description": "string (optionnel)",
+    "landmark": "string (optionnel)",
+    "lon": number,
+    "lat": number,
+    "scale": "int (optionnel, auto si absent)",
+    "paperSize": "A4 | A3 (defaut: A4)",
+    "orientation": "PORTRAIT | LANDSCAPE (defaut: PORTRAIT)",
+    "includeLegend": "boolean (defaut: true)",
+    "includeScale": "boolean (defaut: true)",
+    "includeGrid": "boolean (defaut: true)",
+    "includeNorthArrow": "boolean (defaut: true)"
+  }
+  ```
+- **Reponse** : `201`, `{ id, status: "PENDING", ... }`
+
+### `GET /:id`
+
+Statut du plan (`PENDING` | `PROCESSING` | `COMPLETED` | `FAILED`).
+
+- **Auth** : Oui
+- **Reponse** : Detail du plan
+
+### `GET /:id/download`
+
+Telecharge le PDF genere (disponible uniquement si `status: COMPLETED`).
+
+- **Auth** : Oui
+- **Reponse** : Fichier PDF (stream depuis MinIO)
+
+---
+
 ## Documents (`/api/v1/documents`)
 
 ### `GET /`
@@ -1394,6 +1506,8 @@ Importer des donnees OSM (PBF).
   }
   ```
 - **Reponse** : Succes
+
+> **Import OSM programme** : un job BullMQ recurrent (`scheduled-osm-import`, cron configurable via `OSM_IMPORT_CRON`, defaut `0 2 1 * *`) reimporte automatiquement le fichier au chemin `OSM_IMPORT_PBF_PATH` puis resynchronise toutes les couches par defaut de toutes les instances actives (voir `POST /:id/resync` sur les couches). Pas de nouvel endpoint HTTP -- s'enregistre au demarrage du serveur. Sans `OSM_IMPORT_PBF_PATH`, le job tourne mais ne fait rien (no-op loggue).
 
 ### `GET /health`
 

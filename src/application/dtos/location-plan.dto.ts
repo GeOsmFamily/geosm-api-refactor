@@ -10,4 +10,8 @@ export interface CreateLocationPlanDTO {
   scale?: number;
   paperSize?: PaperSize;
   orientation?: PlanOrientation;
+  includeLegend?: boolean;
+  includeScale?: boolean;
+  includeGrid?: boolean;
+  includeNorthArrow?: boolean;
 }

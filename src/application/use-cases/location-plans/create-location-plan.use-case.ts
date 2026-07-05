@@ -31,6 +31,10 @@ export class CreateLocationPlanUseCase {
       scale: dto.scale ?? null,
       paperSize: dto.paperSize ?? PaperSize.A4,
       orientation: dto.orientation ?? PlanOrientation.PORTRAIT,
+      includeLegend: dto.includeLegend ?? true,
+      includeScale: dto.includeScale ?? true,
+      includeGrid: dto.includeGrid ?? true,
+      includeNorthArrow: dto.includeNorthArrow ?? true,
       filePath: null,
       fileSize: null,
       errorMessage: null,
@@ -49,6 +53,10 @@ export class CreateLocationPlanUseCase {
       scale: dto.scale,
       paperSize: record.paperSize,
       orientation: record.orientation,
+      includeLegend: record.includeLegend,
+      includeScale: record.includeScale,
+      includeGrid: record.includeGrid,
+      includeNorthArrow: record.includeNorthArrow,
       instanceBbox: instance.bbox ?? null,
     });
 

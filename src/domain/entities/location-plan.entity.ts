@@ -13,6 +13,10 @@ export interface LocationPlanProps {
   scale: number | null;
   paperSize: PaperSize;
   orientation: PlanOrientation;
+  includeLegend: boolean;
+  includeScale: boolean;
+  includeGrid: boolean;
+  includeNorthArrow: boolean;
   filePath: string | null;
   fileSize: number | null;
   errorMessage: string | null;
@@ -35,6 +39,10 @@ export class LocationPlan {
   readonly scale: number | null;
   readonly paperSize: PaperSize;
   readonly orientation: PlanOrientation;
+  readonly includeLegend: boolean;
+  readonly includeScale: boolean;
+  readonly includeGrid: boolean;
+  readonly includeNorthArrow: boolean;
   readonly filePath: string | null;
   readonly fileSize: number | null;
   readonly errorMessage: string | null;
@@ -56,6 +64,10 @@ export class LocationPlan {
     this.scale = props.scale;
     this.paperSize = props.paperSize;
     this.orientation = props.orientation;
+    this.includeLegend = props.includeLegend;
+    this.includeScale = props.includeScale;
+    this.includeGrid = props.includeGrid;
+    this.includeNorthArrow = props.includeNorthArrow;
     this.filePath = props.filePath;
     this.fileSize = props.fileSize;
     this.errorMessage = props.errorMessage;

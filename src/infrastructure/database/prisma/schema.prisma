@@ -85,6 +85,7 @@ model User {
   exports       Export[]
   locationPlans LocationPlan[]
   instanceUsers InstanceUser[]
+  comments      Comment[]
 
   @@map("users")
 }
@@ -339,6 +340,12 @@ model LocationPlan {
   scale        Int?
   paperSize    PaperSize       @default(A4) @map("paper_size")
   orientation  PlanOrientation @default(PORTRAIT)
+  // Éléments de mise en page optionnels (constructeur de mise en page personnalisée) -
+  // tous à true par défaut pour ne pas changer le rendu des plans déjà existants/en cours.
+  includeLegend     Boolean @default(true) @map("include_legend")
+  includeScale      Boolean @default(true) @map("include_scale")
+  includeGrid       Boolean @default(true) @map("include_grid")
+  includeNorthArrow Boolean @default(true) @map("include_north_arrow")
   filePath     String?         @map("file_path")
   fileSize     Int?            @map("file_size")
   errorMessage String?         @map("error_message")
@@ -484,11 +491,21 @@ model Comment {
   text       String
   lat        Float
   lon        Float
+  // parentId non nul = réponse dans le fil de discussion d'un commentaire racine (pas un
+  // nouveau pin sur la carte). "resolved" ne s'applique en pratique qu'aux commentaires
+  // racines (marquer un fil comme traité), mais le champ est générique.
+  parentId   String?  @map("parent_id") @db.Uuid
+  resolved   Boolean  @default(false)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([instanceId])
+  @@index([parentId])
   @@map("comments")
 }
 

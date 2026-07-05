@@ -111,6 +111,7 @@ import { LookupGeocodingUseCase } from './application/use-cases/geocoding/lookup
 // Routing use cases
 import { CalculateRouteUseCase } from './application/use-cases/routing/calculate-route.use-case.js';
 import { FindNearestUseCase } from './application/use-cases/routing/find-nearest.use-case.js';
+import { FindNearestFeatureUseCase } from './application/use-cases/routing/find-nearest-feature.use-case.js';
 
 // Search use cases
 import { GlobalSearchUseCase } from './application/use-cases/search/global-search.use-case.js';
@@ -140,6 +141,8 @@ import { PrismaCommentRepository } from './infrastructure/database/repositories/
 import { SaveCommentUseCase } from './application/use-cases/comments/save-comment.use-case.js';
 import { GetCommentsUseCase } from './application/use-cases/comments/get-comments.use-case.js';
 import { DeleteCommentUseCase } from './application/use-cases/comments/delete-comment.use-case.js';
+import { ReplyToCommentUseCase } from './application/use-cases/comments/reply-to-comment.use-case.js';
+import { ResolveCommentUseCase } from './application/use-cases/comments/resolve-comment.use-case.js';
 
 // Sharing use cases
 import { PrismaSharedMapRepository } from './infrastructure/database/repositories/prisma-shared-map.repository.js';
@@ -220,6 +223,7 @@ import { GetLayerStatsUseCase } from './application/use-cases/layers/get-layer-s
 
 import { SmtpEmailService } from './infrastructure/email/smtp.service.js';
 import { OsmQueryService } from './infrastructure/database/osm-query.service.js';
+import { ResyncLayerUseCase } from './application/use-cases/layers/resync-layer.use-case.js';
 import { Osm2pgsqlService } from './infrastructure/osm/osm2pgsql.service.js';
 
 // OSM use cases
@@ -257,6 +261,8 @@ import { GetSeoMetadataUseCase } from './application/use-cases/seo/get-seo-metad
 import { GetJobDetailsUseCase } from './application/use-cases/admin/get-job-details.use-case.js';
 import { RetryJobUseCase } from './application/use-cases/admin/retry-job.use-case.js';
 import { ImportOsmDataUseCase } from './application/use-cases/admin/import-osm-data.use-case.js';
+import { ScheduledOsmImportUseCase } from './application/use-cases/admin/scheduled-osm-import.use-case.js';
+import { config } from './config/env.config.js';
 
 interface Cradle {
   prisma: PrismaClient;
@@ -355,6 +361,7 @@ interface Cradle {
   // Routing
   calculateRouteUseCase: CalculateRouteUseCase;
   findNearestUseCase: FindNearestUseCase;
+  findNearestFeatureUseCase: FindNearestFeatureUseCase;
   // Search
   globalSearchUseCase: GlobalSearchUseCase;
   searchLayersUseCase: SearchLayersUseCase;
@@ -377,9 +384,11 @@ interface Cradle {
   getJobDetailsUseCase: GetJobDetailsUseCase;
   retryJobUseCase: RetryJobUseCase;
   importOsmDataUseCase: ImportOsmDataUseCase;
+  scheduledOsmImportUseCase: ScheduledOsmImportUseCase;
   getSystemHealthUseCase: GetSystemHealthUseCase;
   // OSM
   osmQueryService: OsmQueryService;
+  resyncLayerUseCase: ResyncLayerUseCase;
   osm2pgsqlService: Osm2pgsqlService;
   queryOsmUseCase: QueryOsmUseCase;
   createOsmTableUseCase: CreateOsmTableUseCase;
@@ -420,6 +429,8 @@ interface Cradle {
   saveCommentUseCase: SaveCommentUseCase;
   getCommentsUseCase: GetCommentsUseCase;
   deleteCommentUseCase: DeleteCommentUseCase;
+  replyToCommentUseCase: ReplyToCommentUseCase;
+  resolveCommentUseCase: ResolveCommentUseCase;
   // Sharing
   sharedMapRepository: PrismaSharedMapRepository;
   createSharedMapUseCase: CreateSharedMapUseCase;
@@ -639,6 +650,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     // Routing use cases
     calculateRouteUseCase: asFunction((c: Cradle) => new CalculateRouteUseCase(c.osrmService), { lifetime: Lifetime.SCOPED }),
     findNearestUseCase: asFunction((c: Cradle) => new FindNearestUseCase(c.osrmService), { lifetime: Lifetime.SCOPED }),
+    findNearestFeatureUseCase: asFunction((c: Cradle) => new FindNearestFeatureUseCase(c.layerRepository, c.postGISService, c.osrmService), { lifetime: Lifetime.SCOPED }),
 
     // Search use cases
     globalSearchUseCase: asFunction((c: Cradle) => new GlobalSearchUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
@@ -665,6 +677,9 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     getJobDetailsUseCase: asFunction((c: Cradle) => new GetJobDetailsUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
     retryJobUseCase: asFunction((c: Cradle) => new RetryJobUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
     importOsmDataUseCase: asFunction((c: Cradle) => new ImportOsmDataUseCase(c.osm2pgsqlService, c.prisma), { lifetime: Lifetime.SCOPED }),
+    scheduledOsmImportUseCase: asFunction((c: Cradle) => new ScheduledOsmImportUseCase(
+      c.instanceRepository, c.layerRepository, c.importOsmDataUseCase, c.resyncLayerUseCase, config.OSM_IMPORT_PBF_PATH,
+    ), { lifetime: Lifetime.SCOPED }),
     getSystemHealthUseCase: asFunction((c: Cradle) => new GetSystemHealthUseCase(c.prisma, c.redisService), { lifetime: Lifetime.SCOPED }),
 
     // Phase 4: Layer Import Pipeline
@@ -681,6 +696,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     // OSM services
     osmQueryService: asFunction(() => new OsmQueryService(prisma), { lifetime: Lifetime.SINGLETON }),
+    resyncLayerUseCase: asFunction((c: Cradle) => new ResyncLayerUseCase(c.layerRepository, c.instanceRepository, c.osmQueryService), { lifetime: Lifetime.SCOPED }),
     osm2pgsqlService: asFunction(() => new Osm2pgsqlService(), { lifetime: Lifetime.SINGLETON }),
     queryOsmUseCase: asFunction((c: Cradle) => new QueryOsmUseCase(c.osmQueryService), { lifetime: Lifetime.SCOPED }),
     createOsmTableUseCase: asFunction((c: Cradle) => new CreateOsmTableUseCase(c.osmQueryService), { lifetime: Lifetime.SCOPED }),
@@ -718,6 +734,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     saveCommentUseCase: asFunction((c: Cradle) => new SaveCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
     getCommentsUseCase: asFunction((c: Cradle) => new GetCommentsUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
     deleteCommentUseCase: asFunction((c: Cradle) => new DeleteCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
+    replyToCommentUseCase: asFunction((c: Cradle) => new ReplyToCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
+    resolveCommentUseCase: asFunction((c: Cradle) => new ResolveCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
 
     // Sharing repositories and use cases
     sharedMapRepository: asFunction(() => new PrismaSharedMapRepository(prisma), { lifetime: Lifetime.SINGLETON }),

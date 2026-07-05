@@ -13,6 +13,7 @@ import { CreateLayerUseCase } from '../../application/use-cases/layers/create-la
 import { UpdateLayerUseCase } from '../../application/use-cases/layers/update-layer.use-case.js';
 import { DeleteLayerUseCase } from '../../application/use-cases/layers/delete-layer.use-case.js';
 import { GetSourceFileUseCase } from '../../application/use-cases/layers/get-source-file.use-case.js';
+import { ResyncLayerUseCase } from '../../application/use-cases/layers/resync-layer.use-case.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -87,6 +88,18 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(layerIdParamSchema, request.params);
     const result = await getSourceFileUseCase.execute(id);
+    return reply.send(successResponse(result));
+  });
+
+  // POST /:id/resync — recharge une couche par défaut depuis les données OSM déjà
+  // importées (pas un nouveau téléchargement OSM, voir ResyncLayerUseCase).
+  const resyncLayerUseCase = app.diContainer.resolve<ResyncLayerUseCase>('resyncLayerUseCase');
+  app.post('/:id/resync', {
+    schema: { description: 'Resynchroniser une couche par défaut depuis les données OSM importées', tags: ['Couches'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = parseBody(layerIdParamSchema, request.params);
+    const result = await resyncLayerUseCase.execute(id);
     return reply.send(successResponse(result));
   });
 }

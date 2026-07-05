@@ -59,6 +59,12 @@ const envSchema = z.object({
   DATA_DIR: z.string().default('/tmp/geosm-data'),
   NOMINATIM_URL: z.string().default('http://localhost:8081'),
   OSRM_URL: z.string().default('http://localhost:5000'),
+  // Import OSM programmé (voir ScheduledOsmImportUseCase) : chemin du fichier .osm.pbf à
+  // ré-importer périodiquement (déposé manuellement/par un job externe sur ce chemin - il
+  // n'existe pas de téléchargement automatique depuis Geofabrik ou l'API OSM dans ce code).
+  // Non défini = le job planifié se déclenche mais ne fait rien (no-op silencieux, loggé).
+  OSM_IMPORT_PBF_PATH: z.string().optional(),
+  OSM_IMPORT_CRON: z.string().default('0 2 1 * *'),
   MAPBOX_ACCESS_TOKEN: z.string().default('__ROTATED_MAPBOX_TOKEN_REMOVED__'),
 
   LOG_LEVEL: z.string().default('info'),

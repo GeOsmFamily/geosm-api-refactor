@@ -37,6 +37,8 @@
 31. [Service Email](#31-service-email)
 32. [Upload de Fichiers](#32-upload-de-fichiers)
 33. [Sante et Monitoring](#33-sante-et-monitoring)
+34. [Commentaires sur la Carte](#34-commentaires-sur-la-carte)
+35. [Plans de Localisation (PDF)](#35-plans-de-localisation-pdf)
 
 ---
 
@@ -516,6 +518,26 @@ POST /api/v1/instances/:instanceId/layers
 
 - Route : `GET /api/v1/instances/:instanceId/layers/:id/source-file` (authentifie)
 - Use case : `GetSourceFileUseCase` -> `LayerRepository.findById()` -> `StorageService.getPresignedUrl()`
+
+### 5.8 Fraicheur des Donnees et Resynchronisation
+
+**Description** : Les couches par defaut (voir `CreateInstanceUseCase`) sont des **instantanes** materialises (`CREATE TABLE ... AS SELECT`) construits une fois a partir des tables OSM brutes (`osm.planet_osm_point/line/polygon`), pas des vues live. Cet endpoint recree la table derivee de la couche a partir de l'etat ACTUEL des tables source (sans retelecharger/reimporter de donnees OSM), et met a jour `metadata.lastSyncedAt`, `featureCount`, `totalArea`, `totalLength`.
+
+**Cas d'usage** : Apres un reimport manuel des donnees OSM brutes, l'administrateur clique sur "Resynchroniser" dans le panneau de couche pour repercuter les changements sur la couche "Hopitaux" sans devoir la recreer entierement.
+
+**Implementation technique** :
+- Route : `POST /api/v1/instances/:instanceId/layers/:id/resync` (SUPER_ADMIN, ADMIN_INSTANCE) (`layer.routes.ts`)
+- Use case : `ResyncLayerUseCase` (`application/use-cases/layers/resync-layer.use-case.ts`) -> retrouve la config OSM d'origine (tags, type de geometrie) via le suffixe du slug dans `domain/constants/default-layers.constants.ts` -> `OsmQueryService.createTable()` (idempotent, `DROP TABLE IF EXISTS` puis recreation)
+- Rejette (400) les couches qui ne sont pas des couches par defaut derivees d'OSM (ex. couches importees manuellement) : pas de config OSM a retrouver pour elles
+- Reutilise par le job planifie d'import OSM (voir [Section 29.10](#2910-import-osm-programme-job-mensuel))
+
+**Reponse** :
+```json
+{
+  "success": true,
+  "data": { "id": "uuid-couche", "metadata": { "lastSyncedAt": "2026-07-04T20:52:00Z", "featureCount": 128, "totalArea": null, "totalLength": null } }
+}
+```
 
 ---
 
@@ -1063,6 +1085,28 @@ Integration du service OSRM (Open Source Routing Machine) pour le calcul d'itine
 
 - Route : `GET /api/v1/routing/nearest?lon=11.52&lat=3.87&number=3`
 - Use case : `FindNearestUseCase` -> `OSRMService.nearest()`
+
+### 15.3 Recherche du Plus Proche par Distance Routiere Reelle
+
+**Description** : A ne pas confondre avec 15.2 (qui fait du *snapping* sur le reseau routier). Ici on cherche, parmi les features d'une couche (ex. tous les hopitaux), celle(s) qui sont le plus proche(s) d'un point donne **par la route** (pas a vol d'oiseau). Deux etapes : (1) prefiltrage rapide des N candidats les plus proches a vol d'oiseau via PostGIS (`ORDER BY geom <-> point` avec index GiST), (2) calcul de la distance/duree routiere reelle pour chacun via une matrice OSRM one-to-many en un seul appel HTTP (`OSRMService.table()`). En cas d'echec OSRM, repli automatique sur la distance a vol d'oiseau.
+
+**Cas d'usage** : Un utilisateur clique sur la carte et veut savoir quel est l'hopital le plus proche en temps de trajet reel, pas juste en distance geometrique (utile quand deux hopitaux sont proches a vol d'oiseau mais separes par une riviere sans pont).
+
+**Implementation technique** :
+- Route : `GET /api/v1/routing/nearest-feature?layerId=uuid&lon=11.52&lat=3.87&limit=5` (`routing.routes.ts`)
+- Use case : `FindNearestFeatureUseCase` (`application/use-cases/routing/find-nearest-feature.use-case.ts`)
+- `PostGISService.findNearestCandidates()` (KNN `<->` prefiltrage, `CANDIDATE_POOL_SIZE = 10`) -> `OSRMService.table()` (matrice distance/duree) -> tri -> retourne les `limit` meilleurs resultats
+
+**Reponse** :
+```json
+{
+  "success": true,
+  "data": [
+    { "featureId": "uuid", "name": "Hopital Central", "distanceMeters": 1590, "durationSeconds": 120 },
+    { "featureId": "uuid", "name": "Clinique Bastos", "distanceMeters": 2100, "durationSeconds": 180 }
+  ]
+}
+```
 
 ---
 
@@ -1647,6 +1691,20 @@ POST /api/v1/admin/instances/template
 
 Voir [Section 7.1 - Import des Donnees OSM Brutes](#71-import-des-donnees-osm-brutes-osm2pgsql).
 
+### 29.10 Import OSM Programme (Job Mensuel)
+
+**Description** : Job BullMQ recurrent (cron, pas de nouvel endpoint HTTP) qui reimporte periodiquement le fichier `.osm.pbf` brut puis resynchronise automatiquement toutes les couches par defaut derivees d'OSM de toutes les instances actives (reutilise [ResyncLayerUseCase, section 5.8](#58-fraicheur-des-donnees-et-resynchronisation)).
+
+**Important** : ce job ne telecharge PAS lui-meme le fichier `.osm.pbf` (aucune integration Geofabrik/API OSM dans le code) -- il relit simplement le fichier present au chemin configure par `OSM_IMPORT_PBF_PATH`. Sans cette variable d'environnement, le job se declenche quand meme chaque mois mais ne fait rien (no-op loggue). Pour un import mensuel reellement a jour, un mecanisme externe (script/cron separe) doit rafraichir ce fichier avant l'execution du job.
+
+**Implementation technique** :
+- `QueueService.addRepeatableJob(queueName, jobName, data, cronPattern)` (`infrastructure/queue/queue.service.ts`) -- utilise le support natif `repeat: { pattern }` de BullMQ ; idempotent (rappeler au demarrage du serveur ne duplique pas le job)
+- Queue : `scheduled-osm-import`, cron configurable via `OSM_IMPORT_CRON` (defaut `0 2 1 * *` -- le 1er de chaque mois a 02h00)
+- Use case : `ScheduledOsmImportUseCase` (`application/use-cases/admin/scheduled-osm-import.use-case.ts`) -> `ImportOsmDataUseCase.execute({ pbfPath, append: true })` -> pour chaque instance active, pour chaque couche, `ResyncLayerUseCase.execute()` (les couches non derivees d'OSM par defaut sont ignorees sans erreur bloquante)
+- Worker : `createScheduledOsmImportProcessor` (`infrastructure/queue/workers/scheduled-osm-import.worker.ts`)
+- Enregistrement : au demarrage du serveur (`server.ts`), pas via une route HTTP
+- Verification de l'enregistrement (introspection BullMQ) : `QueueService.getRepeatableJobs('scheduled-osm-import')`, ou directement via Redis : `redis-cli KEYS "bull:scheduled-osm-import:repeat:*"`
+
 ---
 
 ## 30. Notifications Temps Reel (WebSocket)
@@ -1715,6 +1773,121 @@ Voir [Section 7.1 - Import des Donnees OSM Brutes](#71-import-des-donnees-osm-br
 ### 33.3 Journalisation
 
 **Description** : Logger structure (`src/infrastructure/observability/logger.ts`) avec middleware de logging des requetes (`requestLoggerMiddleware`).
+
+---
+
+## 34. Commentaires sur la Carte
+
+Permet aux utilisateurs de poser des commentaires geolocalises directement sur la carte, avec fils de discussion (reponses) et statut de resolution -- utile pour la collecte terrain collaborative et le suivi de signalements.
+
+### 34.1 Liste des Commentaires
+
+**Description** : Retourne les commentaires racine d'une instance (`parentId: null`), chacun avec ses reponses imbriquees (`replies`) et le nom de l'auteur enrichi (`authorName`).
+
+**Cas d'usage** : Le geoportail affiche les epingles de commentaires sur la carte, avec le fil de discussion complet a l'ouverture de chaque epingle.
+
+**Implementation technique** :
+- Route : `GET /api/v1/comments?instanceId=uuid` (authentifie) (`comment.routes.ts`)
+- Use case : `GetCommentsUseCase` -> `PrismaCommentRepository.findByInstanceId()` (Prisma `include` sur `user` et `replies`, aplati en un seul niveau)
+- Modele BD : `Comment` (id, instanceId, userId, text, lat, lon, parentId, resolved, createdAt)
+
+### 34.2 Creation d'un Commentaire
+
+**Description** : Cree un commentaire racine a une position geographique donnee.
+
+- Route : `POST /api/v1/comments` (authentifie)
+- Use case : `SaveCommentUseCase`
+
+```json
+POST /api/v1/comments
+{ "instanceId": "uuid", "text": "Route degradee ici", "lat": 3.87, "lon": 11.52 }
+```
+
+### 34.3 Reponse a un Commentaire
+
+**Description** : Ajoute une reponse a un commentaire existant. La reponse herite automatiquement de `instanceId`/`lat`/`lon` du commentaire parent (non fournis par le client). Les reponses aux reponses sont aplaties a un seul niveau (`parentId` prend toujours l'id du commentaire racine, pas de la reponse intermediaire).
+
+**Cas d'usage** : Un editeur repond a un signalement pour indiquer que la reparation est en cours.
+
+**Implementation technique** :
+- Route : `POST /api/v1/comments/:id/reply` (authentifie)
+- Use case : `ReplyToCommentUseCase` (`application/use-cases/comments/reply-to-comment.use-case.ts`)
+
+```json
+POST /api/v1/comments/:id/reply
+{ "text": "Signalement transmis a la voirie." }
+```
+
+### 34.4 Resolution d'un Commentaire
+
+**Description** : Marque un commentaire comme resolu ou non resolu (bascule visuelle : epingle verte/rouge sur la carte).
+
+- Route : `PATCH /api/v1/comments/:id/resolve` (authentifie)
+- Use case : `ResolveCommentUseCase`
+
+```json
+PATCH /api/v1/comments/:id/resolve
+{ "resolved": true }
+```
+
+### 34.5 Suppression d'un Commentaire
+
+- Route : `DELETE /api/v1/comments/:id` (authentifie, HTTP 204)
+- Use case : `DeleteCommentUseCase`
+
+---
+
+## 35. Plans de Localisation (PDF)
+
+Genere un plan de localisation professionnel au format PDF via QGIS (PyQGIS) : carte principale a echelle maitrisee, carte de situation (vicinity map), grille de coordonnees, fleche du nord, echelle graphique, legende et cartouche (titre, coordonnees WGS84/UTM). Remplace une simple capture d'ecran cote client par un document cartographique complet.
+
+### 35.1 Creation d'un Plan de Localisation
+
+**Description** : Lance la generation asynchrone d'un PDF via un job BullMQ. Le frontend interroge ensuite le statut (`PENDING` -> `PROCESSING` -> `COMPLETED`/`FAILED`) par polling.
+
+**Cas d'usage** : Un agent terrain choisit un point sur la carte, saisit un titre et un point de repere, et genere un plan de localisation A4 a imprimer pour se rendre sur site.
+
+**Implementation technique** :
+- Route : `POST /api/v1/location-plans` (authentifie) (`location-plan.routes.ts`)
+- Use case : `CreateLocationPlanUseCase` -> `LocationPlanRepository.create()` (statut `PENDING`) -> `QueueService.addJob('location-plan', 'generate', ...)`
+- Worker : `createLocationPlanProcessor` (`infrastructure/queue/workers/location-plan.worker.ts`) -> `QGISProjectService.generateLocationPlan()` -> execute `python_scripts/generate_location_plan.py` en sous-processus -> upload PDF vers MinIO -> notification WebSocket
+- Modele BD : `LocationPlan` (id, userId, instanceId, status, title, description, landmark, lon, lat, scale, paperSize [A4/A3], orientation [PORTRAIT/LANDSCAPE], includeLegend, includeScale, includeGrid, includeNorthArrow, filePath, fileSize)
+
+**Constructeur de mise en page personnalisee** : quatre indicateurs booleens optionnels (`includeLegend`, `includeScale`, `includeGrid`, `includeNorthArrow`, tous par defaut a `true` pour ne pas changer le rendu des plans deja generes) controlent la presence de chaque element sur le PDF. Le script Python recalcule dynamiquement l'espacement vertical (curseur `current_y`) pour eviter tout trou ou chevauchement quand un element est masque -- une marge minimale garantie protege en particulier le cartouche d'un chevauchement avec l'annotation de coordonnees de la grille quand echelle et legende sont toutes deux masquees.
+
+```json
+POST /api/v1/location-plans
+{
+  "instanceId": "uuid",
+  "title": "Ecole de Bastos",
+  "landmark": "Face a la mairie",
+  "lon": 11.52,
+  "lat": 3.87,
+  "paperSize": "A4",
+  "orientation": "PORTRAIT",
+  "includeLegend": true,
+  "includeScale": true,
+  "includeGrid": false,
+  "includeNorthArrow": true
+}
+```
+
+**Reponse** :
+```json
+{ "success": true, "data": { "id": "uuid-plan", "status": "PENDING", "includeLegend": true, "includeGrid": false } }
+```
+
+### 35.2 Statut d'un Plan de Localisation
+
+- Route : `GET /api/v1/location-plans/:id` (authentifie)
+- Use case : `GetLocationPlanUseCase`
+
+### 35.3 Telechargement du PDF
+
+**Description** : Telecharge le fichier PDF genere une fois le statut `COMPLETED`.
+
+- Route : `GET /api/v1/location-plans/:id/download` (authentifie)
+- Use case : `DownloadLocationPlanUseCase` -> `StorageService` (stream depuis MinIO)
 
 ---
 

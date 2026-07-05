@@ -16,6 +16,10 @@ export interface LocationPlanJobData {
   scale?: number;
   paperSize: PaperSize;
   orientation: PlanOrientation;
+  includeLegend?: boolean;
+  includeScale?: boolean;
+  includeGrid?: boolean;
+  includeNorthArrow?: boolean;
   instanceBbox?: number[] | null;
 }
 
@@ -28,7 +32,7 @@ type LocationPlanWorkerDeps = {
 
 export function createLocationPlanProcessor(deps: LocationPlanWorkerDeps) {
   return async function processLocationPlan(job: Job<LocationPlanJobData>): Promise<void> {
-    const { locationPlanId, userId, lon, lat, title, description, landmark, scale, paperSize, orientation, instanceBbox } = job.data;
+    const { locationPlanId, userId, lon, lat, title, description, landmark, scale, paperSize, orientation, includeLegend, includeScale, includeGrid, includeNorthArrow, instanceBbox } = job.data;
     logger.info('Processing location plan', { locationPlanId, lon, lat });
 
     const tmpDir = process.env.DATA_DIR || '/tmp/geosm-data';
@@ -47,6 +51,10 @@ export function createLocationPlanProcessor(deps: LocationPlanWorkerDeps) {
         scale,
         paperSize: paperSize.toLowerCase() as 'a4' | 'a3',
         orientation: orientation.toLowerCase() as 'portrait' | 'landscape',
+        includeLegend,
+        includeScale,
+        includeGrid,
+        includeNorthArrow,
         instanceBbox: instanceBbox && instanceBbox.length === 4 ? (instanceBbox as [number, number, number, number]) : undefined,
       });
 

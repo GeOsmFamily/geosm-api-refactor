@@ -46,6 +46,23 @@ export class QueueService {
     });
   }
 
+  /**
+   * Programme un job récurrent (cron) via le support natif "repeat" de BullMQ - aucun
+   * mécanisme de ce type n'existait avant (uniquement des jobs "one-shot" via addJob).
+   * Idempotent : un job du même nom avec le même pattern n'est pas dupliqué par BullMQ,
+   * donc rappeler cette méthode à chaque démarrage du serveur est sans danger.
+   */
+  async addRepeatableJob(queueName: string, jobName: string, data: JobData, cronPattern: string): Promise<Job> {
+    const queue = this.createQueue(queueName);
+    return queue.add(jobName, data, { repeat: { pattern: cronPattern } });
+  }
+
+  async getRepeatableJobs(queueName: string) {
+    const queue = this.getQueue(queueName);
+    if (!queue) return [];
+    return queue.getRepeatableJobs();
+  }
+
   registerWorker(queueName: string, processor: (job: Job) => Promise<unknown>, concurrency = 1): Worker {
     if (this.workers.has(queueName)) return this.workers.get(queueName)!;
     const worker = new Worker(queueName, processor, { connection, concurrency });

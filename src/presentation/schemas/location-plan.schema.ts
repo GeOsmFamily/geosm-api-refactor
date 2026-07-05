@@ -11,6 +11,10 @@ export const createLocationPlanSchema = z.object({
   scale: z.number().int().positive().optional(),
   paperSize: z.nativeEnum(PaperSize).optional(),
   orientation: z.nativeEnum(PlanOrientation).optional(),
+  includeLegend: z.boolean().optional(),
+  includeScale: z.boolean().optional(),
+  includeGrid: z.boolean().optional(),
+  includeNorthArrow: z.boolean().optional(),
 });
 
 export const locationPlanIdParamSchema = z.object({

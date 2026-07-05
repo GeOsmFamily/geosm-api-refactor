@@ -56,6 +56,8 @@ import { rasterRoutes } from './presentation/routes/raster.routes.js';
 import { createLayerImportProcessor } from './infrastructure/queue/workers/layer-import.worker.js';
 import { createExportProcessor } from './infrastructure/queue/workers/export.worker.js';
 import { createLocationPlanProcessor } from './infrastructure/queue/workers/location-plan.worker.js';
+import { createScheduledOsmImportProcessor } from './infrastructure/queue/workers/scheduled-osm-import.worker.js';
+import { config as envConfig } from './config/env.config.js';
 
 async function bootstrap(): Promise<void> {
   const app = Fastify({
@@ -126,6 +128,14 @@ async function bootstrap(): Promise<void> {
     notificationService,
     qgisProjectService: app.diContainer.resolve('qgisProjectService') as import('./infrastructure/qgis/qgis-project.service.js').QGISProjectService,
   }));
+
+  // Register scheduled OSM import worker + job récurrent (ré-import mensuel des données
+  // OSM brutes + resynchronisation des couches par défaut de toutes les instances actives).
+  queueService.createQueue('scheduled-osm-import');
+  queueService.registerWorker('scheduled-osm-import', createScheduledOsmImportProcessor({
+    scheduledOsmImportUseCase: app.diContainer.resolve('scheduledOsmImportUseCase') as import('./application/use-cases/admin/scheduled-osm-import.use-case.js').ScheduledOsmImportUseCase,
+  }));
+  await queueService.addRepeatableJob('scheduled-osm-import', 'monthly-import', {}, envConfig.OSM_IMPORT_CRON);
 
   // Route publique pour servir les icônes SVG personnalisées des couches
   app.get('/api/v1/layers/icons/:filename', async (request, reply) => {
