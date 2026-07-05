@@ -40,8 +40,14 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   const incrementViewUseCase = app.diContainer.resolve<IncrementViewUseCase>('incrementViewUseCase');
 
   // POST /api/v1/analytics/track
+  // authenticateOptional (et non authenticate) : la route reste utilisable sans être connecté
+  // (événements anonymes acceptés), mais décode le JWT si présent pour attribuer l'événement
+  // à un utilisateur - sans ça, request.user restait toujours undefined ici (aucune route
+  // sans preHandler ne décode le JWT), et tous les événements atterrissaient avec userId=null,
+  // rendant les suggestions/recommandations personnalisées incapables de fonctionner.
   app.post('/track', {
     schema: { description: 'Enregistrer un evenement analytique', tags: ['Analytiques'], body: zodToSwagger(trackEventSchema) },
+    preHandler: [app.authenticateOptional],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const dto = parseBody(trackEventSchema, request.body);
     const userId = (request.user as { sub: string } | undefined)?.sub;
@@ -58,6 +64,7 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/v1/analytics/view
   app.post('/view', {
     schema: { description: 'Incrementer une vue', tags: ['Analytiques'], body: zodToSwagger(incrementViewSchema) },
+    preHandler: [app.authenticateOptional],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { type, id } = parseBody(incrementViewSchema, request.body);
     const userId = (request.user as { sub: string } | undefined)?.sub;

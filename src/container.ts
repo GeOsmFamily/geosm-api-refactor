@@ -160,6 +160,8 @@ import { GetSharedMapUseCase } from './application/use-cases/sharing/get-shared-
 
 // Analytics use cases
 import { PrismaAnalyticsRepository } from './infrastructure/database/repositories/prisma-analytics.repository.js';
+import { GetSearchSuggestionsUseCase } from './application/use-cases/search/get-search-suggestions.use-case.js';
+import { GetLayerRecommendationsUseCase } from './application/use-cases/search/get-layer-recommendations.use-case.js';
 import { TrackEventUseCase } from './application/use-cases/analytics/track-event.use-case.js';
 import { GetAnalyticsUseCase } from './application/use-cases/analytics/get-analytics.use-case.js';
 
@@ -457,6 +459,8 @@ interface Cradle {
   getSharedMapUseCase: GetSharedMapUseCase;
   // Analytics
   analyticsRepository: PrismaAnalyticsRepository;
+  getSearchSuggestionsUseCase: GetSearchSuggestionsUseCase;
+  getLayerRecommendationsUseCase: GetLayerRecommendationsUseCase;
   trackEventUseCase: TrackEventUseCase;
   getAnalyticsUseCase: GetAnalyticsUseCase;
   incrementViewUseCase: IncrementViewUseCase;
@@ -779,6 +783,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     trackEventUseCase: asFunction((c: Cradle) => new TrackEventUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
     getAnalyticsUseCase: asFunction((c: Cradle) => new GetAnalyticsUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
     incrementViewUseCase: asFunction((c: Cradle) => new IncrementViewUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
+    getSearchSuggestionsUseCase: asFunction((c: Cradle) => new GetSearchSuggestionsUseCase(c.analyticsRepository, c.layerRepository), { lifetime: Lifetime.SCOPED }),
+    getLayerRecommendationsUseCase: asFunction((c: Cradle) => new GetLayerRecommendationsUseCase(c.analyticsRepository, c.layerRepository), { lifetime: Lifetime.SCOPED }),
 
     // Catalog
     getCatalogUseCase: asFunction((c: Cradle) => new GetCatalogUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),

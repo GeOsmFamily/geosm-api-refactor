@@ -19,6 +19,19 @@ export const searchFeaturesQuerySchema = z.object({
   offset: z.coerce.number().int().nonnegative().optional(),
 });
 
+export const searchSuggestionsQuerySchema = z.object({
+  instanceId: z.string().uuid(),
+  limit: z.coerce.number().int().positive().max(20).optional(),
+});
+
+export const layerRecommendationsQuerySchema = z.object({
+  layerId: z.string().uuid(),
+  instanceId: z.string().uuid(),
+  limit: z.coerce.number().int().positive().max(20).optional(),
+});
+
 export type GlobalSearchQuery = z.infer<typeof globalSearchQuerySchema>;
 export type SearchLayersQuery = z.infer<typeof searchLayersQuerySchema>;
 export type SearchFeaturesQuery = z.infer<typeof searchFeaturesQuerySchema>;
+export type SearchSuggestionsQuery = z.infer<typeof searchSuggestionsQuerySchema>;
+export type LayerRecommendationsQuery = z.infer<typeof layerRecommendationsQuerySchema>;
