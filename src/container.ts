@@ -121,6 +121,14 @@ import { SearchFeaturesUseCase } from './application/use-cases/search/search-fea
 import { IndexLayerUseCase } from './application/use-cases/search/index-layer.use-case.js';
 import { RemoveLayerIndexUseCase } from './application/use-cases/search/remove-layer-index.use-case.js';
 
+// Assistant IA
+import { AssistantChatUseCase } from './application/use-cases/assistant/assistant-chat.use-case.js';
+import { ListAssistantConversationsUseCase } from './application/use-cases/assistant/list-assistant-conversations.use-case.js';
+import { CreateAssistantConversationUseCase } from './application/use-cases/assistant/create-assistant-conversation.use-case.js';
+import { GetAssistantConversationUseCase } from './application/use-cases/assistant/get-assistant-conversation.use-case.js';
+import { DeleteAssistantConversationUseCase } from './application/use-cases/assistant/delete-assistant-conversation.use-case.js';
+import { PrismaAssistantConversationRepository } from './infrastructure/database/repositories/prisma-assistant-conversation.repository.js';
+
 // Admin Boundary use cases
 import { FindAdminBoundaryUseCase } from './application/use-cases/geoportail/find-admin-boundary.use-case.js';
 
@@ -202,6 +210,7 @@ import { SearchLimitInTableUseCase } from './application/use-cases/geoportail/se
 import { CreateInstanceTemplateUseCase } from './application/use-cases/admin/create-instance-template.use-case.js';
 import { GetSourceFileUseCase } from './application/use-cases/layers/get-source-file.use-case.js';
 import { ManageSequenceUseCase } from './application/use-cases/admin/manage-sequence.use-case.js';
+import { ReindexAllLayersUseCase } from './application/use-cases/search/reindex-all-layers.use-case.js';
 
 // Phase 4: Layer Import Pipeline
 import { MinioStorageService } from './infrastructure/storage/minio.service.js';
@@ -369,6 +378,13 @@ interface Cradle {
   globalSearchUseCase: GlobalSearchUseCase;
   searchLayersUseCase: SearchLayersUseCase;
   searchFeaturesUseCase: SearchFeaturesUseCase;
+  // Assistant IA
+  assistantConversationRepository: PrismaAssistantConversationRepository;
+  assistantChatUseCase: AssistantChatUseCase;
+  listAssistantConversationsUseCase: ListAssistantConversationsUseCase;
+  createAssistantConversationUseCase: CreateAssistantConversationUseCase;
+  getAssistantConversationUseCase: GetAssistantConversationUseCase;
+  deleteAssistantConversationUseCase: DeleteAssistantConversationUseCase;
   // QGIS Projects
   getQgisProjectUseCase: GetQgisProjectUseCase;
   reloadQgisProjectUseCase: ReloadQgisProjectUseCase;
@@ -487,6 +503,7 @@ interface Cradle {
   createInstanceTemplateUseCase: CreateInstanceTemplateUseCase;
   getSourceFileUseCase: GetSourceFileUseCase;
   manageSequenceUseCase: ManageSequenceUseCase;
+  reindexAllLayersUseCase: ReindexAllLayersUseCase;
 }
 
 export async function setupContainer(app: FastifyInstance): Promise<void> {
@@ -660,6 +677,15 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     // Search use cases
     globalSearchUseCase: asFunction((c: Cradle) => new GlobalSearchUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
     searchLayersUseCase: asFunction((c: Cradle) => new SearchLayersUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
+    assistantConversationRepository: asFunction(() => new PrismaAssistantConversationRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    assistantChatUseCase: asFunction((c: Cradle) => new AssistantChatUseCase(
+      c.geminiService, c.assistantConversationRepository, c.searchGeocodingUseCase, c.searchLayersUseCase, c.getLayerStatsUseCase,
+      c.spatialAnalysisUseCase, c.findNearestFeatureUseCase, c.createLocationPlanUseCase, c.getLocationPlanUseCase,
+    ), { lifetime: Lifetime.SCOPED }),
+    listAssistantConversationsUseCase: asFunction((c: Cradle) => new ListAssistantConversationsUseCase(c.assistantConversationRepository), { lifetime: Lifetime.SCOPED }),
+    createAssistantConversationUseCase: asFunction((c: Cradle) => new CreateAssistantConversationUseCase(c.assistantConversationRepository), { lifetime: Lifetime.SCOPED }),
+    getAssistantConversationUseCase: asFunction((c: Cradle) => new GetAssistantConversationUseCase(c.assistantConversationRepository), { lifetime: Lifetime.SCOPED }),
+    deleteAssistantConversationUseCase: asFunction((c: Cradle) => new DeleteAssistantConversationUseCase(c.assistantConversationRepository), { lifetime: Lifetime.SCOPED }),
     searchFeaturesUseCase: asFunction((c: Cradle) => new SearchFeaturesUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
 
     // QGIS Projects use cases
@@ -806,5 +832,6 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     createInstanceTemplateUseCase: asFunction((c: Cradle) => new CreateInstanceTemplateUseCase(c.instanceRepository, prisma), { lifetime: Lifetime.SCOPED }),
     getSourceFileUseCase: asFunction((c: Cradle) => new GetSourceFileUseCase(c.layerRepository, c.storageService), { lifetime: Lifetime.SCOPED }),
     manageSequenceUseCase: asFunction(() => new ManageSequenceUseCase(prisma), { lifetime: Lifetime.SCOPED }),
+    reindexAllLayersUseCase: asFunction((c: Cradle) => new ReindexAllLayersUseCase(c.instanceRepository, c.layerRepository, c.indexLayerUseCase, c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
   });
 }

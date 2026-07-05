@@ -18,6 +18,7 @@ import { GenerateIconUseCase } from '../../application/use-cases/admin/generate-
 import { ConfigDbUseCase } from '../../application/use-cases/admin/config-db.use-case.js';
 import { CreateInstanceTemplateUseCase } from '../../application/use-cases/admin/create-instance-template.use-case.js';
 import { ManageSequenceUseCase } from '../../application/use-cases/admin/manage-sequence.use-case.js';
+import { ReindexAllLayersUseCase } from '../../application/use-cases/search/reindex-all-layers.use-case.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -71,6 +72,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   const configDbUseCase = app.diContainer.resolve<ConfigDbUseCase>('configDbUseCase');
   const createInstanceTemplateUseCase = app.diContainer.resolve<CreateInstanceTemplateUseCase>('createInstanceTemplateUseCase');
   const manageSequenceUseCase = app.diContainer.resolve<ManageSequenceUseCase>('manageSequenceUseCase');
+  const reindexAllLayersUseCase = app.diContainer.resolve<ReindexAllLayersUseCase>('reindexAllLayersUseCase');
 
   // GET /dashboard — returns stats
   app.get('/dashboard', { schema: { description: 'Obtenir le tableau de bord', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -106,6 +108,14 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   app.post('/osm/import', { schema: { description: 'Importer des donnees OSM via osm2pgsql', tags: ['Administration'], security: [{ bearerAuth: [] }], body: zodToSwagger(importOsmSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = parseBody(importOsmSchema, request.body);
     const result = await importOsmDataUseCase.execute(body);
+    return reply.send(successResponse(result));
+  });
+
+  // POST /search/reindex-layers — rattrapage : réindexe toutes les couches de toutes les
+  // instances dans MeiliSearch (voir ReindexAllLayersUseCase). Utile si l'index a été
+  // recréé/vidé ou si des couches existent sans jamais avoir été indexées.
+  app.post('/search/reindex-layers', { schema: { description: 'Reindexer toutes les couches dans MeiliSearch', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    const result = await reindexAllLayersUseCase.execute();
     return reply.send(successResponse(result));
   });
 

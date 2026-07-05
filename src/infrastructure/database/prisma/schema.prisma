@@ -419,6 +419,22 @@ model AnalyticsEvent {
   @@map("analytics_events")
 }
 
+model AssistantConversation {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  instanceId String   @map("instance_id") @db.Uuid
+  title      String   @default("Nouvelle conversation")
+  // Tableau de tours {role: 'user'|'model', text: string, createdAt: string} - pas de table
+  // séparée : le volume par conversation reste faible (quelques dizaines de messages max),
+  // même pattern que MapComposition.layers/SharedMap.mapState pour ce type de données.
+  messages   Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, instanceId])
+  @@map("assistant_conversations")
+}
+
 model MapComposition {
   id          String   @id @default(uuid()) @db.Uuid
   name        String

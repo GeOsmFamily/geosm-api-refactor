@@ -17,6 +17,6 @@ export class IndexLayerUseCase {
       subGroupId: layer.subGroupId,
       metadata: layer.metadata,
     };
-    await this.meiliSearchService.addDocuments(LAYERS_INDEX, [document]);
+    await this.meiliSearchService.addDocuments(LAYERS_INDEX, [document], 'id');
   }
 }

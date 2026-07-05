@@ -37,8 +37,32 @@ export class MeiliSearchService {
     return response.json() as Promise<MeiliSearchResult>;
   }
 
-  async addDocuments(indexName: string, documents: Record<string, unknown>[]): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/indexes/${indexName}/documents`, {
+  /**
+   * Déclare les attributs filtrables d'un index (ex: "instanceId", "layerId") - sans ça,
+   * toute recherche utilisant `filter` échoue en "Bad Request" (MeiliSearch exige une
+   * déclaration explicite). Idempotent, à appeler avant/pendant l'indexation initiale d'un
+   * index (voir ReindexAllLayersUseCase) : `addDocuments` seul crée l'index sans aucun
+   * attribut filtrable configuré.
+   */
+  async updateFilterableAttributes(indexName: string, attributes: string[]): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/indexes/${indexName}/settings/filterable-attributes`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+      body: JSON.stringify(attributes),
+    });
+    if (!response.ok) throw new Error(`MeiliSearch updateFilterableAttributes failed: ${response.statusText}`);
+  }
+
+  /**
+   * `primaryKey` doit être fourni explicitement dès lors qu'un document a plus d'un champ se
+   * terminant par "id" (ex: `id` + `instanceId` + `subGroupId` pour une couche) : sans ça,
+   * l'inférence automatique de MeiliSearch échoue et la tâche d'indexation échoue de façon
+   * silencieuse (l'appel HTTP répond quand même 202 "tâche acceptée" - l'échec ne se voit que
+   * dans /tasks, jamais dans la réponse de cet appel).
+   */
+  async addDocuments(indexName: string, documents: Record<string, unknown>[], primaryKey?: string): Promise<void> {
+    const qs = primaryKey ? `?primaryKey=${encodeURIComponent(primaryKey)}` : '';
+    const response = await fetch(`${this.baseUrl}/indexes/${indexName}/documents${qs}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
       body: JSON.stringify(documents),
