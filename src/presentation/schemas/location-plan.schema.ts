@@ -15,6 +15,7 @@ export const createLocationPlanSchema = z.object({
   includeScale: z.boolean().optional(),
   includeGrid: z.boolean().optional(),
   includeNorthArrow: z.boolean().optional(),
+  autoFillWithAI: z.boolean().optional(),
 });
 
 export const locationPlanIdParamSchema = z.object({

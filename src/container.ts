@@ -82,6 +82,7 @@ import { DeleteBaseMapUseCase } from './application/use-cases/base-maps/delete-b
 // External API services
 import { NominatimService } from './infrastructure/external-apis/nominatim.service.js';
 import { OSRMService } from './infrastructure/external-apis/osrm.service.js';
+import { GeminiService } from './infrastructure/external-apis/gemini.service.js';
 import { MeiliSearchService } from './infrastructure/external-apis/meilisearch.service.js';
 import { QgisServerService } from './infrastructure/external-apis/qgis-server.service.js';
 import { QGISProjectService } from './infrastructure/qgis/qgis-project.service.js';
@@ -220,6 +221,7 @@ import { AddFeatureUseCase } from './application/use-cases/features/add-feature.
 import { UpdateFeatureUseCase } from './application/use-cases/features/update-feature.use-case.js';
 import { DeleteFeatureUseCase } from './application/use-cases/features/delete-feature.use-case.js';
 import { GetLayerStatsUseCase } from './application/use-cases/layers/get-layer-stats.use-case.js';
+import { SummarizeViewportUseCase } from './application/use-cases/geoportail/summarize-viewport.use-case.js';
 
 import { SmtpEmailService } from './infrastructure/email/smtp.service.js';
 import { OsmQueryService } from './infrastructure/database/osm-query.service.js';
@@ -280,6 +282,7 @@ interface Cradle {
   defaultThemeRepository: PrismaDefaultThemeRepository;
   nominatimService: NominatimService;
   osrmService: OSRMService;
+  geminiService: GeminiService;
   meiliSearchService: MeiliSearchService;
   qgisServerService: QgisServerService;
   qgisProjectService: QGISProjectService;
@@ -408,6 +411,7 @@ interface Cradle {
   updateFeatureUseCase: UpdateFeatureUseCase;
   deleteFeatureUseCase: DeleteFeatureUseCase;
   getLayerStatsUseCase: GetLayerStatsUseCase;
+  summarizeViewportUseCase: SummarizeViewportUseCase;
   // Search indexing
   indexLayerUseCase: IndexLayerUseCase;
   removeLayerIndexUseCase: RemoveLayerIndexUseCase;
@@ -522,6 +526,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     // External API services
     nominatimService: asFunction(() => new NominatimService(), { lifetime: Lifetime.SINGLETON }),
     osrmService: asFunction(() => new OSRMService(), { lifetime: Lifetime.SINGLETON }),
+    geminiService: asFunction(() => new GeminiService(), { lifetime: Lifetime.SINGLETON }),
     meiliSearchService: asFunction(() => new MeiliSearchService(), { lifetime: Lifetime.SINGLETON }),
     qgisServerService: asFunction(() => new QgisServerService(), { lifetime: Lifetime.SINGLETON }),
     qgisProjectService: asFunction(() => new QGISProjectService(), { lifetime: Lifetime.SINGLETON }),
@@ -639,7 +644,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     deleteExportUseCase: asFunction((c: Cradle) => new DeleteExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
 
     // Location plans use cases
-    createLocationPlanUseCase: asFunction((c: Cradle) => new CreateLocationPlanUseCase(c.locationPlanRepository, c.instanceRepository, c.queueService), { lifetime: Lifetime.SCOPED }),
+    createLocationPlanUseCase: asFunction((c: Cradle) => new CreateLocationPlanUseCase(c.locationPlanRepository, c.instanceRepository, c.queueService, c.postGISService, c.geminiService), { lifetime: Lifetime.SCOPED }),
     getLocationPlanUseCase: asFunction((c: Cradle) => new GetLocationPlanUseCase(c.locationPlanRepository), { lifetime: Lifetime.SCOPED }),
 
     // Geocoding use cases
@@ -707,7 +712,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     addFeatureUseCase: asFunction((c: Cradle) => new AddFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
     updateFeatureUseCase: asFunction((c: Cradle) => new UpdateFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
     deleteFeatureUseCase: asFunction((c: Cradle) => new DeleteFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
-    getLayerStatsUseCase: asFunction((c: Cradle) => new GetLayerStatsUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
+    getLayerStatsUseCase: asFunction((c: Cradle) => new GetLayerStatsUseCase(c.layerRepository, c.postGISService, c.geminiService), { lifetime: Lifetime.SCOPED }),
+    summarizeViewportUseCase: asFunction((c: Cradle) => new SummarizeViewportUseCase(c.layerRepository, c.postGISService, c.geminiService), { lifetime: Lifetime.SCOPED }),
 
     // Search indexing use cases
     indexLayerUseCase: asFunction((c: Cradle) => new IndexLayerUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),

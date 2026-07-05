@@ -10,6 +10,7 @@ import { FindAdminBoundaryUseCase } from '../../application/use-cases/geoportail
 import { GeolocateIpUseCase } from '../../application/use-cases/geoportail/geolocate-ip.use-case.js';
 import { SearchLimitInTableUseCase } from '../../application/use-cases/geoportail/search-limit-in-table.use-case.js';
 import { SaveCoordPdfUseCase } from '../../application/use-cases/maps/save-coord-pdf.use-case.js';
+import { SummarizeViewportUseCase } from '../../application/use-cases/geoportail/summarize-viewport.use-case.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -28,6 +29,14 @@ const elevationProfileBodySchema = z.object({
 });
 
 const layerIdParamSchema = z.object({ layerId: z.string().uuid() });
+
+const layerStatsQuerySchema = z.object({
+  narrative: z.coerce.boolean().optional().default(false),
+});
+
+const summarizeViewBodySchema = z.object({
+  layerIds: z.array(z.string().uuid()).min(1).max(50),
+});
 
 const adminBoundaryQuerySchema = z.object({
   lat: z.coerce.number().min(-90).max(90),
@@ -55,6 +64,7 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
   const geolocateIpUseCase = app.diContainer.resolve<GeolocateIpUseCase>('geolocateIpUseCase');
   const searchLimitInTableUseCase = app.diContainer.resolve<SearchLimitInTableUseCase>('searchLimitInTableUseCase');
   const saveCoordPdfUseCase = app.diContainer.resolve<SaveCoordPdfUseCase>('saveCoordPdfUseCase');
+  const summarizeViewportUseCase = app.diContainer.resolve<SummarizeViewportUseCase>('summarizeViewportUseCase');
 
   // POST /api/v1/geoportail/altitude
   app.post('/altitude', {
@@ -91,14 +101,31 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(successResponse(result));
   });
 
-  // POST /api/v1/layers/:layerId/stats
+  // POST /api/v1/layers/:layerId/stats?narrative=true
+  // narrative=true ajoute une synthese textuelle generee par IA (Gemini) en plus des
+  // chiffres bruts - echoue silencieusement (pas de champ `narrative` dans la reponse) si
+  // GEMINI_API_KEY est absente ou l'appel echoue, voir GetLayerStatsUseCase.
   app.post('/layers/:layerId/stats', {
-    schema: { description: 'Obtenir les statistiques d\'une couche', tags: ['Geoportail'], security: [{ bearerAuth: [] }] },
+    schema: { description: 'Obtenir les statistiques d\'une couche', tags: ['Geoportail'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(layerStatsQuerySchema) },
     preHandler: [app.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { layerId } = parseBody(layerIdParamSchema, request.params);
-    const stats = await getLayerStatsUseCase.execute(layerId);
+    const { narrative } = parseBody(layerStatsQuerySchema, request.query);
+    const stats = await getLayerStatsUseCase.execute(layerId, narrative);
     return reply.send(successResponse(stats));
+  });
+
+  // POST /api/v1/geoportail/summarize-view
+  // Agrège les statistiques des couches actives passées en corps de requête et les
+  // transforme en un court paragraphe via Gemini (voir SummarizeViewportUseCase). Renvoie
+  // les statistiques agrégées même si la synthèse IA échoue (champ `narrative` absent).
+  app.post('/summarize-view', {
+    schema: { description: 'Résumer la vue courante (couches actives)', tags: ['Geoportail'], security: [{ bearerAuth: [] }], body: zodToSwagger(summarizeViewBodySchema) },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { layerIds } = parseBody(summarizeViewBodySchema, request.body);
+    const summary = await summarizeViewportUseCase.execute(layerIds);
+    return reply.send(successResponse(summary));
   });
 
   // GET /api/v1/geoportail/search-limit?lat=X&lon=Y&table=schema.table

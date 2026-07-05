@@ -65,6 +65,11 @@ const envSchema = z.object({
   // Non défini = le job planifié se déclenche mais ne fait rien (no-op silencieux, loggé).
   OSM_IMPORT_PBF_PATH: z.string().optional(),
   OSM_IMPORT_CRON: z.string().default('0 2 1 * *'),
+
+  // Google Gemini (assistant IA) - optionnel : les fonctionnalites IA sont desactivees
+  // proprement (erreur explicite a l'appel, pas de crash au demarrage) si absent.
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
   MAPBOX_ACCESS_TOKEN: z.string().default('__ROTATED_MAPBOX_TOKEN_REMOVED__'),
 
   LOG_LEVEL: z.string().default('info'),

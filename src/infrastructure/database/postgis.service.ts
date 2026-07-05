@@ -309,6 +309,49 @@ export class PostGISService {
     }));
   }
 
+  /**
+   * Lieux-dits et repères notables nommés les plus proches d'un point, dans les tables OSM
+   * brutes (osm.planet_osm_point, colonne géométrie native "way" en EPSG:3857 - convention
+   * osm2pgsql, voir osm-query.service.ts). Même logique de tags que
+   * generate_location_plan.py (build_place_labels_layer/build_landmark_labels_layer), mais
+   * exposée côté Node pour nourrir un prompt IA (rédaction du plan de localisation) plutôt
+   * que pour l'affichage carte QGIS.
+   */
+  async findNearestPlaces(
+    lon: number,
+    lat: number,
+    limit = 5,
+  ): Promise<{ name: string; kind: 'place' | 'landmark'; distanceMeters: number }[]> {
+    const point4326 = `ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)`;
+    const point3857 = `ST_Transform(${point4326}, 3857)`;
+    const n = Number(limit);
+
+    const sql = `
+      SELECT name, kind, distance_meters FROM (
+        (SELECT name, 'place' AS kind, ST_Distance(ST_Transform(way, 4326)::geography, ${point4326}::geography) AS distance_meters
+         FROM osm.planet_osm_point
+         WHERE place IS NOT NULL AND name IS NOT NULL
+         ORDER BY way <-> ${point3857}
+         LIMIT ${n})
+        UNION ALL
+        (SELECT name, 'landmark' AS kind, ST_Distance(ST_Transform(way, 4326)::geography, ${point4326}::geography) AS distance_meters
+         FROM osm.planet_osm_point
+         WHERE ((amenity IN ('place_of_worship', 'marketplace', 'townhall')) OR (historic IN ('monument', 'memorial')) OR (tourism = 'attraction')) AND name IS NOT NULL
+         ORDER BY way <-> ${point3857}
+         LIMIT ${n})
+      ) nearby
+      ORDER BY distance_meters
+      LIMIT ${n}
+    `;
+
+    const rows = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(sql);
+    return rows.map((r) => ({
+      name: r.name as string,
+      kind: r.kind as 'place' | 'landmark',
+      distanceMeters: Number(r.distance_meters),
+    }));
+  }
+
   // Get layer statistics (count, area, length, bbox)
   async getLayerStats(schema: string, table: string): Promise<LayerStats> {
     const s = this.sanitizeIdentifier(schema);
