@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { z } from 'zod';
 import {
   registerSchema,
   loginSchema,
@@ -24,6 +25,14 @@ import { ResetPasswordUseCase } from '../../application/use-cases/auth/reset-pas
 import { GetProfileUseCase } from '../../application/use-cases/auth/get-profile.use-case.js';
 import { UpdateProfileUseCase } from '../../application/use-cases/auth/update-profile.use-case.js';
 import { ChangePasswordUseCase } from '../../application/use-cases/auth/change-password.use-case.js';
+import { OsmLoginUseCase } from '../../application/use-cases/auth/osm-login.use-case.js';
+import { LinkOsmAccountUseCase } from '../../application/use-cases/auth/link-osm-account.use-case.js';
+import { UnlinkOsmAccountUseCase } from '../../application/use-cases/auth/unlink-osm-account.use-case.js';
+import { GetOsmProfileUseCase } from '../../application/use-cases/auth/get-osm-profile.use-case.js';
+import { OsmOAuthService } from '../../infrastructure/external-apis/osm-oauth.service.js';
+import { signOAuthState, verifyOAuthState } from '../../infrastructure/utils/oauth-state.util.js';
+import { config } from '../../config/env.config.js';
+import { logger } from '../../infrastructure/observability/logger.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -44,6 +53,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   const getProfileUseCase = app.diContainer.resolve<GetProfileUseCase>('getProfileUseCase');
   const updateProfileUseCase = app.diContainer.resolve<UpdateProfileUseCase>('updateProfileUseCase');
   const changePasswordUseCase = app.diContainer.resolve<ChangePasswordUseCase>('changePasswordUseCase');
+  const osmLoginUseCase = app.diContainer.resolve<OsmLoginUseCase>('osmLoginUseCase');
+  const linkOsmAccountUseCase = app.diContainer.resolve<LinkOsmAccountUseCase>('linkOsmAccountUseCase');
+  const unlinkOsmAccountUseCase = app.diContainer.resolve<UnlinkOsmAccountUseCase>('unlinkOsmAccountUseCase');
+  const getOsmProfileUseCase = app.diContainer.resolve<GetOsmProfileUseCase>('getOsmProfileUseCase');
+  const osmOAuthService = app.diContainer.resolve<OsmOAuthService>('osmOAuthService');
 
   app.post('/register', {
     schema: {
@@ -180,4 +194,81 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return reply.send(successResponse(null));
     },
   );
+
+  // --- Auth OpenStreetMap (OAuth 2.0) ---
+
+  // GET /auth/osm/status - le frontend masque le bouton "Se connecter avec OpenStreetMap"
+  // si OSM_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI ne sont pas configurés (voir env.config.ts).
+  app.get('/osm/status', {
+    schema: { description: 'Vérifie si la connexion OpenStreetMap est configurée', tags: ['Authentification'] },
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send(successResponse({ configured: osmOAuthService.isConfigured() }));
+  });
+
+  // GET /auth/osm/login-url - retourne l'URL d'autorisation OSM plutôt que de rediriger
+  // directement, pour que le frontend contrôle la navigation (window.location.href = url).
+  app.get('/osm/login-url', {
+    schema: { description: 'Obtenir l\'URL de connexion OpenStreetMap', tags: ['Authentification'] },
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    const state = signOAuthState({ purpose: 'login' });
+    return reply.send(successResponse({ url: osmOAuthService.getAuthorizationUrl(state) }));
+  });
+
+  // GET /auth/osm/link-url - même principe pour lier un compte OSM à un compte GeOSM déjà
+  // connecté. Le userId est embarqué dans le state signé (et non lu depuis le header
+  // Authorization) car une redirection plein-écran du navigateur ne transporte pas ce header -
+  // seul cet appel initial (un fetch, pas une navigation) peut s'authentifier normalement.
+  app.get('/osm/link-url', {
+    schema: { description: 'Obtenir l\'URL pour lier un compte OpenStreetMap', tags: ['Authentification'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const state = signOAuthState({ purpose: 'link', userId: request.user.sub });
+    return reply.send(successResponse({ url: osmOAuthService.getAuthorizationUrl(state) }));
+  });
+
+  const osmCallbackQuerySchema = z.object({ code: z.string(), state: z.string() });
+
+  // GET /auth/osm/callback - point de retour unique pour les deux flux (login et link),
+  // différenciés par `purpose` dans le state signé. Redirige vers le frontend en fin de
+  // parcours plutôt que de renvoyer du JSON (c'est une navigation plein-écran initiée par OSM).
+  app.get('/osm/callback', {
+    schema: { description: 'Callback OAuth OpenStreetMap', tags: ['Authentification'] },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = parseBody(osmCallbackQuerySchema, request.query);
+    const statePayload = verifyOAuthState(query.state);
+    if (!statePayload) {
+      return reply.redirect(`${config.CORS_ORIGIN}/login?osmError=invalid_state`);
+    }
+
+    try {
+      if (statePayload.purpose === 'link') {
+        await linkOsmAccountUseCase.execute(statePayload.userId, query.code);
+        // Le panneau "Profil" côté frontend est le panneau Paramètres existant (voir
+        // MapLayoutComponent.navigateToProfile() -> toggleSettings()), pas une route dédiée.
+        return reply.redirect(`${config.CORS_ORIGIN}/map?openSettings=1&osmLinked=1`);
+      }
+      const tokens = await osmLoginUseCase.execute(query.code);
+      return reply.redirect(`${config.CORS_ORIGIN}/auth/callback?accessToken=${encodeURIComponent(tokens.accessToken)}&refreshToken=${encodeURIComponent(tokens.refreshToken)}`);
+    } catch (err) {
+      logger.error('OSM OAuth callback failed', { error: (err as Error).message, purpose: statePayload.purpose });
+      const errorTarget = statePayload.purpose === 'link' ? '/map?openSettings=1&osmError=1' : '/login?osmError=1';
+      return reply.redirect(`${config.CORS_ORIGIN}${errorTarget}`);
+    }
+  });
+
+  app.get('/osm/profile', {
+    schema: { description: 'Consulter le profil OpenStreetMap lié', tags: ['Authentification'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const result = await getOsmProfileUseCase.execute(request.user.sub);
+    return reply.send(successResponse(result));
+  });
+
+  app.delete('/osm/link', {
+    schema: { description: 'Délier le compte OpenStreetMap', tags: ['Authentification'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    await unlinkOsmAccountUseCase.execute(request.user.sub);
+    return reply.send(successResponse(null));
+  });
 }

@@ -1,6 +1,9 @@
 import { PrismaSharedMapRepository, SharedMapRecord } from '../../../infrastructure/database/repositories/prisma-shared-map.repository.js';
 import { PrismaInstanceRepository } from '../../../infrastructure/database/repositories/prisma-instance.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GetSharedMapUseCase');
 
 export interface SharedMapWithInstance extends SharedMapRecord {
   instanceSlug: string | null;
@@ -16,6 +19,7 @@ export class GetSharedMapUseCase {
     const shared = await this.sharedMapRepository.findByShortCode(shortCode);
     if (!shared) throw new NotFoundError('SharedMap', shortCode);
     if (shared.expiresAt && shared.expiresAt < new Date()) {
+      logger.debug('Shared map access rejected: expired', { shortCode });
       throw new NotFoundError('SharedMap', shortCode);
     }
     // Le lien de partage doit rester consultable par un visiteur non connecté :

@@ -195,14 +195,26 @@ Connaissance de l'interface GeOSM (pour répondre aux questions "comment faire X
 - Bouton de partage : génère un lien court reproduisant l'état actuel de la carte.
 `;
 
-const SYSTEM_INSTRUCTION = `Tu es l'assistant du géoportail GeOSM (plateforme cartographique open-source basée sur OpenStreetMap). `
-  + `Tu as deux rôles : (1) agir sur la carte pour l'utilisateur en pilotant les outils disponibles, et (2) servir de guide `
-  + `utilisateur quand on te demande comment faire quelque chose dans l'interface (utilise la connaissance ci-dessous, sans `
-  + `inventer de fonctionnalité qui n'y figure pas). Réponds toujours en français, de façon concise. Pour une demande comme `
-  + `"montre-moi les hôpitaux à Douala", enchaîne : geocode("Douala") pour situer la ville, search_layers("hôpitaux") pour `
-  + `trouver la couche, puis activate_layer et zoom_to pour l'afficher. N'invente jamais d'identifiant de couche : utilise `
-  + `toujours un layerId obtenu via search_layers. Si un outil échoue ou ne trouve rien, explique-le clairement à l'utilisateur `
-  + `plutôt que d'inventer une réponse.\n${GEOPORTAL_GUIDE}`;
+// Langue de réponse paramétrable (voir assistant.routes.ts, lu depuis Accept-Language) - avant
+// ce changement, l'assistant répondait toujours en français quelle que soit la langue de
+// l'interface, y compris pour un utilisateur ayant choisi l'anglais.
+const RESPONSE_LANGUAGE_INSTRUCTION: Record<string, string> = {
+  fr: 'Réponds toujours en français, de façon concise.',
+  en: 'Always answer in English, concisely.',
+  es: 'Responde siempre en español, de forma concisa.',
+};
+
+function buildSystemInstruction(lang: string): string {
+  const languageInstruction = RESPONSE_LANGUAGE_INSTRUCTION[lang] ?? RESPONSE_LANGUAGE_INSTRUCTION['fr'];
+  return `Tu es l'assistant du géoportail GeOSM (plateforme cartographique open-source basée sur OpenStreetMap). `
+    + `Tu as deux rôles : (1) agir sur la carte pour l'utilisateur en pilotant les outils disponibles, et (2) servir de guide `
+    + `utilisateur quand on te demande comment faire quelque chose dans l'interface (utilise la connaissance ci-dessous, sans `
+    + `inventer de fonctionnalité qui n'y figure pas). ${languageInstruction} Pour une demande comme `
+    + `"montre-moi les hôpitaux à Douala", enchaîne : geocode("Douala") pour situer la ville, search_layers("hôpitaux") pour `
+    + `trouver la couche, puis activate_layer et zoom_to pour l'afficher. N'invente jamais d'identifiant de couche : utilise `
+    + `toujours un layerId obtenu via search_layers. Si un outil échoue ou ne trouve rien, explique-le clairement à l'utilisateur `
+    + `plutôt que d'inventer une réponse.\n${GEOPORTAL_GUIDE}`;
+}
 
 export class AssistantChatUseCase {
   constructor(
@@ -217,7 +229,7 @@ export class AssistantChatUseCase {
     private readonly getLocationPlanUseCase: GetLocationPlanUseCase,
   ) {}
 
-  async execute(userId: string, instanceId: string, conversationId: string, message: string): Promise<AssistantChatResult> {
+  async execute(userId: string, instanceId: string, conversationId: string, message: string, lang = 'fr'): Promise<AssistantChatResult> {
     const conversation = await this.conversationRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('AssistantConversation', conversationId);
     if (conversation.userId !== userId) throw new ForbiddenError('Cette conversation appartient à un autre utilisateur.');
@@ -229,10 +241,11 @@ export class AssistantChatUseCase {
     ];
     const clientActions: AssistantClientAction[] = [];
     const attachments: AssistantAttachment[] = [];
+    const systemInstruction = buildSystemInstruction(lang);
     let reply = '';
 
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
-      const result = await this.geminiService.generateWithTools(messages, TOOLS, SYSTEM_INSTRUCTION);
+      const result = await this.geminiService.generateWithTools(messages, TOOLS, systemInstruction);
 
       if (result.functionCalls.length === 0) {
         reply = result.text ?? '';

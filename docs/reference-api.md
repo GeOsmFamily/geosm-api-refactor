@@ -208,6 +208,47 @@ Changement de mot de passe.
   ```
 - **Reponse** : `null`
 
+### `GET /osm/status`
+
+Indique si la connexion OpenStreetMap est configuree cote serveur (masque le bouton correspondant si non).
+
+- **Auth** : Non
+- **Reponse** : `{ "configured": boolean }`
+
+### `GET /osm/login-url`
+
+URL d'autorisation OSM a ouvrir pour se connecter via OpenStreetMap.
+
+- **Auth** : Non
+- **Reponse** : `{ "url": "https://www.openstreetmap.org/oauth2/authorize?..." }`
+
+### `GET /osm/link-url`
+
+URL d'autorisation OSM pour lier un compte OSM au compte deja connecte.
+
+- **Auth** : Oui
+- **Reponse** : `{ "url": "..." }`
+
+### `GET /osm/callback`
+
+Point de retour unique du flux OAuth OSM (login et liaison, differencies par le state signe). Redirige vers le frontend, ne renvoie pas de JSON.
+
+- **Auth** : Non (utilise le state signe anti-CSRF)
+
+### `GET /osm/profile`
+
+Profil OpenStreetMap lie au compte connecte (nom d'affichage, avatar, date de creation du compte OSM, nombre de contributions).
+
+- **Auth** : Oui
+- **Reponse** : Objet profil OSM, ou `null` si aucun compte lie
+
+### `DELETE /osm/link`
+
+Delie le compte OpenStreetMap du compte connecte.
+
+- **Auth** : Oui
+- **Reponse** : `null`
+
 ---
 
 ## Utilisateurs (`/api/v1/users`)
@@ -842,6 +883,22 @@ Recherche de features.
 - **Auth** : Non
 - **Parametres** : `q`, `layerId` (optionnel), `limit`, `offset`
 - **Reponse** : Liste de features
+
+### `GET /suggestions`
+
+Suggestions de couches contextuelles pour une instance, classees par frequence d'activation passee.
+
+- **Auth** : Optionnelle
+- **Parametres** : `instanceId` (UUID), `limit` (int, optionnel)
+- **Reponse** : `[{ id, name, description }]`
+
+### `GET /layer-recommendations`
+
+Couches frequemment activees en meme temps qu'une couche donnee ("les utilisateurs qui ont active X ont aussi active Y").
+
+- **Auth** : Non
+- **Parametres** : `layerId` (UUID), `instanceId` (UUID), `limit` (int, optionnel)
+- **Reponse** : `[{ id, name, description, coUserCount }]`
 
 ---
 
@@ -1515,6 +1572,12 @@ Sante du systeme (BD, Redis, etc.).
 
 - **Reponse** : Etat de chaque service
 
+### `POST /backup`
+
+Declenche immediatement un backup Postgres complet (dump vers MinIO, retention appliquee) - independamment du cron quotidien (`BACKUP_CRON`, defaut `0 3 * * *`). Utile avant une operation risquee.
+
+- **Reponse** : `{ "key": "backups/geosm-....dump", "sizeBytes": 2443070217, "deletedOldBackups": 0 }`
+
 ### `POST /cache/clear`
 
 Vider le cache Redis.
@@ -1571,6 +1634,97 @@ Supprimer une sequence.
 
 - **Corps** : `{ "name": "string" }`
 - **Reponse** : Succes
+
+---
+
+## Assistant IA (`/api/v1/assistant`)
+
+### `POST /chat`
+
+Discuter avec l'assistant IA du geoportail (Gemini, function-calling). L'assistant peut renvoyer du texte et/ou des `clientActions` que le frontend execute (activer une couche, zoomer...) - jamais executees cote serveur.
+
+- **Auth** : Oui
+- **Corps** : `{ "instanceId": "uuid", "conversationId": "uuid", "message": "string (1-2000 caracteres)" }`
+- **Reponse** : `{ "text": "string | null", "clientActions": [...] }`
+
+### `GET /conversations`
+
+Lister les conversations de l'utilisateur pour une instance.
+
+- **Auth** : Oui
+- **Parametres** : `instanceId` (UUID)
+- **Reponse** : Liste de conversations (metadonnees, sans l'historique complet)
+
+### `POST /conversations`
+
+Creer une nouvelle conversation.
+
+- **Auth** : Oui
+- **Corps** : `{ "instanceId": "uuid" }`
+- **Reponse** : `201`, conversation creee
+
+### `GET /conversations/:id`
+
+Detail d'une conversation avec son historique complet de messages/actions.
+
+- **Auth** : Oui
+
+### `DELETE /conversations/:id`
+
+Supprimer une conversation. Rejette si elle n'appartient pas a l'utilisateur demandeur.
+
+- **Auth** : Oui
+- **Reponse** : `204`
+
+---
+
+## Geosignets (`/api/v1/geosignets`)
+
+### `GET /`
+
+Lister les geosignets (positions de carte sauvegardees) de l'utilisateur connecte.
+
+- **Auth** : Oui
+- **Reponse** : `[{ id, name, center: [lon, lat], zoom }]`
+
+### `POST /`
+
+Creer un geosignet.
+
+- **Auth** : Oui
+- **Corps** : `{ "name": "string (1-255)", "center": [lon, lat], "zoom": number }`
+- **Reponse** : `201`
+
+### `DELETE /:id`
+
+Supprimer un geosignet. Rejette (`403`) si le geosignet n'appartient pas a l'utilisateur demandeur.
+
+- **Auth** : Oui
+- **Reponse** : `204`
+
+---
+
+## Logs (`/api/v1/logs`)
+
+### `POST /frontend-error`
+
+Remonte une erreur JS non geree cote frontend (voir le `GlobalErrorHandler` Angular) vers les logs serveur (Graylog) et incremente la metrique `api_errors_total{error_type="frontend"}`.
+
+- **Auth** : Optionnelle (associe l'erreur a l'utilisateur si un token est present)
+- **Corps** : `{ "message": "string (1-2000)", "stack": "string (optionnel, max 8000)", "url": "string (optionnel)", "userAgent": "string (optionnel)" }`
+- **Reponse** : `204`
+
+---
+
+## Feedback (`/api/v1/feedback`)
+
+### `POST /`
+
+Soumet un signalement (bug, suggestion, ou demande de fonctionnalite) depuis le bouton "Infos" du frontend. Notifie l'equipe via Slack (`AlertingService`, niveau `WARNING`).
+
+- **Auth** : Optionnelle (associe le signalement a l'utilisateur si connecte, sinon anonyme)
+- **Corps** : `{ "type": "BUG" | "SUGGESTION" | "FEATURE_REQUEST", "description": "string (1-5000)", "contactEmail": "string (optionnel)", "page": "string (optionnel)" }`
+- **Reponse** : `201`, l'objet `FeedbackSubmission` cree
 
 ---
 

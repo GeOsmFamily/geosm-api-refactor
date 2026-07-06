@@ -1,4 +1,7 @@
 import { PrismaClient } from '@prisma/client';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('SearchLimitInTableUseCase');
 
 export class SearchLimitInTableUseCase {
   constructor(private readonly prisma: PrismaClient) {}
@@ -14,6 +17,7 @@ export class SearchLimitInTableUseCase {
        WHERE ST_Intersects(geom, ST_SetSRID(ST_MakePoint(${Number(lon)}, ${Number(lat)}), 4326))
        ORDER BY ST_Area(geom) ASC`
     );
+    logger.debug('Searched limit in table', { tableName, lat, lon, count: results.length });
     return results;
   }
 }

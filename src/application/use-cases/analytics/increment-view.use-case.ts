@@ -1,5 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaAnalyticsRepository, AnalyticsEventRecord } from '../../../infrastructure/database/repositories/prisma-analytics.repository.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('IncrementViewUseCase');
 
 export class IncrementViewUseCase {
   constructor(private readonly analyticsRepository: PrismaAnalyticsRepository) {}
@@ -9,6 +12,7 @@ export class IncrementViewUseCase {
     const instanceId = type === 'instance' ? id : undefined;
     const layerId = type === 'layer' ? id : undefined;
 
+    logger.debug('Incrementing view count', { type, id });
     return this.analyticsRepository.create({
       id: uuidv4(),
       eventType,

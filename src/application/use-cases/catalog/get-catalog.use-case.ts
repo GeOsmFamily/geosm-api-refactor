@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { localize } from '../../utils/localize.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GetCatalogUseCase');
 
 export interface CatalogLayer {
   id: string;
@@ -45,6 +48,7 @@ export class GetCatalogUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(instanceSlug?: string, lang: string = 'fr'): Promise<CatalogInstance[]> {
+    logger.debug('Getting catalog', { instanceSlug, lang });
     const where: Record<string, unknown> = { isActive: true };
     if (instanceSlug) {
       where.slug = instanceSlug;

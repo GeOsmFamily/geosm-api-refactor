@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaCommentRepository, CommentRecord } from '../../../infrastructure/database/repositories/prisma-comment.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('ReplyToCommentUseCase');
 
 export class ReplyToCommentUseCase {
   constructor(private readonly commentRepository: PrismaCommentRepository) {}
@@ -11,7 +14,7 @@ export class ReplyToCommentUseCase {
     const parent = await this.commentRepository.findById(parentId);
     if (!parent) throw new NotFoundError('Comment', parentId);
 
-    return this.commentRepository.create({
+    const reply = await this.commentRepository.create({
       id: uuidv4(),
       userId,
       instanceId: parent.instanceId,
@@ -20,5 +23,7 @@ export class ReplyToCommentUseCase {
       lon: parent.lon,
       parentId: parent.parentId ?? parent.id,
     });
+    logger.info('Comment reply created', { userId, parentId, replyId: reply.id });
+    return reply;
   }
 }

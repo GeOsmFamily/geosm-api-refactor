@@ -1,6 +1,9 @@
 import { UpdateProfileDTO, UserProfileDTO } from '../../dtos/auth.dto.js';
 import { IUserRepository } from '../../../domain/repositories/user.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('UpdateProfileUseCase');
 
 export class UpdateProfileUseCase {
   constructor(
@@ -18,6 +21,7 @@ export class UpdateProfileUseCase {
       lastName: dto.lastName,
       avatar: dto.avatar,
     });
+    logger.info('Profile updated', { userId });
 
     return {
       id: updated.id,

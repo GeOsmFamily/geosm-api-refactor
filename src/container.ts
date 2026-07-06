@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { withMetrics } from './infrastructure/database/prisma-metrics.extension.js';
 import { diContainer, fastifyAwilixPlugin } from '@fastify/awilix';
 import { asFunction, asValue, Lifetime } from 'awilix';
 import type { FastifyInstance } from 'fastify';
@@ -27,9 +28,17 @@ import { LogoutUseCase } from './application/use-cases/auth/logout.use-case.js';
 import { VerifyEmailUseCase } from './application/use-cases/auth/verify-email.use-case.js';
 import { ForgotPasswordUseCase } from './application/use-cases/auth/forgot-password.use-case.js';
 import { ResetPasswordUseCase } from './application/use-cases/auth/reset-password.use-case.js';
+import { PrismaPasswordResetTokenRepository } from './infrastructure/database/repositories/prisma-password-reset-token.repository.js';
+import { PrismaEmailVerificationTokenRepository } from './infrastructure/database/repositories/prisma-email-verification-token.repository.js';
 import { GetProfileUseCase } from './application/use-cases/auth/get-profile.use-case.js';
 import { UpdateProfileUseCase } from './application/use-cases/auth/update-profile.use-case.js';
 import { ChangePasswordUseCase } from './application/use-cases/auth/change-password.use-case.js';
+import { OsmLoginUseCase } from './application/use-cases/auth/osm-login.use-case.js';
+import { LinkOsmAccountUseCase } from './application/use-cases/auth/link-osm-account.use-case.js';
+import { UnlinkOsmAccountUseCase } from './application/use-cases/auth/unlink-osm-account.use-case.js';
+import { GetOsmProfileUseCase } from './application/use-cases/auth/get-osm-profile.use-case.js';
+import { OsmOAuthService } from './infrastructure/external-apis/osm-oauth.service.js';
+import { PrismaOsmProfileRepository } from './infrastructure/database/repositories/prisma-osm-profile.repository.js';
 
 // Users use cases
 import { ListUsersUseCase } from './application/use-cases/users/list-users.use-case.js';
@@ -270,11 +279,20 @@ import { GeolocateIpUseCase } from './application/use-cases/geoportail/geolocate
 // SEO use case
 import { GetSeoMetadataUseCase } from './application/use-cases/seo/get-seo-metadata.use-case.js';
 
+// Logs use case
+import { LogFrontendErrorUseCase } from './application/use-cases/logs/log-frontend-error.use-case.js';
+
+// Feedback use case
+import { PrismaFeedbackRepository } from './infrastructure/database/repositories/prisma-feedback.repository.js';
+import { SubmitFeedbackUseCase } from './application/use-cases/feedback/submit-feedback.use-case.js';
+import { AlertingService } from './infrastructure/observability/alerting.service.js';
+
 // Additional admin use cases
 import { GetJobDetailsUseCase } from './application/use-cases/admin/get-job-details.use-case.js';
 import { RetryJobUseCase } from './application/use-cases/admin/retry-job.use-case.js';
 import { ImportOsmDataUseCase } from './application/use-cases/admin/import-osm-data.use-case.js';
 import { ScheduledOsmImportUseCase } from './application/use-cases/admin/scheduled-osm-import.use-case.js';
+import { DatabaseBackupUseCase } from './application/use-cases/admin/database-backup.use-case.js';
 import { config } from './config/env.config.js';
 
 interface Cradle {
@@ -291,9 +309,13 @@ interface Cradle {
   locationPlanRepository: PrismaLocationPlanRepository;
   qgisProjectRepository: PrismaQgisProjectRepository;
   defaultThemeRepository: PrismaDefaultThemeRepository;
+  osmProfileRepository: PrismaOsmProfileRepository;
+  passwordResetTokenRepository: PrismaPasswordResetTokenRepository;
+  emailVerificationTokenRepository: PrismaEmailVerificationTokenRepository;
   nominatimService: NominatimService;
   osrmService: OSRMService;
   geminiService: GeminiService;
+  osmOAuthService: OsmOAuthService;
   meiliSearchService: MeiliSearchService;
   qgisServerService: QgisServerService;
   qgisProjectService: QGISProjectService;
@@ -312,6 +334,10 @@ interface Cradle {
   getProfileUseCase: GetProfileUseCase;
   updateProfileUseCase: UpdateProfileUseCase;
   changePasswordUseCase: ChangePasswordUseCase;
+  osmLoginUseCase: OsmLoginUseCase;
+  linkOsmAccountUseCase: LinkOsmAccountUseCase;
+  unlinkOsmAccountUseCase: UnlinkOsmAccountUseCase;
+  getOsmProfileUseCase: GetOsmProfileUseCase;
   // Users
   listUsersUseCase: ListUsersUseCase;
   getUserUseCase: GetUserUseCase;
@@ -406,6 +432,7 @@ interface Cradle {
   retryJobUseCase: RetryJobUseCase;
   importOsmDataUseCase: ImportOsmDataUseCase;
   scheduledOsmImportUseCase: ScheduledOsmImportUseCase;
+  databaseBackupUseCase: DatabaseBackupUseCase;
   getSystemHealthUseCase: GetSystemHealthUseCase;
   // OSM
   osmQueryService: OsmQueryService;
@@ -483,6 +510,12 @@ interface Cradle {
   geolocateIpUseCase: GeolocateIpUseCase;
   // SEO
   getSeoMetadataUseCase: GetSeoMetadataUseCase;
+  // Logs
+  logFrontendErrorUseCase: LogFrontendErrorUseCase;
+  // Feedback
+  feedbackRepository: PrismaFeedbackRepository;
+  alertingService: AlertingService;
+  submitFeedbackUseCase: SubmitFeedbackUseCase;
   // Adressage
   adressageService: AdressageService;
   getAdresseUseCase: GetAdresseUseCase;
@@ -511,7 +544,7 @@ interface Cradle {
 }
 
 export async function setupContainer(app: FastifyInstance): Promise<void> {
-  const prisma = new PrismaClient();
+  const prisma = withMetrics(new PrismaClient());
   await prisma.$connect();
 
   await app.register(fastifyAwilixPlugin, {
@@ -543,18 +576,22 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     locationPlanRepository: asFunction(() => new PrismaLocationPlanRepository(prisma), { lifetime: Lifetime.SINGLETON }),
     qgisProjectRepository: asFunction(() => new PrismaQgisProjectRepository(prisma), { lifetime: Lifetime.SINGLETON }),
     defaultThemeRepository: asFunction(() => new PrismaDefaultThemeRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    osmProfileRepository: asFunction(() => new PrismaOsmProfileRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    passwordResetTokenRepository: asFunction(() => new PrismaPasswordResetTokenRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    emailVerificationTokenRepository: asFunction(() => new PrismaEmailVerificationTokenRepository(prisma), { lifetime: Lifetime.SINGLETON }),
 
     // External API services
     nominatimService: asFunction(() => new NominatimService(), { lifetime: Lifetime.SINGLETON }),
     osrmService: asFunction(() => new OSRMService(), { lifetime: Lifetime.SINGLETON }),
     geminiService: asFunction(() => new GeminiService(), { lifetime: Lifetime.SINGLETON }),
+    osmOAuthService: asFunction(() => new OsmOAuthService(), { lifetime: Lifetime.SINGLETON }),
     meiliSearchService: asFunction(() => new MeiliSearchService(), { lifetime: Lifetime.SINGLETON }),
     qgisServerService: asFunction(() => new QgisServerService(), { lifetime: Lifetime.SINGLETON }),
     qgisProjectService: asFunction(() => new QGISProjectService(), { lifetime: Lifetime.SINGLETON }),
 
     // Auth use cases
     registerUseCase: asFunction((c: Cradle) =>
-      new RegisterUseCase(c.userRepository, c.passwordService, c.emailService),
+      new RegisterUseCase(c.userRepository, c.passwordService, c.emailService, c.emailVerificationTokenRepository),
     { lifetime: Lifetime.SCOPED }),
 
     loginUseCase: asFunction((c: Cradle) =>
@@ -570,15 +607,15 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     { lifetime: Lifetime.SCOPED }),
 
     verifyEmailUseCase: asFunction((c: Cradle) =>
-      new VerifyEmailUseCase(c.userRepository),
+      new VerifyEmailUseCase(c.userRepository, c.emailVerificationTokenRepository),
     { lifetime: Lifetime.SCOPED }),
 
     forgotPasswordUseCase: asFunction((c: Cradle) =>
-      new ForgotPasswordUseCase(c.userRepository, c.emailService),
+      new ForgotPasswordUseCase(c.userRepository, c.emailService, c.passwordResetTokenRepository),
     { lifetime: Lifetime.SCOPED }),
 
     resetPasswordUseCase: asFunction((c: Cradle) =>
-      new ResetPasswordUseCase(c.userRepository, c.passwordService, c.refreshTokenRepository),
+      new ResetPasswordUseCase(c.userRepository, c.passwordService, c.refreshTokenRepository, c.passwordResetTokenRepository),
     { lifetime: Lifetime.SCOPED }),
 
     getProfileUseCase: asFunction((c: Cradle) =>
@@ -591,6 +628,19 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     changePasswordUseCase: asFunction((c: Cradle) =>
       new ChangePasswordUseCase(c.userRepository, c.passwordService, c.refreshTokenRepository),
+    { lifetime: Lifetime.SCOPED }),
+
+    osmLoginUseCase: asFunction((c: Cradle) =>
+      new OsmLoginUseCase(c.osmOAuthService, c.osmProfileRepository, c.userRepository, c.refreshTokenRepository, c.passwordService, c.tokenService),
+    { lifetime: Lifetime.SCOPED }),
+    linkOsmAccountUseCase: asFunction((c: Cradle) =>
+      new LinkOsmAccountUseCase(c.osmOAuthService, c.osmProfileRepository),
+    { lifetime: Lifetime.SCOPED }),
+    unlinkOsmAccountUseCase: asFunction((c: Cradle) =>
+      new UnlinkOsmAccountUseCase(c.osmProfileRepository),
+    { lifetime: Lifetime.SCOPED }),
+    getOsmProfileUseCase: asFunction((c: Cradle) =>
+      new GetOsmProfileUseCase(c.osmProfileRepository),
     { lifetime: Lifetime.SCOPED }),
 
     // Users use cases
@@ -715,6 +765,9 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     scheduledOsmImportUseCase: asFunction((c: Cradle) => new ScheduledOsmImportUseCase(
       c.instanceRepository, c.layerRepository, c.importOsmDataUseCase, c.resyncLayerUseCase, config.OSM_IMPORT_PBF_PATH,
     ), { lifetime: Lifetime.SCOPED }),
+    databaseBackupUseCase: asFunction((c: Cradle) => new DatabaseBackupUseCase(
+      c.storageService, config.DATABASE_URL, config.BACKUP_RETENTION_DAYS,
+    ), { lifetime: Lifetime.SCOPED }),
     getSystemHealthUseCase: asFunction((c: Cradle) => new GetSystemHealthUseCase(c.prisma, c.redisService), { lifetime: Lifetime.SCOPED }),
 
     // Phase 4: Layer Import Pipeline
@@ -809,6 +862,16 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     // SEO
     getSeoMetadataUseCase: asFunction((c: Cradle) => new GetSeoMetadataUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+
+    // Logs
+    logFrontendErrorUseCase: asFunction(() => new LogFrontendErrorUseCase(), { lifetime: Lifetime.SINGLETON }),
+
+    // Feedback
+    feedbackRepository: asFunction(() => new PrismaFeedbackRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    alertingService: asFunction(() => new AlertingService(), { lifetime: Lifetime.SINGLETON }),
+    submitFeedbackUseCase: asFunction((c: Cradle) =>
+      new SubmitFeedbackUseCase(c.feedbackRepository, c.alertingService),
+    { lifetime: Lifetime.SCOPED }),
 
     // Adressage
     adressageService: asFunction(() => new AdressageService(prisma), { lifetime: Lifetime.SINGLETON }),

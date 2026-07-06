@@ -1,4 +1,7 @@
 import { PrismaClient } from '@prisma/client';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('FindAdminBoundaryUseCase');
 
 export interface AdminBoundaryResult {
   id: number;
@@ -25,7 +28,7 @@ export class FindAdminBoundaryUseCase {
       lon,
       lat,
     );
-
+    logger.debug('Found admin boundaries', { lat, lon, tableName, count: results.length });
     return results;
   }
 }

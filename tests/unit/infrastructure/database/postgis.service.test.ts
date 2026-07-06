@@ -77,9 +77,11 @@ describe('PostGISService', () => {
 
   describe('queryFeatures', () => {
     it('should return a GeoJSON FeatureCollection', async () => {
-      prisma.$queryRawUnsafe.mockResolvedValue([
-        { id: 1, geometry: { type: 'Point', coordinates: [11, 3] }, properties: { name: 'A' } },
-      ]);
+      prisma.$queryRawUnsafe
+        .mockResolvedValueOnce([{ column_name: 'properties', data_type: 'jsonb' }])
+        .mockResolvedValueOnce([
+          { id: 1, geometry: { type: 'Point', coordinates: [11, 3] }, properties: { name: 'A' } },
+        ]);
 
       const result = await service.queryFeatures({ schema: 'myschema', table: 'mytable' });
       expect(result.type).toBe('FeatureCollection');

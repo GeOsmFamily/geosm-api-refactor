@@ -6,7 +6,8 @@ import { ValidationError } from '../../domain/errors/validation.error.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
-import { localize } from '../../application/utils/localize.js';
+import { localizeEntity, localizeEntities } from '../../application/utils/localize.js';
+import { resolveLang } from '../utils/lang.util.js';
 
 import { ListInstancesUseCase } from '../../application/use-cases/instances/list-instances.use-case.js';
 import { GetInstanceUseCase } from '../../application/use-cases/instances/get-instance.use-case.js';
@@ -45,7 +46,8 @@ export async function instanceRoutes(app: FastifyInstance): Promise<void> {
     const query = parseBody(listInstancesQuerySchema, request.query);
     const result = await listInstancesUseCase.execute(query);
     const totalPages = Math.ceil(result.total / (query.limit ?? 20));
-    return reply.send(paginatedResponse(result.data, { page: query.page ?? 1, limit: query.limit ?? 20, total: result.total, totalPages }));
+    const lang = resolveLang(request);
+    return reply.send(paginatedResponse(localizeEntities(result.data, lang), { page: query.page ?? 1, limit: query.limit ?? 20, total: result.total, totalPages }));
   });
 
   app.get('/slug/:slug', {
@@ -57,13 +59,7 @@ export async function instanceRoutes(app: FastifyInstance): Promise<void> {
     if (!result) {
       return reply.status(404).send({ message: `Instance with slug ${slug} not found` });
     }
-    const lang = request.headers['accept-language']?.startsWith('en') ? 'en' : 'fr';
-    const localized = {
-      ...result,
-      name: localize(result.name, lang),
-      description: localize(result.description, lang),
-    };
-    return reply.send(successResponse(localized));
+    return reply.send(successResponse(localizeEntity(result, resolveLang(request))));
   });
 
   app.get('/:id', {
@@ -72,7 +68,7 @@ export async function instanceRoutes(app: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
     const result = await getInstanceUseCase.execute(id);
-    return reply.send(successResponse(result));
+    return reply.send(successResponse(localizeEntity(result, resolveLang(request))));
   });
 
   app.post('/', {

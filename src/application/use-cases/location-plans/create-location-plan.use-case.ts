@@ -23,9 +23,25 @@ export class CreateLocationPlanUseCase {
    * PostGISService.findNearestPlaces) - bonus jamais bloquant : une clé Gemini
    * absente/un échec renvoie simplement null, le plan se crée normalement sans texte généré.
    */
-  private async draftWithAI(lon: number, lat: number, title: string): Promise<{ description: string; landmark: string } | null> {
+  private async draftWithAI(lon: number, lat: number, title: string, lang = 'fr'): Promise<{ description: string; landmark: string } | null> {
     try {
       const places = await this.postGISService.findNearestPlaces(lon, lat, 5);
+
+      if (lang === 'en') {
+        const context = places.length > 0
+          ? places.map((p) => `${p.kind === 'place' ? 'Named place' : 'Landmark'} "${p.name}" about ${Math.round(p.distanceMeters)}m away`).join(', ')
+          : 'No named place found nearby in the OpenStreetMap data.';
+        const prompt = `You are writing the content of a location plan titled "${title}", `
+          + `located at coordinates ${lat.toFixed(6)}, ${lon.toFixed(6)}. Nearby OpenStreetMap context: ${context}. `
+          + `Answer STRICTLY in JSON, no surrounding text, in this format: `
+          + `{"description": "a descriptive sentence about the place", "landmark": "a short landmark, or empty string if none reliable"}`;
+        const raw = await this.geminiService.generateText(prompt);
+        const match = /\{[\s\S]*\}/.exec(raw);
+        if (!match) return null;
+        const parsed = JSON.parse(match[0]) as { description?: string; landmark?: string };
+        return { description: parsed.description ?? '', landmark: parsed.landmark ?? '' };
+      }
+
       const context = places.length > 0
         ? places.map((p) => `${p.kind === 'place' ? 'Lieu-dit' : 'Repère'} "${p.name}" à environ ${Math.round(p.distanceMeters)}m`).join(', ')
         : 'Aucun lieu nommé trouvé à proximité dans les données OpenStreetMap.';
@@ -46,14 +62,14 @@ export class CreateLocationPlanUseCase {
     }
   }
 
-  async execute(userId: string, dto: CreateLocationPlanDTO): Promise<LocationPlan> {
+  async execute(userId: string, dto: CreateLocationPlanDTO, lang = 'fr'): Promise<LocationPlan> {
     const instance = await this.instanceRepository.findById(dto.instanceId);
     if (!instance) throw new Error(`Instance ${dto.instanceId} not found`);
 
     let description = dto.description ?? null;
     let landmark = dto.landmark ?? null;
     if (dto.autoFillWithAI && (!description || !landmark)) {
-      const drafted = await this.draftWithAI(dto.lon, dto.lat, dto.title);
+      const drafted = await this.draftWithAI(dto.lon, dto.lat, dto.title, lang);
       if (drafted) {
         description = description ?? (drafted.description || null);
         landmark = landmark ?? (drafted.landmark || null);

@@ -2,6 +2,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Prisma } from '@prisma/client';
 import { PrismaSharedMapRepository, SharedMapRecord } from '../../../infrastructure/database/repositories/prisma-shared-map.repository.js';
 import crypto from 'crypto';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateSharedMapUseCase');
 
 export interface CreateSharedMapDTO {
   mapState: Prisma.InputJsonValue;
@@ -17,7 +20,7 @@ export class CreateSharedMapUseCase {
       ? new Date(Date.now() + dto.expiresInDays * 24 * 60 * 60 * 1000)
       : null;
 
-    return this.sharedMapRepository.create({
+    const shared = await this.sharedMapRepository.create({
       id: uuidv4(),
       userId,
       instanceId,
@@ -25,5 +28,7 @@ export class CreateSharedMapUseCase {
       shortCode,
       expiresAt,
     });
+    logger.info('Shared map created', { userId, instanceId, shortCode });
+    return shared;
   }
 }

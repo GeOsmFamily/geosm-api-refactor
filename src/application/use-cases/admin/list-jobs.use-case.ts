@@ -1,4 +1,7 @@
 import { QueueService } from '../../../infrastructure/queue/queue.service.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('ListJobsUseCase');
 
 export interface JobInfo {
   id: string;
@@ -48,6 +51,7 @@ export class ListJobsUseCase {
       queues.push({ name, counts, recentJobs });
     }
 
+    logger.debug('Job queues listed', { queueCount: queues.length });
     return { queues };
   }
 }

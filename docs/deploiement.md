@@ -1,23 +1,43 @@
-# Guide de deploiement GeOSM API v3.0
+# Guide de deploiement GeOSM (production)
 
-Ce document decrit le deploiement de l'API GeOSM en production avec Docker.
+Checklist etape par etape pour deployer GeOSM sur un VPS vierge, du serveur nu jusqu'a
+l'application fonctionnelle. Si une etape manque ici pour reussir un deploiement reel, c'est un
+bug de ce document, pas juste une note manquante.
 
 ---
 
 ## Architecture des services
 
-Le deploiement complet comprend **13 services** :
+Le deploiement complet comprend **15 services** (2 applicatifs + 13 d'infrastructure/observabilite) :
 
-### Services principaux
+### Services applicatifs
+
+| Service | Image | Port (prod, localhost uniquement sauf frontend) | Role |
+|---|---|---|---|
+| **frontend** | `ghcr.io/geosmfamily/geosm-frontend-refactor:<tag>` | 80 (public) | Angular + nginx, reverse proxy public de toute la stack |
+| **api** | `ghcr.io/geosmfamily/geosm-api-refactor:<tag>` | 3005 | API GeOSM (Fastify 5) |
+
+### Donnees et recherche
 
 | Service | Image | Port | Role |
 |---|---|---|---|
-| **api** | Build local (Node.js 22) | 3000 | API GeOSM (Fastify 5) |
 | **postgres** | `postgis/postgis:16-3.4` | 5432 | Base de donnees PostgreSQL + PostGIS |
 | **redis** | `redis:7-alpine` | 6379 | Cache + backend BullMQ |
-| **minio** | `minio/minio:RELEASE.2024-01-16` | 9000, 9001 | Stockage objet (S3) |
+| **minio** | `minio/minio:RELEASE.2024-01-16` | 9000, 9001 | Stockage objet (S3) - exports, documents, sauvegardes |
 | **meilisearch** | `getmeili/meilisearch:v1.6` | 7700 | Moteur de recherche full-text |
 | **qgis-server** | `camptocamp/qgis-server:3.28` | 8380 | Serveur cartographique WMS/WFS |
+
+### Geocodage et itineraires (auto-heberges, Lot P9)
+
+| Service | Image | Port | Role |
+|---|---|---|---|
+| **nominatim** | `mediagis/nominatim:4.5` | 8081 | Geocodage direct/inverse - remplace le serveur public de demo |
+| **osrm** | `osrm/osrm-backend` | 5000 | Calcul d'itineraires routiers - remplace le serveur public de demo |
+
+> En developpement, `NOMINATIM_URL`/`OSRM_URL` pointent encore sur les serveurs publics
+> (`nominatim.openstreetmap.org`, `router.project-osrm.org`). Leurs politiques d'usage ("light
+> testing only", 1 requete/seconde) ne supportent pas un trafic de production - voir
+> [Auto-hebergement Nominatim et OSRM](#auto-hebergement-nominatim-et-osrm) plus bas.
 
 ### Stack d'observabilite
 
@@ -30,217 +50,209 @@ Le deploiement complet comprend **13 services** :
 | **mongodb** | `mongo:6.0` | -- | Backend Graylog |
 | **opensearch** | `opensearchproject/opensearch:2.11.0` | -- | Indexation des logs (Graylog) |
 
+Tous les ports de la colonne "Port" sont lies a `127.0.0.1` en production
+(`docker-compose.prod.yml`) - seul `frontend` (80) est joignable depuis l'exterieur. Le
+frontend sert de reverse proxy public vers l'API (`/api/` -> `api:3000`) et QGIS Server
+(`/ows` -> `qgis-server:8080`) sur le reseau Docker interne.
+
 ---
 
-## Deploiement Docker pas a pas
+## 1. Prerequis
 
-### 1. Prerequis
+- Un VPS avec au moins **4 vCPU et 8 Go de RAM** (Nominatim et OSRM sont plus gourmands que le
+  reste de la stack - voir leurs limites de ressources dans `docker-compose.prod.yml`)
+- **40 Go d'espace disque** minimum (extract OSM regional + import Nominatim + volumes Postgres/MinIO)
+- Docker 24+ et Docker Compose v2+ installes
+- Un nom de domaine pointant vers l'IP du VPS (enregistrement DNS `A`)
+- Acces SSH avec une cle dediee au deploiement (voir [CI/CD](#4-cicd-et-deploiement-continu))
 
-- Docker 24+ et Docker Compose v2+
-- Au minimum 4 Go de RAM disponible
-- 20 Go d'espace disque (plus selon les donnees)
-
-### 2. Cloner le depot
+## 2. Provisionner le VPS
 
 ```bash
-git clone https://github.com/geosm/geosm-api.git
-cd geosm-api
+# Sur le VPS (Ubuntu/Debian) :
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+# Se reconnecter pour que le groupe docker s'applique
+
+# Creer un utilisateur dedie au deploiement (utilise par la cle SSH de CI/CD, voir plus bas)
+sudo useradd -m -s /bin/bash deploy
+sudo usermod -aG docker deploy
 ```
 
-### 3. Configurer l'environnement
+## 3. Cloner le depot backend sur le VPS
+
+Seul le depot **backend** doit etre clone sur le serveur : `docker-compose.yml` et
+`docker-compose.prod.yml` y vivent, et referencent les images Docker des deux depots (deja
+publiees sur GHCR par leurs pipelines CI respectifs) - le depot frontend n'a pas besoin d'etre
+clone separement.
+
+```bash
+sudo -u deploy -i
+git clone https://github.com/GeOsmFamily/geosm-api-refactor.git /opt/geosm
+cd /opt/geosm
+```
+
+## 4. Generer et renseigner tous les secrets
 
 ```bash
 cp .env.example .env
 ```
 
-Editer `.env` avec les valeurs de production. Variables critiques :
+**Ne jamais reutiliser les valeurs de developpement** (`change-me-...`, `geosm_secret`,
+`minioadmin`, etc.) en production - voir la section dediee
+[Rotation des secrets](#rotation-des-secrets) pour la procedure complete de generation. Variables
+a renseigner avant le premier demarrage :
 
 ```bash
 # Application
 NODE_ENV=production
-APP_URL=https://api.geosm.org
+APP_URL=https://api.votre-domaine.org
+CORS_ORIGIN=https://votre-domaine.org
 
 # Base de donnees
-DATABASE_URL=postgresql://geosm:MOT_DE_PASSE_FORT@postgres:5432/geosm?schema=public
-POSTGRES_PASSWORD=MOT_DE_PASSE_FORT
+DATABASE_URL=postgresql://geosm:<MOT_DE_PASSE_GENERE>@postgres:5432/geosm?schema=public
+POSTGRES_PASSWORD=<MOT_DE_PASSE_GENERE>
 
-# JWT - Generer des secrets uniques et forts
-JWT_ACCESS_SECRET=$(openssl rand -hex 64)
-JWT_REFRESH_SECRET=$(openssl rand -hex 64)
+# JWT (RS256) - un secret different pour l'access et le refresh token
+JWT_ACCESS_SECRET=<openssl rand -hex 64>
+JWT_REFRESH_SECRET=<openssl rand -hex 64>
 
-# MinIO
-MINIO_ACCESS_KEY=cle_acces_forte
-MINIO_SECRET_KEY=cle_secrete_forte
+# Chiffrement du token OAuth OpenStreetMap au repos (AES-256-GCM, Lot P1)
+ENCRYPTION_KEY=<openssl rand -hex 32>
 
-# MeiliSearch
-MEILISEARCH_API_KEY=cle_meilisearch_forte
+# MinIO, MeiliSearch, Redis
+MINIO_ACCESS_KEY=<genere>
+MINIO_SECRET_KEY=<genere>
+MEILISEARCH_API_KEY=<genere>
+REDIS_PASSWORD=<genere>
 
-# Redis
-REDIS_PASSWORD=mot_de_passe_redis
-
-# Super admin
+# Super admin (a changer immediatement apres la premiere connexion, voir rotation des secrets)
 SUPER_ADMIN_EMAIL=admin@votre-domaine.org
-SUPER_ADMIN_PASSWORD=MotDePasseAdmin!Fort123
+SUPER_ADMIN_PASSWORD=<genere>
 
-# CORS
-CORS_ORIGIN=https://votre-frontend.org
-
-# SMTP
+# SMTP (obligatoire pour la verification d'email et la reinitialisation de mot de passe)
 SMTP_HOST=smtp.votre-provider.com
 SMTP_PORT=587
 SMTP_USER=votre-utilisateur
-SMTP_PASS=votre-mot-de-passe
+SMTP_PASS=<mot de passe fourni par le provider SMTP>
 SMTP_FROM=noreply@votre-domaine.org
+
+# Authentification OpenStreetMap (Lot P1) - app OAuth2 a enregistrer sur www.openstreetmap.org
+# (Parametres du compte -> OAuth 2 applications -> Enregistrer une nouvelle application),
+# scope read_prefs, redirect URI exacte : https://api.votre-domaine.org/api/v1/auth/osm/callback
+OSM_OAUTH_CLIENT_ID=<fourni par osm.org>
+OSM_OAUTH_CLIENT_SECRET=<fourni par osm.org>
+OSM_OAUTH_REDIRECT_URI=https://api.votre-domaine.org/api/v1/auth/osm/callback
+OSM_OAUTH_BASE_URL=https://www.openstreetmap.org
+
+# Nominatim/OSRM auto-heberges (Lot P9) - voir section dediee plus bas
+NOMINATIM_URL=http://nominatim:8080
+OSRM_URL=http://osrm:5000
+NOMINATIM_DB_PASSWORD=<genere - postgres interne au conteneur nominatim, sans rapport avec DATABASE_URL>
+
+# Alerting (Slack et/ou email, utilise par le formulaire de signalement et les jobs critiques)
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+ALERT_EMAIL_TO=oncall@votre-domaine.org
+
+# Cle Gemini (assistant IA) - a generer sur https://aistudio.google.com
+GEMINI_API_KEY=<votre cle>
 ```
 
-### 4. Demarrer les services
+## 5. Auto-hebergement Nominatim et OSRM
+
+Les deux services sont deja definis dans `docker-compose.prod.yml`, mais chacun a besoin de
+donnees pretes **avant** son premier demarrage.
+
+### Nominatim
+
+Telecharger l'extract regional (Cameroun, ou le pays cible de l'instance) et le deposer dans
+`./nominatim-source/region-latest.osm.pbf` :
 
 ```bash
-# Demarrer tous les services en arriere-plan
-docker compose up -d
-
-# Verifier que tous les services sont en bonne sante
-docker compose ps
-
-# Suivre les logs
-docker compose logs -f api
+mkdir -p nominatim-source
+curl -L -o nominatim-source/region-latest.osm.pbf \
+  https://download.geofabrik.de/africa/cameroon-latest.osm.pbf
 ```
 
-### 5. Initialiser la base de donnees
+Le premier demarrage du conteneur `nominatim` lance automatiquement l'import complet (compter
+**15 a 45 minutes** pour un extract pays selon les ressources du VPS) ; les demarrages suivants
+reutilisent les donnees deja importees dans le volume `nominatim-data`, sans reimporter. Suivre
+la progression :
 
 ```bash
-# Executer les migrations Prisma
-docker compose exec api npx prisma migrate deploy
-
-# Initialiser la base (creer le super admin)
-docker compose exec api npm run db:seed
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f nominatim
 ```
 
-### 6. Creer le bucket MinIO
+Mise a jour des donnees (nouvel extract mensuel par exemple) : remplacer le fichier dans
+`nominatim-source/`, puis `docker compose ... up -d --force-recreate nominatim` declenche un
+reimport complet (pas de mise a jour incrementale configuree par defaut - `REPLICATION_URL` est
+fourni dans la config pour qui souhaite passer a des mises a jour differentielles via
+`nominatim replication`, plus econome mais plus complexe a operer).
+
+### OSRM
+
+Contrairement a Nominatim, `osrm-routed` ne sait que **servir** un jeu de donnees deja pret - la
+preparation (extraction du reseau routier + partitionnement, necessaires pour l'algorithme MLD)
+se fait a part, via le script fourni :
 
 ```bash
-# Acceder a la console MinIO : http://localhost:9001
-# Ou via la CLI :
-docker compose exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
-docker compose exec minio mc mb local/geosm
+PBF_PATH=nominatim-source/region-latest.osm.pbf ./scripts/setup-osrm-data.sh
 ```
 
-### 7. Verifier le deploiement
+Ce script telecharge... non, reutilise le meme fichier `.osm.pbf` que Nominatim (le reseau
+routier OSM est le meme jeu de donnees), et produit les fichiers `region-latest.osrm*` dans
+`./osrm-data/`, montes en lecture seule par le service `osrm`. A relancer manuellement apres
+chaque mise a jour significative du reseau routier (bien plus rare qu'une mise a jour des couches
+thematiques - pas de cron par defaut).
+
+### Verification post-import
 
 ```bash
-# Verification de sante
-curl http://localhost:3000/health
+# Nominatim : recherche d'une adresse connue
+curl "http://localhost:8081/search?q=Yaound%C3%A9&format=json&countrycodes=cm"
 
-# Documentation Swagger
-# Ouvrir http://localhost:3000/docs dans un navigateur
+# OSRM : itineraire entre deux points du Cameroun
+curl "http://localhost:5000/route/v1/driving/11.5021,3.8480;9.7043,4.0511"
 ```
 
----
+## 6. Reverse proxy et SSL
 
-## Configuration de l'environnement de production
+Le service `frontend` (nginx) est deja le reverse proxy applicatif (relaie `/api/` vers `api`,
+`/ows` vers `qgis-server`). Il manque uniquement la couche TLS publique. Deux options :
 
-### Variables d'environnement essentielles
+### Option A - Caddy devant le port 80 du frontend (le plus simple, TLS automatique)
 
-Voir la section [Variables d'environnement](../README.md) du README pour la liste complete. En production, assurez-vous de :
-
-- Definir `NODE_ENV=production`
-- Utiliser des secrets JWT forts et uniques (au moins 64 caracteres hexadecimaux)
-- Configurer un vrai serveur SMTP pour les emails
-- Definir `CORS_ORIGIN` vers votre domaine frontend
-- Changer le mot de passe super admin par defaut
-- Configurer des mots de passe forts pour PostgreSQL, Redis et MinIO
-
-### Limites de ressources
-
-Le `docker-compose.yml` inclut des limites de ressources :
-
-| Service | CPU max | RAM max | CPU reserve | RAM reserve |
-|---|---|---|---|---|
-| api | 2.0 | 1 Go | 0.5 | 256 Mo |
-| postgres | 2.0 | 2 Go | 0.5 | 512 Mo |
-| redis | 0.5 | 512 Mo | 0.1 | 64 Mo |
-| minio | 0.5 | 512 Mo | 0.1 | 128 Mo |
-| meilisearch | 1.0 | 512 Mo | 0.1 | 128 Mo |
-| qgis-server | 2.0 | 1 Go | 0.25 | 256 Mo |
-| grafana | 0.5 | 256 Mo | 0.1 | 64 Mo |
-| prometheus | 0.5 | 512 Mo | 0.1 | 128 Mo |
-| jaeger | 1.0 | 512 Mo | 0.1 | 128 Mo |
-| graylog | 1.0 | 1 Go | 0.25 | 256 Mo |
-| mongodb | 0.5 | 512 Mo | 0.1 | 128 Mo |
-| opensearch | 1.0 | 512 Mo | 0.25 | 256 Mo |
-
-Ajustez ces valeurs selon votre charge.
-
----
-
-## Setup initial (migrations, seed, admin)
-
-### Migrations de base de donnees
-
-```bash
-# En developpement (genere aussi le client Prisma)
-npm run db:migrate
-
-# En production (applique les migrations existantes)
-npx prisma migrate deploy
+```
+# Caddyfile
+votre-domaine.org {
+    reverse_proxy localhost:80
+}
 ```
 
-### Seed (initialisation)
-
-```bash
-# Creer le super administrateur
-npm run db:seed
-```
-
-Le seed cree un utilisateur avec les identifiants definis dans les variables `SUPER_ADMIN_*`.
-
-### Premiere connexion
-
-1. Se connecter avec le compte super admin : `POST /api/v1/auth/login`
-2. Creer la premiere instance (pays) : `POST /api/v1/instances`
-3. Initialiser les themes par defaut : `POST /api/v1/default-themes/seed`
-4. Importer les donnees OSM : `POST /api/v1/admin/osm/import`
-
----
-
-## SSL/TLS avec Nginx
-
-### Configuration Nginx en reverse proxy
-
-Creer le fichier `/etc/nginx/sites-available/geosm-api` :
+### Option B - Nginx + Certbot
 
 ```nginx
 server {
     listen 80;
-    server_name api.geosm.org;
+    server_name votre-domaine.org;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name api.geosm.org;
+    server_name votre-domaine.org;
 
-    ssl_certificate /etc/letsencrypt/live/api.geosm.org/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.geosm.org/privkey.pem;
-
-    # Parametres SSL recommandes
+    ssl_certificate /etc/letsencrypt/live/votre-domaine.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/votre-domaine.org/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
-    ssl_prefer_server_ciphers off;
-    ssl_session_timeout 1d;
-    ssl_session_cache shared:SSL:10m;
 
-    # En-tetes de securite
     add_header Strict-Transport-Security "max-age=63072000" always;
     add_header X-Frame-Options DENY;
     add_header X-Content-Type-Options nosniff;
-
-    # Taille maximale des uploads (adapter selon vos besoins)
     client_max_body_size 100M;
 
-    # API
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:80;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -248,36 +260,103 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        # Timeout pour les requetes longues (exports, imports)
         proxy_read_timeout 300s;
-        proxy_send_timeout 300s;
-    }
-
-    # WebSocket
-    location /ws/ {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_read_timeout 86400s;
     }
 }
 ```
 
-### Certificat SSL avec Let's Encrypt
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d votre-domaine.org
+sudo certbot renew --dry-run
+```
+
+## 7. Demarrer la stack complete
 
 ```bash
-# Installer Certbot
-sudo apt install certbot python3-certbot-nginx
+cd /opt/geosm
+export API_IMAGE=ghcr.io/geosmfamily/geosm-api-refactor:latest
+export FRONTEND_IMAGE=ghcr.io/geosmfamily/geosm-frontend-refactor:latest
 
-# Obtenir le certificat
-sudo certbot --nginx -d api.geosm.org
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
-# Renouvellement automatique (deja configure par Certbot)
-sudo certbot renew --dry-run
+# Suivre le demarrage (Nominatim prend le plus de temps au premier lancement, voir section 5)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f api
+```
+
+## 8. Initialiser la base de donnees
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api npx prisma migrate deploy
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api npm run db:seed
+
+# Bucket MinIO (si pas deja cree par le seed)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec minio \
+  mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec minio mc mb local/geosm
+```
+
+Puis, via l'API (voir `docs/reference-api.md`) :
+
+1. Se connecter avec le compte super admin : `POST /api/v1/auth/login`
+2. Creer la premiere instance (pays) : `POST /api/v1/instances`
+3. Initialiser les themes par defaut : `POST /api/v1/default-themes/seed`
+4. Importer les donnees OSM applicatives (couches thematiques, distinct de l'import Nominatim
+   ci-dessus) : `POST /api/v1/admin/osm/import`
+
+## 9. Checklist de verification post-deploiement
+
+- [ ] `curl https://votre-domaine.org/api/v1/health` -> `200`, tous les services `"status":"up"`
+- [ ] `https://votre-domaine.org` charge la carte, le selecteur d'instance liste le(s) pays cree(s)
+- [ ] Connexion (email/mot de passe) et connexion OpenStreetMap fonctionnent toutes les deux
+- [ ] Une recherche geographique (barre de recherche) renvoie un resultat via Nominatim auto-heberge
+- [ ] Un calcul d'itineraire renvoie un trace via OSRM auto-heberge
+- [ ] `POST /api/v1/admin/backup` declenche bien un backup visible dans MinIO (bucket `geosm`, prefixe `backups/`)
+- [ ] Grafana (`:3001`, via tunnel SSH - non expose publiquement) affiche des metriques recentes
+- [ ] Jaeger (`:16686`) affiche des traces recentes pour une requete Gemini/OSRM/Nominatim
+- [ ] Un email de test (verification ou reinitialisation de mot de passe) arrive bien
+- [ ] Le certificat TLS est valide (`https://` sans avertissement navigateur) et se renouvelle automatiquement
+
+---
+
+## Rotation des secrets
+
+Toutes les valeurs de `.env.example` sont des placeholders de developpement
+(`change-me-access-secret`, `geosm_secret`, `minioadmin`, `AdminP@ssw0rd!`...) - **aucune ne doit
+survivre telle quelle en production**. Procedure a executer avant le premier lancement, puis a
+repeter periodiquement (recommande : tous les 6 mois, ou immediatement en cas de suspicion de
+fuite) :
+
+| Secret | Generation recommandee | Impact d'une rotation |
+|---|---|---|
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | `openssl rand -hex 64` | Deconnecte tous les utilisateurs (tokens existants invalides) - a faire hors heures de pointe |
+| `ENCRYPTION_KEY` | `openssl rand -hex 32` | **Ne pas tourner sans migration** : rend illisibles les tokens OSM deja chiffres en base (voir note ci-dessous) |
+| `POSTGRES_PASSWORD` / `DATABASE_URL` | `openssl rand -base64 32` | Necessite un redemarrage coordonne de `postgres` et `api` |
+| `REDIS_PASSWORD` | `openssl rand -base64 32` | Redemarrage de `redis` et `api` |
+| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | `openssl rand -hex 20` / `openssl rand -base64 32` | Regenerer aussi les URLs pre-signees actives si applicable |
+| `MEILISEARCH_API_KEY` | `openssl rand -hex 32` | Redemarrage de `meilisearch` et `api` |
+| `NOMINATIM_DB_PASSWORD` | `openssl rand -base64 32` | Interne au conteneur Nominatim uniquement, sans impact sur le reste |
+| `SUPER_ADMIN_PASSWORD` | Gestionnaire de mots de passe, 20+ caracteres | Ne s'applique qu'au seed initial - changer le mot de passe du compte via l'API ensuite, pas en modifiant `.env` apres coup |
+| `GRAFANA_PASSWORD` | `openssl rand -base64 24` | Changer aussi dans l'UI Grafana si deja modifie manuellement |
+| `OSM_OAUTH_CLIENT_SECRET` | Regenere depuis les parametres de l'app OAuth sur osm.org | Invalide les connexions OSM en cours (rare, sessions courtes) |
+| `GEMINI_API_KEY` | Regeneree depuis Google AI Studio | Aucun impact utilisateur, coupure de l'assistant IA le temps de la bascule |
+| `DEPLOY_SSH_KEY` (secret GitHub Actions) | Nouvelle paire de cles dediee au deploiement | Mettre a jour `authorized_keys` sur le VPS avant de revoquer l'ancienne |
+
+**Note importante sur `ENCRYPTION_KEY`** : contrairement aux autres secrets, ce n'est **pas**
+une simple valeur de verification (comme un mot de passe hache) mais une cle de chiffrement
+symetrique (AES-256-GCM) appliquee au token d'acces OAuth OpenStreetMap stocke en base
+(`OsmProfile.accessTokenEncrypted`). La tourner sans plan de migration rend **irrecuperables**
+tous les tokens deja chiffres - les utilisateurs concernes devraient relier leur compte OSM
+(`DELETE` puis nouveau `GET /auth/osm/login`). Si une vraie rotation est necessaire (cle
+compromise), prevoir un script de dechiffrement avec l'ancienne cle puis rechiffrement avec la
+nouvelle avant de bascule `ENCRYPTION_KEY`, plutot qu'un simple remplacement de variable.
+
+Apres toute rotation impliquant `api`, redemarrer uniquement ce service (les autres n'ont pas
+besoin de couper leurs connexions existantes) :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api
 ```
 
 ---
@@ -286,17 +365,12 @@ sudo certbot renew --dry-run
 
 ### Metriques Prometheus
 
-L'API expose des metriques Prometheus sur `GET /metrics` quand `PROMETHEUS_ENABLED=true`. Metriques disponibles :
-
-- Duree des requetes HTTP (histogramme)
-- Nombre de requetes par methode/route/status
-- Metriques Node.js (memoire, CPU, event loop)
-
-### Configuration Prometheus
-
-Ajouter dans `prometheus.yml` :
+L'API expose `GET /metrics` (`PROMETHEUS_ENABLED=true`) : duree des requetes HTTP, requetes
+base de donnees (via l'extension Prisma d'instrumentation), connexions/echecs de login, envois
+d'email, appels Gemini (latence/volume/erreurs), metriques Node.js standard.
 
 ```yaml
+# prometheus.yml
 scrape_configs:
   - job_name: 'geosm-api'
     scrape_interval: 15s
@@ -305,162 +379,108 @@ scrape_configs:
     metrics_path: '/metrics'
 ```
 
-### Verification de sante
+### Tracing (Jaeger)
 
-Les sondes de sante sont disponibles sans authentification :
+Spans automatiques (HTTP, DNS, ioredis) et manuels (appels Gemini/OSRM/Nominatim, jobs BullMQ).
+Interface : `http://localhost:16686` (tunnel SSH recommande, non expose publiquement).
+
+### Logs (Graylog)
+
+Logging Winston applique a l'ensemble des domaines de use-cases (auth, couches, commentaires,
+assistant IA, geosignets, sauvegardes...), avec `requestId` de correlation. Niveau configurable
+via `LOG_LEVEL` (recommande : `info` en production). Les erreurs frontend non gerees remontent
+aussi via `POST /logs/frontend-error` (voir `GlobalErrorHandler` Angular).
+
+### Alerting
+
+- **Slack** : `SLACK_WEBHOOK_URL` - utilise pour les nouveaux signalements (formulaire "Infos")
+  et les incidents critiques
+- **Email** : `ALERT_EMAIL_TO` - reserve aux alertes de niveau critique
+
+### Sondes de sante
 
 | Endpoint | Usage |
 |---|---|
-| `GET /health` | Verification generale (status, uptime, timestamp) |
-| `GET /health/ready` | Sonde de disponibilite (Kubernetes readinessProbe) |
-| `GET /health/live` | Sonde de vivacite (Kubernetes livenessProbe) |
-
-Le Dockerfile inclut un HEALTHCHECK :
-
-```dockerfile
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
-```
-
-### Stack d'observabilite complete
-
-Le `docker-compose.yml` inclut une stack d'observabilite complete :
-
-#### Grafana (port 3001)
-
-Tableaux de bord preconfigures pour visualiser les metriques Prometheus. Acces : `http://localhost:3001` (admin/admin par defaut).
-
-#### Jaeger (port 16686)
-
-Tracing distribue via OpenTelemetry (OTLP). L'API envoie les traces au collecteur Jaeger sur le port 4318. Interface : `http://localhost:16686`.
-
-Variables d'environnement :
-```bash
-OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
-OTEL_SERVICE_NAME=geosm-api
-```
-
-#### Graylog (port 9009)
-
-Gestion centralisee des logs via GELF (UDP port 12201). Interface : `http://localhost:9009`. Necessite MongoDB et OpenSearch comme backends.
-
-Variables d'environnement :
-```bash
-GRAYLOG_HOST=graylog
-GRAYLOG_PORT=12201
-```
-
-#### Alerting
-
-L'API supporte les alertes via :
-- **Slack** : `SLACK_WEBHOOK_URL`
-- **Email** : `ALERT_EMAIL_TO`
-
-### Logs
-
-Les logs sont geres par Winston avec le niveau configurable via `LOG_LEVEL`. En production, utiliser `info` ou `warn`.
-
-```bash
-# Voir les logs de l'API
-docker compose logs -f api
-
-# Filtrer par niveau
-docker compose logs api | grep "error"
-```
-
----
-
-## CI/CD et versionnage
-
-Le deploiement automatique est gere par GitHub Actions (`deploy.yml`) :
-
-1. **Tests** : Execution de la suite de tests complete (800+ tests)
-2. **Build Docker** : Construction de l'image avec Node.js 22
-3. **Push GHCR** : Publication sur GitHub Container Registry
-4. **Tag de version** : Format `yyyyMMdd.numBuild` (ex: `20260626.1`)
-5. **Release GitHub** : Creation automatique avec changelog
-
-L'image Docker est disponible sur :
-```
-ghcr.io/geosmfamily/geosm-api-refactor:<version>
-ghcr.io/geosmfamily/geosm-api-refactor:latest
-```
+| `GET /health` | Etat detaille (BD, Redis, Nominatim, OSRM, etc.) |
+| `GET /health/ready` | Sonde de disponibilite |
+| `GET /health/live` | Sonde de vivacite |
 
 ---
 
 ## Sauvegarde
 
-### Base de donnees PostgreSQL
+La sauvegarde Postgres est **automatisee** (Lot P4) - il ne s'agit plus d'un script cron a
+maintenir a la main comme dans les versions precedentes de ce document :
+
+- Job planifie (BullMQ, cron configurable via `BACKUP_CRON`, defaut `0 3 * * *`) : dump complet
+  (`pg_dump -Fc`) uploade vers MinIO (bucket `geosm`, prefixe `backups/`), retention glissante
+  configurable via `BACKUP_RETENTION_DAYS` (defaut 30 jours, les backups plus anciens sont
+  supprimes automatiquement)
+- Backup manuel immediat (avant une operation risquee, ex. import OSM volumineux) :
+  ```bash
+  curl -X POST https://api.votre-domaine.org/api/v1/admin/backup \
+    -H "Authorization: Bearer $SUPER_ADMIN_TOKEN"
+  ```
+- **Restauration** (a tester au moins une fois en environnement de test avant le lancement reel -
+  un backup jamais restaure n'est pas un backup fiable) :
+  ```bash
+  # Recuperer le dump depuis MinIO puis :
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres \
+    pg_restore -U geosm -d geosm --clean < backup.dump
+  ```
+
+Les autres donnees (documents, exports, rasters, projets QGIS) vivent deja dans MinIO/les
+volumes Docker `qgis-projects`/`qgis-styles` - une sauvegarde de volume classique reste
+pertinente pour ceux-ci en complement :
 
 ```bash
-# Sauvegarde complete
-docker compose exec postgres pg_dump -U geosm -Fc geosm > backup_$(date +%Y%m%d_%H%M%S).dump
-
-# Restauration
-docker compose exec -T postgres pg_restore -U geosm -d geosm --clean < backup.dump
-```
-
-### Donnees MinIO
-
-```bash
-# Sauvegarde du bucket
-docker compose exec minio mc mirror local/geosm /backup/minio/geosm
-
-# Ou sauvegarder le volume Docker directement
-docker run --rm -v geosm-api_minio-data:/data -v $(pwd):/backup \
-  alpine tar czf /backup/minio_backup.tar.gz /data
-```
-
-### Projets QGIS
-
-```bash
-# Sauvegarder les fichiers de projets QGIS
-docker run --rm -v geosm-api_qgis-projects:/data -v $(pwd):/backup \
+docker run --rm -v geosm_qgis-projects:/data -v $(pwd):/backup \
   alpine tar czf /backup/qgis_projects_backup.tar.gz /data
 ```
 
-### Script de sauvegarde automatique
+---
 
-```bash
-#!/bin/bash
-# backup.sh - A executer quotidiennement via cron
-BACKUP_DIR=/var/backups/geosm
-DATE=$(date +%Y%m%d_%H%M%S)
+## 4. CI/CD et deploiement continu
 
-mkdir -p $BACKUP_DIR
+Le deploiement automatique est gere par GitHub Actions (`deploy.yml`, sur les deux depots -
+backend et frontend, meme structure) :
 
-# Base de donnees
-docker compose exec -T postgres pg_dump -U geosm -Fc geosm \
-  > $BACKUP_DIR/db_$DATE.dump
+1. **Tests** : suite complete (backend : vitest + seuil de couverture reel ; frontend : lint +
+   `tsc --noEmit` + tests unitaires + suite E2E Playwright)
+2. **Build Docker** : construction de l'image
+3. **Push GHCR** : `ghcr.io/geosmfamily/geosm-api-refactor:<version>` /
+   `ghcr.io/geosmfamily/geosm-frontend-refactor:<version>`, tag `<yyyyMMdd>.<numBuild>` + `latest`
+4. **Deploiement SSH** (si active, voir ci-dessous) : pull de la nouvelle image sur le VPS,
+   redemarrage du seul service concerne, verification du healthcheck (jusqu'a 60s), et **rollback
+   automatique vers `:latest` precedent si le healthcheck echoue**
+5. **Tag Git + release GitHub** avec changelog automatique
 
-# MinIO
-docker run --rm -v geosm-api_minio-data:/data -v $BACKUP_DIR:/backup \
-  alpine tar czf /backup/minio_$DATE.tar.gz /data
+### Activer le deploiement continu
 
-# QGIS
-docker run --rm -v geosm-api_qgis-projects:/data -v $BACKUP_DIR:/backup \
-  alpine tar czf /backup/qgis_$DATE.tar.gz /data
+Sur **chacun des deux depots** (backend et frontend), dans Settings -> Secrets and variables ->
+Actions :
 
-# Nettoyer les sauvegardes de plus de 30 jours
-find $BACKUP_DIR -mtime +30 -delete
+**Secrets** :
+- `DEPLOY_SSH_HOST` : IP ou domaine du VPS
+- `DEPLOY_SSH_USER` : `deploy` (utilisateur cree a l'etape 2)
+- `DEPLOY_SSH_KEY` : cle privee SSH dediee (voir [Rotation des secrets](#rotation-des-secrets))
+- `DEPLOY_PATH` : `/opt/geosm` (chemin du depot backend clone sur le VPS - les deux workflows
+  s'y referent, meme le workflow frontend, puisque c'est la que vivent les fichiers
+  `docker-compose*.yml`)
 
-echo "Sauvegarde terminee: $DATE"
-```
+**Variable de repository** :
+- `DEPLOY_ENABLED` : `true` (tant que non definie, le job de deploiement reste un no-op - permet
+  de merger le pipeline avant que le VPS soit pret)
 
-Ajouter au crontab :
-
-```bash
-# Sauvegarde quotidienne a 2h du matin
-0 2 * * * /opt/geosm/backup.sh >> /var/log/geosm-backup.log 2>&1
-```
+Sans ces secrets, `build-and-push` et la creation de release continuent de fonctionner
+normalement (image publiee sur GHCR a chaque merge sur `main`) - seul le deploiement SSH est
+conditionnel.
 
 ---
 
 ## Mise a l'echelle
 
-### Mise a l'echelle horizontale de l'API
-
-L'API est sans etat (stateless) grace a JWT et Redis. Pour la mise a l'echelle :
+### API (sans etat, JWT + Redis)
 
 ```yaml
 # docker-compose.prod.yml
@@ -468,10 +488,6 @@ services:
   api:
     deploy:
       replicas: 3
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 1024M
 ```
 
 Avec un load balancer Nginx :
@@ -483,37 +499,34 @@ upstream geosm_api {
     server api_2:3000;
     server api_3:3000;
 }
-
-server {
-    location / {
-        proxy_pass http://geosm_api;
-    }
-}
 ```
 
-### Mise a l'echelle de PostgreSQL
+### PostgreSQL
 
-- Activer le connection pooling avec PgBouncer
-- Configurer les replicas en lecture pour les requetes lourdes
-- Augmenter `shared_buffers`, `work_mem` et `effective_cache_size`
+- Connection pooling avec PgBouncer
+- Replicas en lecture pour les requetes lourdes
+- Ajuster `shared_buffers`, `work_mem`, `effective_cache_size`
 
-### Mise a l'echelle de Redis
+### Redis
 
-- Redis est configure avec `maxmemory 256mb` et politique `allkeys-lru`
-- Pour plus de capacite, augmenter `maxmemory`
-- Pour la haute disponibilite, utiliser Redis Sentinel ou Redis Cluster
+- `maxmemory 256mb` / `allkeys-lru` par defaut - augmenter selon la charge
+- Redis Sentinel ou Cluster pour la haute disponibilite
 
-### Mise a l'echelle de QGIS Server
+### QGIS Server
 
-QGIS Server peut etre gourmand en ressources pour le rendu WMS :
-- Deployer plusieurs instances derriere un load balancer
-- Partager le volume `qgis-projects` en lecture seule
-- Augmenter les limites CPU et memoire
+- Plusieurs instances derriere un load balancer, volume `qgis-projects` partage en lecture seule
 
-### Conseils de performance
+### Nominatim / OSRM
 
-- **PostGIS** : Creer des index spatiaux (GIST) sur toutes les colonnes geometriques
-- **Redis** : Utiliser pour le cache des requetes frequentes (catalogue, themes)
-- **MeiliSearch** : Indexer uniquement les champs necessaires a la recherche
-- **MinIO** : Utiliser des presigned URLs pour les telechargements directs
-- **QGIS Server** : Configurer le cache de tuiles WMS
+- Les deux sont read-heavy et sans etat applicatif propre (Nominatim a son propre Postgres
+  interne, OSRM sert des fichiers statiques) : plusieurs replicas derriere un load balancer
+  fonctionnent sans coordination particuliere, chaque replica pouvant avoir sa propre copie du
+  volume de donnees
+
+### Conseils generaux
+
+- **PostGIS** : index spatiaux (GIST) sur toutes les colonnes geometriques
+- **Redis** : cache des requetes frequentes (catalogue, themes)
+- **MeiliSearch** : indexer uniquement les champs necessaires a la recherche
+- **MinIO** : URLs pre-signees pour les telechargements directs
+- **QGIS Server** : cache de tuiles WMS

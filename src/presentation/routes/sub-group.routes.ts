@@ -6,6 +6,8 @@ import { ValidationError } from '../../domain/errors/validation.error.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
+import { localizeEntity, localizeEntities } from '../../application/utils/localize.js';
+import { resolveLang } from '../utils/lang.util.js';
 
 import { ListSubGroupsUseCase } from '../../application/use-cases/sub-groups/list-sub-groups.use-case.js';
 import { GetSubGroupUseCase } from '../../application/use-cases/sub-groups/get-sub-group.use-case.js';
@@ -35,7 +37,7 @@ export async function subGroupRoutes(app: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { groupId } = parseBody(groupIdParamSchema, request.params);
     const result = await listSubGroupsUseCase.execute(groupId);
-    return reply.send(successResponse(result));
+    return reply.send(successResponse(localizeEntities(result, resolveLang(request))));
   });
 
   app.get('/:id', {
@@ -44,7 +46,7 @@ export async function subGroupRoutes(app: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(subGroupIdParamSchema, request.params);
     const result = await getSubGroupUseCase.execute(id);
-    return reply.send(successResponse(result));
+    return reply.send(successResponse(localizeEntity(result, resolveLang(request))));
   });
 
   app.post('/', {

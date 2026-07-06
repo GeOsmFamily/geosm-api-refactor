@@ -35,6 +35,35 @@ services:
       - qgis-projects:/projects
       - qgis-styles:/qgis-styles
 
+  # Servi par un dépôt séparé (geosm-frontend-refactor) - son propre pipeline CI construit et
+  # pousse l'image sur GHCR (voir son deploy.yml). Doit rejoindre ce même réseau Docker Compose
+  # car son nginx.conf relaie /api/ -> api:3000 et /ows -> qgis-server:8080 par nom d'hôte.
+  # `image:` est fourni en dev par docker-compose.override.yml (non committé, voir
+  # docs/deploiement.md) ou absent (le service ne démarre juste pas en dev sans le frontend
+  # buildé localement) - en prod, docker-compose.prod.yml fixe l'image réelle depuis GHCR.
+  frontend:
+    image: ${FRONTEND_IMAGE:-geosm-frontend:local}
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
   postgres:
     image: postgis/postgis:16-3.4
     environment:

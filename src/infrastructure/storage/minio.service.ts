@@ -24,9 +24,13 @@ export class MinioStorageService {
     }
   }
 
-  async uploadFile(key: string, data: Buffer | Readable, contentType?: string): Promise<string> {
+  // `size` (utilisé par DatabaseBackupUseCase avec un fichier temporaire déjà écrit sur disque) :
+  // sans taille explicite pour un stream, le client MinIO bufferise en interne au lieu de faire
+  // un vrai PUT/multipart en flux - confirmé par un OOM kill en conditions réelles (dump de
+  // plusieurs centaines de Mo) avant que ce paramètre n'existe.
+  async uploadFile(key: string, data: Buffer | Readable, contentType?: string, size?: number): Promise<string> {
     const metadata = contentType ? { 'Content-Type': contentType } : {};
-    await this.client.putObject(this.bucket, key, data, undefined, metadata);
+    await this.client.putObject(this.bucket, key, data, size, metadata);
     return key;
   }
 
@@ -58,5 +62,18 @@ export class MinioStorageService {
       contentType: stat.metaData?.['content-type'] || 'application/octet-stream',
       lastModified: stat.lastModified,
     };
+  }
+
+  /** Utilisé par DatabaseBackupUseCase pour appliquer la politique de rétention des backups. */
+  async listFiles(prefix: string): Promise<{ key: string; lastModified: Date; size: number }[]> {
+    return new Promise((resolve, reject) => {
+      const objects: { key: string; lastModified: Date; size: number }[] = [];
+      const stream = this.client.listObjectsV2(this.bucket, prefix, true);
+      stream.on('data', (obj) => {
+        if (obj.name && obj.lastModified) objects.push({ key: obj.name, lastModified: obj.lastModified, size: obj.size ?? 0 });
+      });
+      stream.on('end', () => resolve(objects));
+      stream.on('error', reject);
+    });
   }
 }

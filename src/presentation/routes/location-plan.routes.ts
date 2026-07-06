@@ -7,6 +7,7 @@ import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { CreateLocationPlanUseCase } from '../../application/use-cases/location-plans/create-location-plan.use-case.js';
 import { GetLocationPlanUseCase } from '../../application/use-cases/location-plans/get-location-plan.use-case.js';
 import type { MinioStorageService } from '../../infrastructure/storage/minio.service.js';
+import { resolveLang } from '../utils/lang.util.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -25,7 +26,7 @@ export async function locationPlanRoutes(app: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const dto = parseBody(createLocationPlanSchema, request.body);
     const userId = request.user!.sub;
-    const result = await createLocationPlanUseCase.execute(userId, dto);
+    const result = await createLocationPlanUseCase.execute(userId, dto, resolveLang(request));
     return reply.status(201).send(successResponse(result));
   });
 

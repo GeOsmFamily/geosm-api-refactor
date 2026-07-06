@@ -1,5 +1,8 @@
 import { IInstanceRepository } from '../../../domain/repositories/instance.repository.js';
 import { PrismaClient } from '@prisma/client';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateInstanceTemplateUseCase');
 
 export interface InstanceTemplateInput {
   name: string;
@@ -44,6 +47,7 @@ export class CreateInstanceTemplateUseCase {
       );
     }
 
+    logger.info('Instance template created', { instanceId: instance.id, slug: instance.slug, thematiquesCount: defaultThematiques.length });
     return instance;
   }
 }

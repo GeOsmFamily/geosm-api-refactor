@@ -3,6 +3,7 @@ import type { Transporter } from 'nodemailer';
 import type { IEmailService } from '../../application/services/email.service.js';
 import { config } from '../../config/env.config.js';
 import { logger } from '../observability/logger.js';
+import { emailSentTotal, emailFailedTotal } from '../observability/metrics.js';
 
 export class SmtpEmailService implements IEmailService {
   private transporter: Transporter | null = null;
@@ -36,9 +37,11 @@ export class SmtpEmailService implements IEmailService {
     }
     try {
       await this.transporter.sendMail({ from: this.from, to, subject, html });
+      emailSentTotal.inc();
       logger.info('Email sent', { to, subject });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      emailFailedTotal.inc();
       logger.error('Failed to send email', { to, subject, error: msg });
     }
   }

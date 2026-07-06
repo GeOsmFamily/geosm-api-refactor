@@ -50,6 +50,8 @@ import { catalogRoutes } from './presentation/routes/catalog.routes.js';
 import { mapCompositionRoutes } from './presentation/routes/map-composition.routes.js';
 import { documentRoutes } from './presentation/routes/document.routes.js';
 import { seoRoutes } from './presentation/routes/seo.routes.js';
+import { logsRoutes } from './presentation/routes/logs.routes.js';
+import { feedbackRoutes } from './presentation/routes/feedback.routes.js';
 import { adressageRoutes } from './presentation/routes/adressage.routes.js';
 import { analysisRoutes } from './presentation/routes/analysis.routes.js';
 import { assistantRoutes } from './presentation/routes/assistant.routes.js';
@@ -58,6 +60,7 @@ import { createLayerImportProcessor } from './infrastructure/queue/workers/layer
 import { createExportProcessor } from './infrastructure/queue/workers/export.worker.js';
 import { createLocationPlanProcessor } from './infrastructure/queue/workers/location-plan.worker.js';
 import { createScheduledOsmImportProcessor } from './infrastructure/queue/workers/scheduled-osm-import.worker.js';
+import { createDatabaseBackupProcessor } from './infrastructure/queue/workers/database-backup.worker.js';
 import { config as envConfig } from './config/env.config.js';
 
 async function bootstrap(): Promise<void> {
@@ -138,6 +141,15 @@ async function bootstrap(): Promise<void> {
   }));
   await queueService.addRepeatableJob('scheduled-osm-import', 'monthly-import', {}, envConfig.OSM_IMPORT_CRON);
 
+  // Register database backup worker + job récurrent (pg_dump -> MinIO, voir
+  // DatabaseBackupUseCase - contrairement à l'import OSM, actif par défaut sans configuration
+  // supplémentaire requise).
+  queueService.createQueue('database-backup');
+  queueService.registerWorker('database-backup', createDatabaseBackupProcessor({
+    databaseBackupUseCase: app.diContainer.resolve('databaseBackupUseCase') as import('./application/use-cases/admin/database-backup.use-case.js').DatabaseBackupUseCase,
+  }));
+  await queueService.addRepeatableJob('database-backup', 'daily-backup', {}, envConfig.BACKUP_CRON);
+
   // Route publique pour servir les icônes SVG personnalisées des couches
   app.get('/api/v1/layers/icons/:filename', async (request, reply) => {
     const { filename } = request.params as { filename: string };
@@ -179,6 +191,8 @@ async function bootstrap(): Promise<void> {
   await app.register(commentRoutes, { prefix: `${appConfig.apiPrefix}/comments` });
   await app.register(sharingRoutes, { prefix: `${appConfig.apiPrefix}/share` });
   await app.register(analyticsRoutes, { prefix: `${appConfig.apiPrefix}/analytics` });
+  await app.register(logsRoutes, { prefix: `${appConfig.apiPrefix}/logs` });
+  await app.register(feedbackRoutes, { prefix: `${appConfig.apiPrefix}/feedback` });
   await app.register(catalogRoutes, { prefix: `${appConfig.apiPrefix}/catalog` });
   await app.register(mapCompositionRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/maps` });
   await app.register(documentRoutes, { prefix: `${appConfig.apiPrefix}/documents` });

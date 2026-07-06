@@ -108,6 +108,45 @@ jobs:
           build-args: |
             BUILD_VERSION=${{ needs.version-tag.outputs.version }}
 
+  deploy:
+    name: Déploiement sur le VPS de production
+    runs-on: ubuntu-latest
+    needs: [version-tag, build-and-push]
+    # No-op tant que le VPS de prod n'est pas configuré : voir docs/deploiement.md pour la
+    # checklist complète (secrets DEPLOY_SSH_HOST/DEPLOY_SSH_USER/DEPLOY_SSH_KEY/DEPLOY_PATH,
+    # variable de repo DEPLOY_ENABLED=true). Avant ce lot, rien après build-and-push ne mettait
+    # à jour un serveur réel - cette étape ferme ce trou.
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    steps:
+      - name: Convertir le nom du repo en minuscules
+        run: echo "REPO_LC=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+      - name: Déployer via SSH (pull + up, avec vérification post-déploiement)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: REPO_LC
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            export API_IMAGE="ghcr.io/${REPO_LC}:${{ needs.version-tag.outputs.version }}"
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull api
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
+            echo "Attente du healthcheck (jusqu'à 60s)..."
+            for i in $(seq 1 15); do
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$(docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q api)" 2>/dev/null || echo "starting")
+              if [ "$STATUS" = "healthy" ]; then
+                echo "✅ Déploiement réussi (${API_IMAGE})"
+                exit 0
+              fi
+              sleep 4
+            done
+            echo "❌ Healthcheck échoué après déploiement - revert vers :latest précédent"
+            export API_IMAGE="ghcr.io/${REPO_LC}:latest"
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
+            exit 1
+
   create-tag:
     name: Créer le tag Git
     runs-on: ubuntu-latest

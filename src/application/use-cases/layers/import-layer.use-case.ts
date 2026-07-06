@@ -2,6 +2,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import type { Export } from '../../../domain/entities/export.entity.js';
 import { ExportFormat, JobStatus } from '../../../domain/enums.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('ImportLayerUseCase');
 
 export interface ImportLayerDto {
   layerId: string;
@@ -54,6 +57,7 @@ export class ImportLayerUseCase {
       format: dto.format,
     });
 
+    logger.info('Layer import job queued', { layerId: dto.layerId, userId: dto.userId, exportId: exportRecord.id, format: dto.format });
     return { exportId: exportRecord.id, message: 'Layer import job queued successfully' };
   }
 }

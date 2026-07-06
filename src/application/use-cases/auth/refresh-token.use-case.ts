@@ -4,6 +4,9 @@ import { IUserRepository } from '../../../domain/repositories/user.repository.js
 import { IRefreshTokenRepository } from '../../../domain/repositories/refresh-token.repository.js';
 import { ITokenService } from '../../services/token.service.js';
 import { UnauthorizedError } from '../../../domain/errors/unauthorized.error.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('RefreshTokenUseCase');
 
 export class RefreshTokenUseCase {
   constructor(
@@ -20,6 +23,10 @@ export class RefreshTokenUseCase {
 
     if (existingToken.isRevoked) {
       await this.refreshTokenRepository.revokeAllByFamily(existingToken.family);
+      logger.warn('Refresh token reuse detected - all sessions in family revoked (possible token theft)', {
+        userId: existingToken.userId,
+        family: existingToken.family,
+      });
       throw new UnauthorizedError('Refresh token reuse detected. All sessions revoked.');
     }
 

@@ -8,6 +8,7 @@ import type { SearchLayersUseCase } from '../../application/use-cases/search/sea
 import type { SearchFeaturesUseCase } from '../../application/use-cases/search/search-features.use-case.js';
 import type { GetSearchSuggestionsUseCase } from '../../application/use-cases/search/get-search-suggestions.use-case.js';
 import type { GetLayerRecommendationsUseCase } from '../../application/use-cases/search/get-layer-recommendations.use-case.js';
+import { resolveLang } from '../utils/lang.util.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -26,7 +27,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
     schema: { description: 'Recherche globale', tags: ['Recherche'], querystring: zodToSwagger(globalSearchQuerySchema) },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = parseBody(globalSearchQuerySchema, request.query);
-    const result = await globalSearchUseCase.execute(query.q, query.limit);
+    const result = await globalSearchUseCase.execute(query.q, query.limit, resolveLang(request));
     return reply.send(successResponse(result));
   });
 
@@ -38,6 +39,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
       instanceId: query.instanceId,
       limit: query.limit,
       offset: query.offset,
+      lang: resolveLang(request),
     });
     return reply.send(successResponse(result));
   });

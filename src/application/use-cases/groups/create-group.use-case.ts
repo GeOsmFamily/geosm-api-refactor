@@ -6,6 +6,9 @@ import { Group } from '../../../domain/entities/group.entity.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ConflictError } from '../../../domain/errors/conflict.error.js';
 import { Slug } from '../../../domain/value-objects/slug.vo.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateGroupUseCase');
 
 export class CreateGroupUseCase {
   constructor(
@@ -19,9 +22,12 @@ export class CreateGroupUseCase {
 
     const slug = Slug.create(dto.slug);
     const existing = await this.groupRepository.findBySlug(slug.value, instanceId);
-    if (existing) throw new ConflictError('Group with this slug already exists in this instance');
+    if (existing) {
+      logger.warn('Create group rejected: slug already exists in instance', { instanceId, slug: slug.value });
+      throw new ConflictError('Group with this slug already exists in this instance');
+    }
 
-    return this.groupRepository.create({
+    const group = await this.groupRepository.create({
       id: uuidv4(),
       name: dto.name,
       slug: slug.value,
@@ -32,5 +38,7 @@ export class CreateGroupUseCase {
       isActive: true,
       instanceId,
     });
+    logger.info('Group created', { groupId: group.id, instanceId, slug: slug.value });
+    return group;
   }
 }

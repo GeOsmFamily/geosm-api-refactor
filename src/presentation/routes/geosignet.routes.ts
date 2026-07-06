@@ -54,7 +54,8 @@ export async function geosignetRoutes(app: FastifyInstance): Promise<void> {
     preHandler: [app.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(idParamSchema, request.params);
-    await deleteGeosignetUseCase.execute(id);
+    const userId = (request.user as { sub: string }).sub;
+    await deleteGeosignetUseCase.execute(userId, id);
     return reply.status(204).send();
   });
 }

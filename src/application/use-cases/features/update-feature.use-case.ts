@@ -1,6 +1,9 @@
 import type { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
 import type { PostGISService } from '../../../infrastructure/database/postgis.service.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('UpdateFeatureUseCase');
 
 export interface UpdateFeatureInput {
   layerId: string;
@@ -37,5 +40,6 @@ export class UpdateFeatureUseCase {
         layer.schemaName, layer.tableName, input.featureId, input.properties,
       );
     }
+    logger.info('Feature updated', { layerId: input.layerId, featureId: input.featureId });
   }
 }

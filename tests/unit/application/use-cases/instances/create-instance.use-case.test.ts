@@ -6,6 +6,7 @@ import type { ISubGroupRepository } from '../../../../../src/domain/repositories
 import type { ILayerRepository } from '../../../../../src/domain/repositories/layer.repository.js';
 import type { OsmQueryService } from '../../../../../src/infrastructure/database/osm-query.service.js';
 import type { IQgisProjectRepository } from '../../../../../src/domain/repositories/qgis-project.repository.js';
+import type { IBaseMapRepository } from '../../../../../src/domain/repositories/base-map.repository.js';
 import { ConflictError } from '../../../../../src/domain/errors/conflict.error.js';
 import { Instance } from '../../../../../src/domain/entities/instance.entity.js';
 import { Group } from '../../../../../src/domain/entities/group.entity.js';
@@ -21,6 +22,7 @@ describe('CreateInstanceUseCase', () => {
   let layerRepository: ILayerRepository;
   let osmQueryService: OsmQueryService;
   let qgisProjectRepository: IQgisProjectRepository;
+  let baseMapRepository: IBaseMapRepository;
   const now = new Date();
 
   beforeEach(() => {
@@ -41,8 +43,15 @@ describe('CreateInstanceUseCase', () => {
       queryFeatures: vi.fn(), createTable: vi.fn(), getTableStats: vi.fn(),
     } as unknown as OsmQueryService;
     qgisProjectRepository = {
-      findById: vi.fn(), findByInstance: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
+      findById: vi.fn(), findByInstance: vi.fn(),
+      create: vi.fn().mockImplementation((data) => Promise.resolve({ ...data, createdAt: now, updatedAt: now })),
+      update: vi.fn(), delete: vi.fn(),
     } as unknown as IQgisProjectRepository;
+    baseMapRepository = {
+      findById: vi.fn(), findByInstance: vi.fn(), findDefaults: vi.fn(),
+      create: vi.fn().mockImplementation((data) => Promise.resolve({ ...data, createdAt: now, updatedAt: now })),
+      update: vi.fn(), delete: vi.fn(),
+    };
 
     const mockQgisProjectService = {
       getProjectPath: vi.fn().mockReturnValue('/projects/test/test.qgs'),
@@ -66,6 +75,7 @@ describe('CreateInstanceUseCase', () => {
       mockQgisProjectService,
       mockSvgGeneratorService,
       qgisProjectRepository,
+      baseMapRepository,
     );
   });
 

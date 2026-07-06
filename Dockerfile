@@ -15,6 +15,11 @@ RUN npm run build
 # Stage 2: Production
 FROM node:22-bookworm-slim AS production
 
+# Le dépôt Debian bookworm par défaut ne fournit que postgresql-client 15, alors que
+# docker-compose.yml utilise postgis:16-3.4 - pg_dump refuse par sécurité de dumper un serveur
+# plus récent que lui-même ("aborting because of server version mismatch"), confirmé en testant
+# réellement un backup plutôt qu'en supposant la version du paquet par défaut. On ajoute donc
+# le dépôt officiel PGDG pour installer postgresql-client-16 (aligné sur le serveur).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gdal-bin \
     python3 \
@@ -22,8 +27,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     osm2pgsql \
     wget \
     ca-certificates \
+    gnupg \
+  && install -d /usr/share/postgresql-common/pgdg \
+  && wget --quiet -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+  && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update && apt-get install -y --no-install-recommends \
     postgis \
-    postgresql-client \
+    postgresql-client-16 \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

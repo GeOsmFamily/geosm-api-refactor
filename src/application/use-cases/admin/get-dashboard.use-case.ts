@@ -2,6 +2,9 @@ import { IInstanceRepository } from '../../../domain/repositories/instance.repos
 import { IUserRepository } from '../../../domain/repositories/user.repository.js';
 import { IExportRepository } from '../../../domain/repositories/export.repository.js';
 import { IDefaultThemeRepository } from '../../../domain/repositories/default-theme.repository.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GetDashboardUseCase');
 
 export interface DashboardStats {
   instanceCount: number;
@@ -26,6 +29,7 @@ export class GetDashboardUseCase {
       this.defaultThemeRepository.count(),
     ]);
 
+    logger.debug('Dashboard stats retrieved', { instanceCount: instances.total, userCount: users.total, exportCount, themeCount });
     return {
       instanceCount: instances.total,
       userCount: users.total,

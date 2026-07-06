@@ -1,4 +1,8 @@
+import { trace } from '@opentelemetry/api';
 import { config } from '../../config/env.config.js';
+import { geminiCallsTotal, geminiCallDurationSeconds } from '../observability/metrics.js';
+
+const tracer = trace.getTracer('geosm-gemini');
 
 export interface GeminiFunctionDeclaration {
   name: string;
@@ -64,7 +68,7 @@ export class GeminiService {
     if (systemInstruction) {
       body.systemInstruction = { parts: [{ text: systemInstruction }] };
     }
-    const result = await this.callGenerateContent(body);
+    const result = await this.callGenerateContent('generateText', body);
     return this.extractText(result) ?? '';
   }
 
@@ -86,7 +90,7 @@ export class GeminiService {
     if (systemInstruction) {
       body.systemInstruction = { parts: [{ text: systemInstruction }] };
     }
-    const result = await this.callGenerateContent(body);
+    const result = await this.callGenerateContent('generateWithTools', body);
     return {
       text: this.extractText(result),
       functionCalls: this.extractFunctionCalls(result),
@@ -103,17 +107,31 @@ export class GeminiService {
     return { role: message.role, parts: [{ text: message.text ?? '' }] };
   }
 
-  private async callGenerateContent(body: Record<string, unknown>): Promise<GeminiApiResponse> {
-    const response = await fetch(`${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+  private async callGenerateContent(method: string, body: Record<string, unknown>): Promise<GeminiApiResponse> {
+    return tracer.startActiveSpan(`gemini.${method}`, async (span) => {
+      const end = geminiCallDurationSeconds.startTimer({ method });
+      try {
+        const response = await fetch(`${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const errText = await response.text();
+          geminiCallsTotal.inc({ method, status: 'error' });
+          span.setAttribute('gemini.status_code', response.status);
+          throw new Error(`Gemini API a échoué (${response.status}): ${errText}`);
+        }
+        geminiCallsTotal.inc({ method, status: 'success' });
+        return await (response.json() as Promise<GeminiApiResponse>);
+      } catch (error) {
+        span.recordException(error instanceof Error ? error : String(error));
+        throw error;
+      } finally {
+        end();
+        span.end();
+      }
     });
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini API a échoué (${response.status}): ${errText}`);
-    }
-    return response.json() as Promise<GeminiApiResponse>;
   }
 
   private extractText(result: GeminiApiResponse): string | null {

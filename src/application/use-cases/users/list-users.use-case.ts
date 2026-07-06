@@ -1,11 +1,15 @@
 import { IUserRepository } from '../../../domain/repositories/user.repository.js';
 import { ListUsersDTO, UserResponseDTO } from '../../dtos/user.dto.js';
 import { User } from '../../../domain/entities/user.entity.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('ListUsersUseCase');
 
 export class ListUsersUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
 
   async execute(dto: ListUsersDTO): Promise<{ data: UserResponseDTO[]; total: number }> {
+    logger.debug('Listing users', { search: dto.search, role: dto.role });
     const page = dto.page ?? 1;
     const limit = dto.limit ?? 20;
     const result = await this.userRepository.findAll({ page, limit, search: dto.search, role: dto.role, isActive: dto.isActive });

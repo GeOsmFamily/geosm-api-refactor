@@ -81,13 +81,85 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  refreshTokens RefreshToken[]
-  exports       Export[]
-  locationPlans LocationPlan[]
-  instanceUsers InstanceUser[]
-  comments      Comment[]
+  refreshTokens          RefreshToken[]
+  exports                Export[]
+  locationPlans          LocationPlan[]
+  instanceUsers          InstanceUser[]
+  comments               Comment[]
+  osmProfile             OsmProfile?
+  passwordResetTokens    PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  feedbackSubmissions    FeedbackSubmission[]
 
   @@map("users")
+}
+
+// Correctif sécurité critique : avant ce modèle, ResetPasswordUseCase traitait `dto.token`
+// comme s'il s'agissait directement de l'ID utilisateur ("Phase 1" - jamais complété), et
+// ForgotPasswordUseCase générait un token envoyé par email mais ne le stockait jamais nulle
+// part. Résultat : n'importe qui connaissant l'UUID d'un compte (pas un secret - visible dans
+// des réponses API, JWT, etc.) pouvait réinitialiser son mot de passe sans jamais avoir accès
+// à sa boîte mail. Ce modèle stocke un vrai token aléatoire à usage unique et expirant, sur le
+// même principe que RefreshToken (token en clair, comparaison directe - cohérent avec le reste
+// du code, pas de hash ajouté ici).
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @map("user_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_reset_tokens")
+}
+
+// Même correctif que PasswordResetToken, pour la même classe de faille : VerifyEmailUseCase
+// traitait `dto.token` comme l'ID utilisateur directement, et RegisterUseCase générait un token
+// envoyé par email mais jamais stocké. N'importe qui connaissant l'UUID d'un compte pouvait donc
+// marquer son email comme vérifié sans jamais avoir eu accès à la boîte mail - contournant tout
+// l'intérêt de la vérification (prouver la possession de l'adresse).
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @map("user_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("email_verification_tokens")
+}
+
+// Profil OpenStreetMap lié à un compte GeOSM (voir OsmOAuthService) - table séparée du User
+// plutôt qu'extension de colonnes : garde le modèle User propre et permet de délier un compte
+// OSM sans perdre le compte GeOSM associé. accessTokenEncrypted sert à re-rafraîchir le profil
+// (changesetCount, avatar...) périodiquement sans redemander une connexion - jamais exposé en
+// clair (voir infrastructure/utils/encryption.util.ts), et non requis pour l'authentification
+// elle-même (le JWT GeOSM classique gère la session une fois l'utilisateur résolu).
+model OsmProfile {
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @unique @map("user_id") @db.Uuid
+  osmUserId            BigInt    @unique @map("osm_user_id")
+  displayName          String    @map("display_name")
+  avatarUrl            String?   @map("avatar_url")
+  osmAccountCreatedAt  DateTime? @map("osm_account_created_at")
+  changesetCount       Int       @default(0) @map("changeset_count")
+  homeLat              Float?    @map("home_lat")
+  homeLon              Float?    @map("home_lon")
+  accessTokenEncrypted String    @map("access_token_encrypted")
+  linkedAt             DateTime  @default(now()) @map("linked_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("osm_profiles")
 }
 
 model RefreshToken {
@@ -537,4 +609,28 @@ model Srtm {
 
   @@map("srtm")
   @@ignore
+}
+
+enum FeedbackType {
+  BUG
+  SUGGESTION
+  FEATURE_REQUEST
+}
+
+// Formulaire de signalement du bouton "Infos" (voir InfoPanelComponent côté frontend) -
+// userId/contactEmail nullables : un visiteur non connecté doit pouvoir signaler un problème.
+model FeedbackSubmission {
+  id           String       @id @default(uuid()) @db.Uuid
+  type         FeedbackType
+  description  String
+  contactEmail String?      @map("contact_email")
+  page         String?
+  userId       String?      @map("user_id") @db.Uuid
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("feedback_submissions")
 }

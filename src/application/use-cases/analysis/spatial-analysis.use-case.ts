@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { ValidationError } from '../../../domain/errors/validation.error.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('SpatialAnalysisUseCase');
 
 export interface SpatialAnalysisInput {
   operation: 'buffer' | 'intersection' | 'union' | 'difference';
@@ -52,6 +55,7 @@ export class SpatialAnalysisUseCase {
     }
 
     const rows = await this.prisma.$queryRawUnsafe<{ geometry: unknown }[]>(sql);
+    logger.info('Spatial analysis executed', { operation: input.operation });
     return {
       type: input.operation,
       geometry: rows[0]?.geometry ?? null,

@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { Osm2pgsqlService, type Osm2pgsqlOptions } from '../../../infrastructure/osm/osm2pgsql.service.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('ImportOsmDataUseCase');
 
 export interface ImportOsmDataInput {
   pbfPath: string;
@@ -28,13 +31,17 @@ export class ImportOsmDataUseCase {
     };
 
     if (input.append) {
+      logger.info('OSM data update starting', { pbfPath: input.pbfPath, slim: options.slim });
       const result = await this.osm2pgsqlService.updateData(input.pbfPath, options);
       await this.moveTablesToOsmSchema();
+      logger.info('OSM data update completed', { pbfPath: input.pbfPath, success: result.success });
       return result;
     }
 
+    logger.info('OSM data import starting', { pbfPath: input.pbfPath, slim: options.slim });
     const result = await this.osm2pgsqlService.importFile(input.pbfPath, options);
     await this.moveTablesToOsmSchema();
+    logger.info('OSM data import completed', { pbfPath: input.pbfPath, success: result.success });
     return result;
   }
 

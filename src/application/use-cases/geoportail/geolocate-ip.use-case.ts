@@ -1,3 +1,7 @@
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GeolocateIpUseCase');
+
 export interface GeolocateResult {
   lat: number;
   lon: number;
@@ -36,7 +40,8 @@ export class GeolocateIpUseCase {
         city: data.city,
         country: data.country,
       };
-    } catch {
+    } catch (error) {
+      logger.error('IP geolocation lookup failed, using default center', { error: error instanceof Error ? error.message : String(error) });
       return this.defaultCenter;
     }
   }

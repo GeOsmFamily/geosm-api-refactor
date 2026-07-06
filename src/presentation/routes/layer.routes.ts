@@ -6,7 +6,8 @@ import { ValidationError } from '../../domain/errors/validation.error.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
-import { localize } from '../../application/utils/localize.js';
+import { localizeEntity, localizeEntities } from '../../application/utils/localize.js';
+import { resolveLang } from '../utils/lang.util.js';
 
 import { ListLayersUseCase } from '../../application/use-cases/layers/list-layers.use-case.js';
 import { GetLayerUseCase } from '../../application/use-cases/layers/get-layer.use-case.js';
@@ -40,7 +41,7 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
     const query = parseBody(listLayersQuerySchema, request.query);
     const result = await listLayersUseCase.execute(instanceId, query);
     const totalPages = Math.ceil(result.total / (query.limit ?? 20));
-    return reply.send(paginatedResponse(result.data, { page: query.page ?? 1, limit: query.limit ?? 20, total: result.total, totalPages }));
+    return reply.send(paginatedResponse(localizeEntities(result.data, resolveLang(request)), { page: query.page ?? 1, limit: query.limit ?? 20, total: result.total, totalPages }));
   });
 
   app.get('/:id', {
@@ -49,13 +50,11 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = parseBody(layerIdParamSchema, request.params);
     const result = await getLayerUseCase.execute(id);
-    const acceptLang = request.headers['accept-language'];
-    const lang = acceptLang ? acceptLang.split(',')[0].split('-')[0].trim().toLowerCase() : 'fr';
     // name/description sont stockés en JSON multilingue ({fr,en}, voir CreateInstanceUseCase) -
     // localisés ici comme sur /catalog (voir GetCatalogUseCase) : cette route sert à activer une
     // couche sur la carte (recommandations, assistant, plans enregistrés), jamais à l'édition,
     // donc renvoyer le nom brut n'a pas d'utilité ici.
-    return reply.send(successResponse({ ...result, name: localize(result.name, lang), description: localize(result.description, lang) || null }));
+    return reply.send(successResponse(localizeEntity(result, resolveLang(request))));
   });
 
   app.post('/', {

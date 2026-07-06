@@ -66,10 +66,27 @@ const envSchema = z.object({
   OSM_IMPORT_PBF_PATH: z.string().optional(),
   OSM_IMPORT_CRON: z.string().default('0 2 1 * *'),
 
+  // Backup Postgres programmé (voir DatabaseBackupUseCase) - actif par défaut (contrairement
+  // à l'import OSM, un backup ne dépend d'aucune configuration externe pour être utile).
+  BACKUP_CRON: z.string().default('0 3 * * *'),
+  BACKUP_RETENTION_DAYS: z.coerce.number().default(30),
+
   // Google Gemini (assistant IA) - optionnel : les fonctionnalites IA sont desactivees
   // proprement (erreur explicite a l'appel, pas de crash au demarrage) si absent.
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+
+  // Authentification via OpenStreetMap (OAuth 2.0, voir OsmOAuthService) - optionnel : le
+  // bouton "Se connecter avec OpenStreetMap" est masqué côté frontend si absent, aucun crash
+  // au démarrage. OSM_OAUTH_BASE_URL bascule entre l'instance réelle et le sandbox de test
+  // (master.apis.dev.openstreetmap.org) sans changer le code.
+  OSM_OAUTH_CLIENT_ID: z.string().optional(),
+  OSM_OAUTH_CLIENT_SECRET: z.string().optional(),
+  OSM_OAUTH_REDIRECT_URI: z.string().optional(),
+  OSM_OAUTH_BASE_URL: z.string().default('https://www.openstreetmap.org'),
+  // Clé de chiffrement au repos du token OSM (AES-256-GCM, voir encryption.util.ts) - distincte
+  // des secrets JWT car un usage différent (chiffrement réversible vs signature).
+  ENCRYPTION_KEY: z.string().optional(),
   MAPBOX_ACCESS_TOKEN: z.string().default('__ROTATED_MAPBOX_TOKEN_REMOVED__'),
 
   LOG_LEVEL: z.string().default('info'),

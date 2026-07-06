@@ -1,4 +1,7 @@
 import { PrismaClient } from '@prisma/client';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('SaveCoordPdfUseCase');
 
 export interface CoordPdfInput {
   instanceId: string;
@@ -23,6 +26,7 @@ export class SaveCoordPdfUseCase {
       input.description ?? '',
       input.userId,
     );
+    logger.info('Coordinate PDF annotation saved', { instanceId: input.instanceId, userId: input.userId, id: result[0]?.id });
     return { id: result[0]?.id, coordinates: input.coordinates };
   }
 }

@@ -271,6 +271,10 @@ Un utilisateur peut avoir des roles differents selon les instances. Le modele `I
 4. **Rafraichissement** : Quand l'access token expire, utiliser le refresh token pour obtenir une nouvelle paire (rotation des tokens avec suivi par famille)
 5. **Deconnexion** : Revocation de tous les tokens de la famille du refresh token
 
+### Connexion via OpenStreetMap (OAuth 2.0)
+
+Point d'entree alternatif au flux email/mot de passe : `OsmOAuthService` echange le code d'autorisation OSM contre un token d'acces, recupere le profil (`GET /api/0.6/user/details.json`), puis resout un utilisateur local via la table `OsmProfile` (1-1 avec `User`). Un nouveau compte GeOSM (role `VIEWER`) est cree automatiquement au premier login. Une fois l'utilisateur resolu, le systeme de JWT classique prend le relais (memes access/refresh tokens) - aucun systeme de session parallele. Le token d'acces OSM est chiffre au repos (AES-256-GCM) pour permettre de rafraichir periodiquement le profil (nombre de contributions, avatar) sans redemander une connexion.
+
 ### Matrice RBAC
 
 | Action | SUPER_ADMIN | ADMIN_INSTANCE | EDITOR | VIEWER |
@@ -490,12 +494,16 @@ L'architecture d'observabilite repose sur 4 piliers :
 - **prom-client** collecte les metriques applicatives (duree HTTP, compteurs, memoire, event loop)
 - **Prometheus** scrape l'endpoint `GET /metrics` toutes les 15 secondes
 - **Grafana** (port 3001) fournit des tableaux de bord preconfigures
+- Requetes base de donnees instrumentees en un seul point via une **Client Extension Prisma** (`prisma-metrics.extension.ts`, remplace l'ancienne API `$use` retiree en Prisma 6) - couvre automatiquement tous les modeles/operations sans instrumentation manuelle repartie dans chaque use-case
+- Metriques dediees pour les appels Gemini (latence, volume, erreurs - utile pour surveiller cout/quota API), les connexions (succes/echecs) et les envois d'email
 
 ### Tracing distribue (Jaeger + OpenTelemetry)
 
 - L'API envoie les traces via le protocole **OTLP** au collecteur Jaeger (port 4318)
 - **Jaeger UI** (port 16686) permet de visualiser les traces et analyser les latences
 - Variable : `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318`
+- Auto-instrumentation : HTTP, DNS, ioredis
+- Spans manuels ajoutes autour des appels externes non couverts par l'auto-instrumentation : Gemini, OSRM, Nominatim, et l'execution des jobs BullMQ
 
 ### Logs centralises (Graylog + GELF)
 

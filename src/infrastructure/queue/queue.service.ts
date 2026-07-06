@@ -1,7 +1,10 @@
 import { Queue, Worker, Job } from 'bullmq';
+import { trace } from '@opentelemetry/api';
 import { config } from '../../config/env.config.js';
 import { logger } from '../observability/logger.js';
 import { jobsProcessedTotal, jobsProcessingDurationSeconds, jobsWaitingCount, jobsFailedTotal } from '../observability/metrics.js';
+
+const tracer = trace.getTracer('geosm-bullmq');
 
 export interface JobData {
   [key: string]: unknown;
@@ -65,7 +68,21 @@ export class QueueService {
 
   registerWorker(queueName: string, processor: (job: Job) => Promise<unknown>, concurrency = 1): Worker {
     if (this.workers.has(queueName)) return this.workers.get(queueName)!;
-    const worker = new Worker(queueName, processor, { connection, concurrency });
+    // Span manuel autour de l'exécution du job - aucune auto-instrumentation OTel ne couvre
+    // BullMQ, sans quoi un job long (import OSM, backup...) resterait invisible en tracing.
+    const tracedProcessor = (job: Job): Promise<unknown> =>
+      tracer.startActiveSpan(`bullmq.${queueName}.${job.name}`, async (span) => {
+        span.setAttribute('bullmq.job_id', job.id ?? 'unknown');
+        try {
+          return await processor(job);
+        } catch (error) {
+          span.recordException(error instanceof Error ? error : String(error));
+          throw error;
+        } finally {
+          span.end();
+        }
+      });
+    const worker = new Worker(queueName, tracedProcessor, { connection, concurrency });
 
     worker.on('completed', (job) => {
       jobsProcessedTotal.inc({ queue: queueName, status: 'completed' });

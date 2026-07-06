@@ -4,6 +4,9 @@ import { Export } from '../../../domain/entities/export.entity.js';
 import { CreateExportDTO } from '../../dtos/export.dto.js';
 import { JobStatus } from '../../../domain/enums.js';
 import type { QueueService } from '../../../infrastructure/queue/queue.service.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateExportUseCase');
 
 export class CreateExportUseCase {
   constructor(
@@ -41,6 +44,7 @@ export class CreateExportUseCase {
       });
     }
 
+    logger.info('Export created', { userId, exportId: id, format: dto.format, queued: !!this.queueService });
     return exportRecord;
   }
 }

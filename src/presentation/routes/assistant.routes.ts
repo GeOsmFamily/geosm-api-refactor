@@ -8,6 +8,7 @@ import { ListAssistantConversationsUseCase } from '../../application/use-cases/a
 import { CreateAssistantConversationUseCase } from '../../application/use-cases/assistant/create-assistant-conversation.use-case.js';
 import { GetAssistantConversationUseCase } from '../../application/use-cases/assistant/get-assistant-conversation.use-case.js';
 import { DeleteAssistantConversationUseCase } from '../../application/use-cases/assistant/delete-assistant-conversation.use-case.js';
+import { resolveLang } from '../utils/lang.util.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -95,7 +96,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { instanceId, conversationId, message } = parseBody(chatBodySchema, request.body);
     const userId = (request.user as { sub: string }).sub;
-    const result = await assistantChatUseCase.execute(userId, instanceId, conversationId, message);
+    const result = await assistantChatUseCase.execute(userId, instanceId, conversationId, message, resolveLang(request));
     return reply.send(successResponse(result));
   });
 }

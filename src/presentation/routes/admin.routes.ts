@@ -19,6 +19,7 @@ import { ConfigDbUseCase } from '../../application/use-cases/admin/config-db.use
 import { CreateInstanceTemplateUseCase } from '../../application/use-cases/admin/create-instance-template.use-case.js';
 import { ManageSequenceUseCase } from '../../application/use-cases/admin/manage-sequence.use-case.js';
 import { ReindexAllLayersUseCase } from '../../application/use-cases/search/reindex-all-layers.use-case.js';
+import { DatabaseBackupUseCase } from '../../application/use-cases/admin/database-backup.use-case.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -73,6 +74,10 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   const createInstanceTemplateUseCase = app.diContainer.resolve<CreateInstanceTemplateUseCase>('createInstanceTemplateUseCase');
   const manageSequenceUseCase = app.diContainer.resolve<ManageSequenceUseCase>('manageSequenceUseCase');
   const reindexAllLayersUseCase = app.diContainer.resolve<ReindexAllLayersUseCase>('reindexAllLayersUseCase');
+  // Bloquant, comme /osm/import (même convention existante pour les opérations admin longues) -
+  // un pg_dump complet peut prendre plusieurs minutes sur cette base (tables OSM/SRTM volumineuses),
+  // ce n'est pas une erreur : voir docs/deploiement.md pour un exemple d'appel avec timeout généreux.
+  const databaseBackupUseCase = app.diContainer.resolve<DatabaseBackupUseCase>('databaseBackupUseCase');
 
   // GET /dashboard — returns stats
   app.get('/dashboard', { schema: { description: 'Obtenir le tableau de bord', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -116,6 +121,14 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // recréé/vidé ou si des couches existent sans jamais avoir été indexées.
   app.post('/search/reindex-layers', { schema: { description: 'Reindexer toutes les couches dans MeiliSearch', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const result = await reindexAllLayersUseCase.execute();
+    return reply.send(successResponse(result));
+  });
+
+  // POST /backup — déclenche un backup Postgres immédiat (voir DatabaseBackupUseCase, aussi
+  // planifié quotidiennement via BullMQ, voir server.ts) - utile pour un backup ponctuel avant
+  // une opération risquée (migration, import massif), sans attendre le prochain cron.
+  app.post('/backup', { schema: { description: 'Déclencher un backup Postgres immédiat', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    const result = await databaseBackupUseCase.execute();
     return reply.send(successResponse(result));
   });
 

@@ -10,6 +10,7 @@ import { FindAdminBoundaryUseCase } from '../../application/use-cases/geoportail
 import { GeolocateIpUseCase } from '../../application/use-cases/geoportail/geolocate-ip.use-case.js';
 import { SearchLimitInTableUseCase } from '../../application/use-cases/geoportail/search-limit-in-table.use-case.js';
 import { SaveCoordPdfUseCase } from '../../application/use-cases/maps/save-coord-pdf.use-case.js';
+import { resolveLang } from '../utils/lang.util.js';
 import { SummarizeViewportUseCase } from '../../application/use-cases/geoportail/summarize-viewport.use-case.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
@@ -111,7 +112,7 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { layerId } = parseBody(layerIdParamSchema, request.params);
     const { narrative } = parseBody(layerStatsQuerySchema, request.query);
-    const stats = await getLayerStatsUseCase.execute(layerId, narrative);
+    const stats = await getLayerStatsUseCase.execute(layerId, narrative, resolveLang(request));
     return reply.send(successResponse(stats));
   });
 

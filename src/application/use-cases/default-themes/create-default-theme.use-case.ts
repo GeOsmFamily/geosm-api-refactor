@@ -4,6 +4,9 @@ import { CreateDefaultThemeDTO } from '../../dtos/default-theme.dto.js';
 import { DefaultTheme } from '../../../domain/entities/default-theme.entity.js';
 import { ConflictError } from '../../../domain/errors/conflict.error.js';
 import { Slug } from '../../../domain/value-objects/slug.vo.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateDefaultThemeUseCase');
 
 export class CreateDefaultThemeUseCase {
   constructor(private readonly defaultThemeRepository: IDefaultThemeRepository) {}
@@ -11,9 +14,12 @@ export class CreateDefaultThemeUseCase {
   async execute(dto: CreateDefaultThemeDTO): Promise<DefaultTheme> {
     const slug = Slug.create(dto.slug);
     const existing = await this.defaultThemeRepository.findBySlug(slug.value);
-    if (existing) throw new ConflictError('Default theme with this slug already exists');
+    if (existing) {
+      logger.warn('Create default theme rejected: slug already exists', { slug: slug.value });
+      throw new ConflictError('Default theme with this slug already exists');
+    }
 
-    return this.defaultThemeRepository.create({
+    const theme = await this.defaultThemeRepository.create({
       id: uuidv4(),
       name: dto.name,
       slug: slug.value,
@@ -21,5 +27,7 @@ export class CreateDefaultThemeUseCase {
       color: dto.color ?? null,
       order: dto.order ?? 0,
     });
+    logger.info('Default theme created', { themeId: theme.id, slug: theme.slug });
+    return theme;
   }
 }

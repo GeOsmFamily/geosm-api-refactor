@@ -1,5 +1,8 @@
 import { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
 import { MinioStorageService } from '../../../infrastructure/storage/minio.service.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GetSourceFileUseCase');
 
 export class GetSourceFileUseCase {
   constructor(
@@ -13,6 +16,7 @@ export class GetSourceFileUseCase {
 
     const objectName = `layers/${layerId}/source`;
     const url = await this.storageService.getPresignedUrl(objectName);
+    logger.info('Source file presigned URL generated', { layerId });
     return { layerId, name: layer.name, url };
   }
 }

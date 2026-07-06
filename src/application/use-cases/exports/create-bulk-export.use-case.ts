@@ -4,6 +4,9 @@ import { Export } from '../../../domain/entities/export.entity.js';
 import { CreateBulkExportDTO } from '../../dtos/export.dto.js';
 import { JobStatus } from '../../../domain/enums.js';
 import type { QueueService } from '../../../infrastructure/queue/queue.service.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateBulkExportUseCase');
 
 export class CreateBulkExportUseCase {
   constructor(

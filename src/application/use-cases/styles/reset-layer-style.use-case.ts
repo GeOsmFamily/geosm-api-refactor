@@ -1,4 +1,7 @@
 import { ILayerStyleRepository } from '../../../domain/repositories/layer-style.repository.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('ResetLayerStyleUseCase');
 
 export class ResetLayerStyleUseCase {
   constructor(
@@ -12,5 +15,6 @@ export class ResetLayerStyleUseCase {
         await this.layerStyleRepository.delete(style.id);
       }
     }
+    logger.info('Layer style reset to default', { layerId });
   }
 }

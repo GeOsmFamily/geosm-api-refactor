@@ -1,6 +1,9 @@
 import type { PrismaAnalyticsRepository } from '../../../infrastructure/database/repositories/prisma-analytics.repository.js';
 import type { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
 import { localize } from '../../utils/localize.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GetSearchSuggestionsUseCase');
 
 export interface LayerSuggestion {
   id: string;
@@ -35,6 +38,7 @@ export class GetSearchSuggestionsUseCase {
       const layer = await this.layerRepository.findById(r.layerId);
       if (layer) suggestions.push({ id: layer.id, name: localize(layer.name, lang), description: localize(layer.description, lang) || null });
     }
+    logger.debug('Search suggestions computed', { userId, instanceId, count: suggestions.length });
     return suggestions;
   }
 }

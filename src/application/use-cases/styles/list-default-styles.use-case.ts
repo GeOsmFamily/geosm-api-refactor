@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { DefaultTheme } from '../../../domain/entities/default-theme.entity.js';
 import { DefaultTag } from '../../../domain/entities/default-tag.entity.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('ListDefaultStylesUseCase');
 
 export interface DefaultThemeWithTags extends DefaultTheme {
   tags: DefaultTag[];
@@ -12,6 +15,7 @@ export class ListDefaultStylesUseCase {
   ) {}
 
   async execute(): Promise<DefaultThemeWithTags[]> {
+    logger.debug('Listing default styles');
     const themes = await this.prisma.defaultTheme.findMany({
       include: { tags: true },
       orderBy: { order: 'asc' },
