@@ -1,10 +1,15 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
+import { config } from '../../config/env.config.js';
 
 import { UploadRasterUseCase } from '../../application/use-cases/rasters/upload-raster.use-case.js';
 import { DownloadRasterUseCase } from '../../application/use-cases/rasters/download-raster.use-case.js';
@@ -26,30 +31,41 @@ export async function rasterRoutes(app: FastifyInstance): Promise<void> {
   const downloadRasterUseCase = app.diContainer.resolve<DownloadRasterUseCase>('downloadRasterUseCase');
   const rasterService = app.diContainer.resolve<RasterService>('rasterService');
 
-  // POST /rasters/upload
+  // POST /rasters/upload — importe un raster ET le rend visible sur le portail (voir
+  // UploadRasterUseCase : enregistrement dans le projet QGIS + création d'une couche).
+  const uploadFieldsSchema = z.object({
+    tableName: z.string().min(1),
+    name: z.string().min(1),
+    description: z.string().optional(),
+    instanceId: z.string().uuid(),
+    subGroupId: z.string().uuid(),
+    srid: z.coerce.number().int().optional(),
+  });
   app.post('/upload', {
     schema: { description: 'Telecharger un fichier raster (multipart)', tags: ['Rasters'], security: [{ bearerAuth: [] }] },
     preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const file = await request.file();
-    if (!file) return reply.status(400).send({ success: false, message: 'No file uploaded' });
-    const fields = file.fields as Record<string, { value?: string }>;
-    const tableName = fields.tableName?.value ?? 'raster_import';
-    const sridStr = fields.srid?.value;
-    const srid = sridStr ? parseInt(sridStr) : undefined;
-    const path = await import('path');
-    const fs = await import('fs/promises');
-    const tmpDir = process.env.DATA_DIR || '/tmp/geosm-data';
-    const tmpPath = path.default.join(tmpDir, `upload_${Date.now()}_${file.filename}`);
-    const fsModule = await import('fs');
-    if (!fsModule.existsSync(tmpDir)) await fs.mkdir(tmpDir, { recursive: true });
+    if (!file) throw new ValidationError('No file uploaded', {});
+
+    const rawFields = Object.fromEntries(
+      Object.entries(file.fields)
+        .filter(([, v]) => v && typeof v === 'object' && 'value' in v)
+        .map(([k, v]) => [k, (v as { value: unknown }).value]),
+    );
+    const { tableName, name, description, instanceId, subGroupId, srid } = parseBody(uploadFieldsSchema, rawFields);
+
+    const tmpDir = config.DATA_DIR;
+    if (!existsSync(tmpDir)) await mkdir(tmpDir, { recursive: true });
+    const tmpPath = path.join(tmpDir, `upload_${randomUUID()}_${file.filename}`);
     const buffer = await file.toBuffer();
-    await fs.writeFile(tmpPath, buffer);
+    await writeFile(tmpPath, buffer);
+
     try {
-      const result = await uploadRasterUseCase.execute(tmpPath, tableName, { srid });
+      const result = await uploadRasterUseCase.execute({ filePath: tmpPath, tableName, name, description, instanceId, subGroupId, srid });
       return reply.status(201).send(successResponse(result));
     } finally {
-      await fs.unlink(tmpPath).catch(() => {});
+      await unlink(tmpPath).catch(() => undefined);
     }
   });
 

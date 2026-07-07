@@ -12,6 +12,14 @@ import { SearchLimitInTableUseCase } from '../../application/use-cases/geoportai
 import { SaveCoordPdfUseCase } from '../../application/use-cases/maps/save-coord-pdf.use-case.js';
 import { resolveLang } from '../utils/lang.util.js';
 import { SummarizeViewportUseCase } from '../../application/use-cases/geoportail/summarize-viewport.use-case.js';
+import { SearchBoundariesUseCase } from '../../application/use-cases/geoportail/search-boundaries.use-case.js';
+import { GetBoundaryUseCase } from '../../application/use-cases/geoportail/get-boundary.use-case.js';
+import { ImportBoundariesUseCase } from '../../application/use-cases/geoportail/import-boundaries.use-case.js';
+import { requireRole } from '../middleware/rbac.middleware.js';
+import { Role } from '../../domain/enums.js';
+import { randomUUID } from 'crypto';
+import { mkdir, unlink, writeFile } from 'fs/promises';
+import path from 'path';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -58,11 +66,38 @@ const saveCoordPdfSchema = z.object({
   description: z.string().optional(),
 });
 
+const searchBoundariesQuerySchema = z.object({
+  table: z.string().min(1),
+  q: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+});
+
+const getBoundaryParamsSchema = z.object({
+  table: z.string().min(1),
+  id: z.coerce.number().int(),
+});
+
+const getBoundaryQuerySchema = z.object({
+  geomCol: z.string().optional(),
+});
+
+const IMPORT_ALLOWED_MIMETYPES = [
+  'application/json',
+  'application/geo+json',
+  'application/x-shapefile',
+  'application/zip',
+  'application/octet-stream',
+];
+const IMPORT_MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB - largement suffisant pour un shapefile/GeoJSON de limites administratives
+
 export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
   const postGISService = app.diContainer.resolve<PostGISService>('postGISService');
   const getLayerStatsUseCase = app.diContainer.resolve<GetLayerStatsUseCase>('getLayerStatsUseCase');
   const findAdminBoundaryUseCase = app.diContainer.resolve<FindAdminBoundaryUseCase>('findAdminBoundaryUseCase');
   const geolocateIpUseCase = app.diContainer.resolve<GeolocateIpUseCase>('geolocateIpUseCase');
+  const searchBoundariesUseCase = app.diContainer.resolve<SearchBoundariesUseCase>('searchBoundariesUseCase');
+  const getBoundaryUseCase = app.diContainer.resolve<GetBoundaryUseCase>('getBoundaryUseCase');
+  const importBoundariesUseCase = app.diContainer.resolve<ImportBoundariesUseCase>('importBoundariesUseCase');
   const searchLimitInTableUseCase = app.diContainer.resolve<SearchLimitInTableUseCase>('searchLimitInTableUseCase');
   const saveCoordPdfUseCase = app.diContainer.resolve<SaveCoordPdfUseCase>('saveCoordPdfUseCase');
   const summarizeViewportUseCase = app.diContainer.resolve<SummarizeViewportUseCase>('summarizeViewportUseCase');
@@ -147,5 +182,77 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
     const userId = (request.user as { sub: string }).sub;
     const result = await saveCoordPdfUseCase.execute({ ...input, userId });
     return reply.status(201).send(successResponse(result));
+  });
+
+  // GET /api/v1/geoportail/admin-boundaries/search?table=admin_boundaries&q=Camer
+  // Réservé aux rôles admin (contrairement à /admin-boundary et /search-limit, publics) : sert
+  // le sélecteur de limite administrative utilisé lors de la création/édition d'une instance
+  // (Instance.boundaryTable/boundaryId), pas une fonctionnalité grand public de la carte.
+  app.get('/admin-boundaries/search', {
+    schema: { description: 'Rechercher une limite administrative par nom', tags: ['Geoportail'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(searchBoundariesQuerySchema) },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { table, q, limit } = parseBody(searchBoundariesQuerySchema, request.query);
+    const results = await searchBoundariesUseCase.execute(table, q, limit);
+    return reply.send(successResponse(results));
+  });
+
+  // GET /api/v1/geoportail/admin-boundaries/:table/:id - apercu geometrique (utilise apres
+  // selection d'un resultat de recherche ci-dessus, pas pour lister/parcourir).
+  app.get('/admin-boundaries/:table/:id', {
+    schema: { description: 'Obtenir le detail (geometrie incluse) d\'une limite administrative', tags: ['Geoportail'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { table, id } = parseBody(getBoundaryParamsSchema, request.params);
+    const { geomCol } = parseBody(getBoundaryQuerySchema, request.query);
+    const boundary = await getBoundaryUseCase.execute(table, id, geomCol);
+    if (!boundary) {
+      return reply.status(404).send({ success: false, message: `Boundary ${id} not found in ${table}` });
+    }
+    return reply.send(successResponse(boundary));
+  });
+
+  // POST /api/v1/geoportail/admin-boundaries/import (multipart) - shapefile (.zip) ou GeoJSON,
+  // réservé SUPER_ADMIN (import.mode='replace' peut supprimer des données existantes - plus
+  // sensible que la simple recherche/consultation ci-dessus, ouverte à ADMIN_INSTANCE aussi).
+  app.post('/admin-boundaries/import', {
+    schema: { description: 'Importer des limites administratives (shapefile/GeoJSON)', tags: ['Geoportail'], security: [{ bearerAuth: [] }] },
+    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const data = await request.file();
+    if (!data) throw new ValidationError('No file uploaded', {});
+
+    const buffer = await data.toBuffer();
+    if (buffer.length > IMPORT_MAX_FILE_SIZE) {
+      throw new ValidationError(`File too large. Maximum size is ${IMPORT_MAX_FILE_SIZE / 1024 / 1024}MB`, {});
+    }
+    if (!IMPORT_ALLOWED_MIMETYPES.includes(data.mimetype)) {
+      throw new ValidationError('Unsupported file type', { mimetype: data.mimetype });
+    }
+
+    const fieldsSchema = z.object({
+      nameField: z.string().min(1),
+      adminLevel: z.coerce.number().int(),
+      mode: z.enum(['append', 'replace']).default('append'),
+    });
+    const rawFields = Object.fromEntries(
+      Object.entries(data.fields)
+        .filter(([, v]) => v && typeof v === 'object' && 'value' in v)
+        .map(([k, v]) => [k, (v as { value: unknown }).value]),
+    );
+    const { nameField, adminLevel, mode } = parseBody(fieldsSchema, rawFields);
+
+    const dataDir = process.env.DATA_DIR || '/tmp/geosm-data';
+    await mkdir(dataDir, { recursive: true });
+    const ext = path.extname(data.filename) || '.geojson';
+    const tmpPath = path.join(dataDir, `boundary-import-${randomUUID()}${ext}`);
+    await writeFile(tmpPath, buffer);
+
+    try {
+      const result = await importBoundariesUseCase.execute({ filePath: tmpPath, nameField, adminLevel, mode });
+      return reply.send(successResponse(result));
+    } finally {
+      await unlink(tmpPath).catch(() => undefined);
+    }
   });
 }

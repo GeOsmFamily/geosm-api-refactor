@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { successResponse } from '../schemas/common.schema.js';
 import { jobIdParamSchema } from '../schemas/admin.schema.js';
+import { ICON_CATALOG } from '../../infrastructure/utils/svg-generator.service.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
@@ -42,6 +43,7 @@ const generateIconSchema = z.object({
   strokeColor: z.string().optional(),
   strokeWidth: z.number().optional(),
   label: z.string().optional(),
+  iconKey: z.string().optional(),
 });
 
 const generateIconsSchema = z.union([generateIconSchema, z.array(generateIconSchema)]);
@@ -142,6 +144,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   app.post('/cache/clear', { schema: { description: 'Vider le cache Redis', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
     await redisService.getClient().flushdb();
     return reply.send(successResponse({ message: 'Cache cleared successfully' }));
+  });
+
+  // GET /icons/catalog — liste le catalogue d'icônes génériques disponibles pour le
+  // sélecteur d'icônes de l'assistant de création de couche (voir ICON_CATALOG).
+  app.get('/icons/catalog', { schema: { description: 'Lister le catalogue d\'icônes disponibles', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send(successResponse(ICON_CATALOG.map(({ key, label, category }) => ({ key, label, category }))));
   });
 
   // POST /icons/generate — generate SVG marker icons

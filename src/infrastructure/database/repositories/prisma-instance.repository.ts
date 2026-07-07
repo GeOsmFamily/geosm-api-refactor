@@ -43,7 +43,11 @@ export class PrismaInstanceRepository implements IInstanceRepository {
       data: {
         id: data.id, name: data.name, slug: data.slug, description: data.description,
         logo: data.logo, bbox: data.bbox ?? [], centerLat: data.centerLat, centerLon: data.centerLon,
-        defaultZoom: data.defaultZoom, isActive: data.isActive,
+        defaultZoom: data.defaultZoom,
+        boundaryTable: data.boundaryTable, boundaryId: data.boundaryId,
+        boundaryGeomCol: data.boundaryGeomCol ?? undefined, adminLevel: data.adminLevel,
+        parentInstanceId: data.parentInstanceId,
+        isActive: data.isActive,
       },
     });
     return this.toDomain(record);
@@ -59,6 +63,11 @@ export class PrismaInstanceRepository implements IInstanceRepository {
     if (data.centerLat !== undefined) updateData.centerLat = data.centerLat;
     if (data.centerLon !== undefined) updateData.centerLon = data.centerLon;
     if (data.defaultZoom !== undefined) updateData.defaultZoom = data.defaultZoom;
+    if (data.boundaryTable !== undefined) updateData.boundaryTable = data.boundaryTable;
+    if (data.boundaryId !== undefined) updateData.boundaryId = data.boundaryId;
+    if (data.boundaryGeomCol !== undefined) updateData.boundaryGeomCol = data.boundaryGeomCol;
+    if (data.adminLevel !== undefined) updateData.adminLevel = data.adminLevel;
+    if (data.parentInstanceId !== undefined) updateData.parentInstanceId = data.parentInstanceId;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     const record = await this.prisma.instance.update({ where: { id }, data: updateData });
     return this.toDomain(record);

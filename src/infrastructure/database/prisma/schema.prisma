@@ -634,3 +634,24 @@ model FeedbackSubmission {
   @@index([createdAt])
   @@map("feedback_submissions")
 }
+
+// Table de référence des limites administratives (pays/régions/communes), importée
+// MANUELLEMENT hors de cette application (ex. via ogr2ogr depuis un jeu de données GADM/OSM -
+// voir docs/deploiement.md) et utilisée par Instance.boundaryTable/boundaryId (voir
+// hasBoundary() sur l'entité Instance) ainsi que par FindAdminBoundaryUseCase/
+// SearchBoundariesUseCase. @@ignore : sans ce modèle, "prisma db push" (exécuté à chaque
+// démarrage du conteneur, voir docker/entrypoint.sh) considère cette table comme non gérée et
+// refuse de démarrer dès qu'elle contient des lignes ("data loss" sur un DROP TABLE implicite) -
+// un admin qui suit la documentation pour importer ses propres limites ferait planter l'API en
+// boucle au redémarrage suivant sans cette déclaration.
+model admin_boundaries {
+  id          Int                                           @id @default(autoincrement())
+  name        String
+  admin_level Int?
+  // MultiPolygon (pas Polygon) : les limites administratives réelles ont fréquemment des
+  // parties non contiguës (îles, enclaves) - tous les imports normalisent vers ce type via
+  // ST_Multi() (voir ImportBoundariesUseCase et scripts/seed-admin-boundaries.sh).
+  geom        Unsupported("geometry(MultiPolygon, 4326)")?
+
+  @@ignore
+}

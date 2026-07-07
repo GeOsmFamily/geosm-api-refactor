@@ -79,6 +79,12 @@ import { DeleteSubGroupUseCase } from './application/use-cases/sub-groups/delete
 import { ListLayersUseCase } from './application/use-cases/layers/list-layers.use-case.js';
 import { GetLayerUseCase } from './application/use-cases/layers/get-layer.use-case.js';
 import { CreateLayerUseCase } from './application/use-cases/layers/create-layer.use-case.js';
+import { StageFileImportUseCase } from './application/use-cases/layers/stage-file-import.use-case.js';
+import { CreateLayerFromStagingUseCase } from './application/use-cases/layers/create-layer-from-staging.use-case.js';
+import { CreateLayerFromOsmUseCase } from './application/use-cases/layers/create-layer-from-osm.use-case.js';
+import { ApplyLayerStyleUseCase } from './application/use-cases/layers/apply-layer-style.use-case.js';
+import { ListOsmTagKeysUseCase } from './application/use-cases/osm/list-osm-tag-keys.use-case.js';
+import { ListOsmTagValuesUseCase } from './application/use-cases/osm/list-osm-tag-values.use-case.js';
 import { UpdateLayerUseCase } from './application/use-cases/layers/update-layer.use-case.js';
 import { DeleteLayerUseCase } from './application/use-cases/layers/delete-layer.use-case.js';
 
@@ -177,6 +183,10 @@ import { GetAnalyticsUseCase } from './application/use-cases/analytics/get-analy
 // QGIS Projects use cases
 import { GetQgisProjectUseCase } from './application/use-cases/qgis-projects/get-qgis-project.use-case.js';
 import { ReloadQgisProjectUseCase } from './application/use-cases/qgis-projects/reload-qgis-project.use-case.js';
+import { UploadQgisProjectUseCase } from './application/use-cases/qgis-projects/upload-qgis-project.use-case.js';
+import { ListQgisProjectLayersUseCase } from './application/use-cases/qgis-projects/list-qgis-project-layers.use-case.js';
+import { CreateLayersFromQgisProjectUseCase } from './application/use-cases/layers/create-layers-from-qgis-project.use-case.js';
+import { ExportQgisProjectBundleUseCase } from './application/use-cases/qgis-projects/export-qgis-project-bundle.use-case.js';
 
 // Default Themes use cases
 import { ListDefaultThemesUseCase } from './application/use-cases/default-themes/list-default-themes.use-case.js';
@@ -218,6 +228,9 @@ import { GenerateIconUseCase } from './application/use-cases/admin/generate-icon
 import { SaveCoordPdfUseCase } from './application/use-cases/maps/save-coord-pdf.use-case.js';
 import { ConfigDbUseCase } from './application/use-cases/admin/config-db.use-case.js';
 import { SearchLimitInTableUseCase } from './application/use-cases/geoportail/search-limit-in-table.use-case.js';
+import { SearchBoundariesUseCase } from './application/use-cases/geoportail/search-boundaries.use-case.js';
+import { GetBoundaryUseCase } from './application/use-cases/geoportail/get-boundary.use-case.js';
+import { ImportBoundariesUseCase } from './application/use-cases/geoportail/import-boundaries.use-case.js';
 import { CreateInstanceTemplateUseCase } from './application/use-cases/admin/create-instance-template.use-case.js';
 import { GetSourceFileUseCase } from './application/use-cases/layers/get-source-file.use-case.js';
 import { ManageSequenceUseCase } from './application/use-cases/admin/manage-sequence.use-case.js';
@@ -375,6 +388,12 @@ interface Cradle {
   createLayerUseCase: CreateLayerUseCase;
   updateLayerUseCase: UpdateLayerUseCase;
   deleteLayerUseCase: DeleteLayerUseCase;
+  stageFileImportUseCase: StageFileImportUseCase;
+  createLayerFromStagingUseCase: CreateLayerFromStagingUseCase;
+  createLayerFromOsmUseCase: CreateLayerFromOsmUseCase;
+  applyLayerStyleUseCase: ApplyLayerStyleUseCase;
+  listOsmTagKeysUseCase: ListOsmTagKeysUseCase;
+  listOsmTagValuesUseCase: ListOsmTagValuesUseCase;
   // BaseMaps
   listBaseMapsUseCase: ListBaseMapsUseCase;
   createBaseMapUseCase: CreateBaseMapUseCase;
@@ -416,6 +435,10 @@ interface Cradle {
   // QGIS Projects
   getQgisProjectUseCase: GetQgisProjectUseCase;
   reloadQgisProjectUseCase: ReloadQgisProjectUseCase;
+  uploadQgisProjectUseCase: UploadQgisProjectUseCase;
+  listQgisProjectLayersUseCase: ListQgisProjectLayersUseCase;
+  createLayersFromQgisProjectUseCase: CreateLayersFromQgisProjectUseCase;
+  exportQgisProjectBundleUseCase: ExportQgisProjectBundleUseCase;
   // Default Themes
   listDefaultThemesUseCase: ListDefaultThemesUseCase;
   getDefaultThemeUseCase: GetDefaultThemeUseCase;
@@ -537,6 +560,9 @@ interface Cradle {
   saveCoordPdfUseCase: SaveCoordPdfUseCase;
   configDbUseCase: ConfigDbUseCase;
   searchLimitInTableUseCase: SearchLimitInTableUseCase;
+  searchBoundariesUseCase: SearchBoundariesUseCase;
+  getBoundaryUseCase: GetBoundaryUseCase;
+  importBoundariesUseCase: ImportBoundariesUseCase;
   createInstanceTemplateUseCase: CreateInstanceTemplateUseCase;
   getSourceFileUseCase: GetSourceFileUseCase;
   manageSequenceUseCase: ManageSequenceUseCase;
@@ -694,6 +720,12 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     createLayerUseCase: asFunction((c: Cradle) => new CreateLayerUseCase(c.layerRepository, c.instanceRepository, c.indexLayerUseCase), { lifetime: Lifetime.SCOPED }),
     updateLayerUseCase: asFunction((c: Cradle) => new UpdateLayerUseCase(c.layerRepository, c.indexLayerUseCase), { lifetime: Lifetime.SCOPED }),
     deleteLayerUseCase: asFunction((c: Cradle) => new DeleteLayerUseCase(c.layerRepository, c.removeLayerIndexUseCase), { lifetime: Lifetime.SCOPED }),
+    stageFileImportUseCase: asFunction((c: Cradle) => new StageFileImportUseCase(c.ogr2ogrService, c.postGISService, prisma), { lifetime: Lifetime.SCOPED }),
+    createLayerFromStagingUseCase: asFunction((c: Cradle) => new CreateLayerFromStagingUseCase(c.layerRepository, c.instanceRepository, c.postGISService, c.qgisProjectService, prisma), { lifetime: Lifetime.SCOPED }),
+    createLayerFromOsmUseCase: asFunction((c: Cradle) => new CreateLayerFromOsmUseCase(c.layerRepository, c.instanceRepository, c.osmQueryService, c.qgisProjectService), { lifetime: Lifetime.SCOPED }),
+    applyLayerStyleUseCase: asFunction((c: Cradle) => new ApplyLayerStyleUseCase(c.layerRepository, c.instanceRepository, c.qgisProjectRepository, c.qgisProjectService, c.svgGeneratorService), { lifetime: Lifetime.SCOPED }),
+    listOsmTagKeysUseCase: asFunction((c: Cradle) => new ListOsmTagKeysUseCase(c.osmQueryService), { lifetime: Lifetime.SCOPED }),
+    listOsmTagValuesUseCase: asFunction((c: Cradle) => new ListOsmTagValuesUseCase(c.osmQueryService), { lifetime: Lifetime.SCOPED }),
 
     // BaseMaps use cases
     listBaseMapsUseCase: asFunction((c: Cradle) => new ListBaseMapsUseCase(c.baseMapRepository), { lifetime: Lifetime.SCOPED }),
@@ -745,6 +777,10 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     // QGIS Projects use cases
     getQgisProjectUseCase: asFunction((c: Cradle) => new GetQgisProjectUseCase(c.qgisProjectRepository), { lifetime: Lifetime.SCOPED }),
     reloadQgisProjectUseCase: asFunction((c: Cradle) => new ReloadQgisProjectUseCase(c.qgisProjectRepository), { lifetime: Lifetime.SCOPED }),
+    uploadQgisProjectUseCase: asFunction((c: Cradle) => new UploadQgisProjectUseCase(c.qgisProjectRepository), { lifetime: Lifetime.SCOPED }),
+    listQgisProjectLayersUseCase: asFunction((c: Cradle) => new ListQgisProjectLayersUseCase(c.qgisProjectRepository, c.qgisServerService), { lifetime: Lifetime.SCOPED }),
+    createLayersFromQgisProjectUseCase: asFunction((c: Cradle) => new CreateLayersFromQgisProjectUseCase(c.layerRepository, c.qgisProjectRepository), { lifetime: Lifetime.SCOPED }),
+    exportQgisProjectBundleUseCase: asFunction((c: Cradle) => new ExportQgisProjectBundleUseCase(c.qgisProjectRepository, c.qgisProjectService, c.storageService), { lifetime: Lifetime.SCOPED }),
 
     // Default Themes use cases
     listDefaultThemesUseCase: asFunction((c: Cradle) => new ListDefaultThemesUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
@@ -887,7 +923,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     // Raster
     rasterService: asFunction(() => new RasterService(), { lifetime: Lifetime.SINGLETON }),
-    uploadRasterUseCase: asFunction((c: Cradle) => new UploadRasterUseCase(c.rasterService, c.storageService), { lifetime: Lifetime.SCOPED }),
+    uploadRasterUseCase: asFunction((c: Cradle) => new UploadRasterUseCase(c.rasterService, c.storageService, c.qgisProjectService, c.layerRepository, c.instanceRepository), { lifetime: Lifetime.SCOPED }),
     downloadRasterUseCase: asFunction((c: Cradle) => new DownloadRasterUseCase(c.rasterService), { lifetime: Lifetime.SCOPED }),
 
     // SVG
@@ -898,8 +934,11 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     saveCoordPdfUseCase: asFunction(() => new SaveCoordPdfUseCase(prisma), { lifetime: Lifetime.SCOPED }),
     configDbUseCase: asFunction(() => new ConfigDbUseCase(), { lifetime: Lifetime.SCOPED }),
     searchLimitInTableUseCase: asFunction(() => new SearchLimitInTableUseCase(prisma), { lifetime: Lifetime.SCOPED }),
+    searchBoundariesUseCase: asFunction(() => new SearchBoundariesUseCase(prisma), { lifetime: Lifetime.SCOPED }),
+    getBoundaryUseCase: asFunction(() => new GetBoundaryUseCase(prisma), { lifetime: Lifetime.SCOPED }),
+    importBoundariesUseCase: asFunction((c: Cradle) => new ImportBoundariesUseCase(c.ogr2ogrService, prisma), { lifetime: Lifetime.SCOPED }),
     createInstanceTemplateUseCase: asFunction((c: Cradle) => new CreateInstanceTemplateUseCase(c.instanceRepository, prisma), { lifetime: Lifetime.SCOPED }),
-    getSourceFileUseCase: asFunction((c: Cradle) => new GetSourceFileUseCase(c.layerRepository, c.storageService), { lifetime: Lifetime.SCOPED }),
+    getSourceFileUseCase: asFunction((c: Cradle) => new GetSourceFileUseCase(c.layerRepository, c.storageService, c.ogr2ogrService), { lifetime: Lifetime.SCOPED }),
     manageSequenceUseCase: asFunction(() => new ManageSequenceUseCase(prisma), { lifetime: Lifetime.SCOPED }),
     reindexAllLayersUseCase: asFunction((c: Cradle) => new ReindexAllLayersUseCase(c.instanceRepository, c.layerRepository, c.indexLayerUseCase, c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
   });

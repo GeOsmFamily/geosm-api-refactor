@@ -199,11 +199,11 @@ se fait a part, via le script fourni :
 PBF_PATH=nominatim-source/region-latest.osm.pbf ./scripts/setup-osrm-data.sh
 ```
 
-Ce script telecharge... non, reutilise le meme fichier `.osm.pbf` que Nominatim (le reseau
-routier OSM est le meme jeu de donnees), et produit les fichiers `region-latest.osrm*` dans
-`./osrm-data/`, montes en lecture seule par le service `osrm`. A relancer manuellement apres
-chaque mise a jour significative du reseau routier (bien plus rare qu'une mise a jour des couches
-thematiques - pas de cron par defaut).
+Ce script reutilise le meme fichier `.osm.pbf` que Nominatim (le reseau routier OSM est le meme
+jeu de donnees), et produit les fichiers `region-latest.osrm*` dans `./osrm-data/`, montes en
+lecture seule par le service `osrm`. A relancer manuellement apres chaque mise a jour
+significative du reseau routier (bien plus rare qu'une mise a jour des couches thematiques - pas
+de cron par defaut).
 
 ### Verification post-import
 
@@ -214,6 +214,33 @@ curl "http://localhost:8081/search?q=Yaound%C3%A9&format=json&countrycodes=cm"
 # OSRM : itineraire entre deux points du Cameroun
 curl "http://localhost:5000/route/v1/driving/11.5021,3.8480;9.7043,4.0511"
 ```
+
+### Limites administratives (admin_boundaries)
+
+Table de reference `public.admin_boundaries` (id, name, admin_level, geom MultiPolygon) utilisee
+par le selecteur de limite administrative de l'admin (`Instance.boundaryTable`/`boundaryId`, voir
+`FindAdminBoundaryUseCase`/`SearchBoundariesUseCase`/`CreateOsmTableUseCase`) - **pas geree par
+Prisma** (modele `@@ignore` dans `schema.prisma`, pour eviter que `prisma db push`, execute a
+chaque demarrage du conteneur, ne refuse de demarrer a cause de cette table "non geree").
+
+Deux facons de la peupler :
+
+1. **Pre-remplissage initial** via le meme extract `.osm.pbf` que Nominatim/OSRM ci-dessus
+   (reutilise le pilote OSM de GDAL pour extraire les polygones `boundary=administrative`) :
+   ```bash
+   PBF_PATH=nominatim-source/region-latest.osm.pbf \
+     DATABASE_URL="$DATABASE_URL" \
+     ./scripts/seed-admin-boundaries.sh
+   ```
+   Idempotent au niveau de la creation de table (`CREATE TABLE IF NOT EXISTS`), mais **ajoute**
+   les lignes a chaque execution sans supprimer les anciennes - ne pas relancer sans y penser sur
+   une base deja peuplee (voir l'option "remplacer ce niveau" ci-dessous pour un remplacement
+   cible par niveau administratif).
+2. **Import ponctuel via l'interface admin** (`POST /geoportail/admin-boundaries/import`,
+   reserve `SUPER_ADMIN`) : shapefile (`.zip`) ou GeoJSON, avec un champ source a mapper vers
+   `name` et un niveau administratif a assigner a tout le fichier (un fichier = un seul niveau,
+   comme les exports GADM par niveau) - mode "ajouter" ou "remplacer ce niveau". Accessible depuis
+   le selecteur de limite administrative du formulaire de creation/edition d'instance.
 
 ## 6. Reverse proxy et SSL
 

@@ -31,6 +31,10 @@ export interface UpdateInstanceDTO {
   centerLat?: number | null;
   centerLon?: number | null;
   defaultZoom?: number;
+  boundaryTable?: string | null;
+  boundaryId?: number | null;
+  boundaryGeomCol?: string | null;
+  adminLevel?: number | null;
   isActive?: boolean;
 }
 

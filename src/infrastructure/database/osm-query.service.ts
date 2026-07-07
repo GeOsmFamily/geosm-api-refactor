@@ -231,6 +231,39 @@ export class OsmQueryService {
     };
   }
 
+  // Colonnes techniques osm2pgsql à exclure des clés de tag proposées à l'admin (pas des
+  // attributs métier exploitables comme filtre de couche).
+  private static readonly NON_TAG_COLUMNS = new Set([
+    'osm_id', 'way', 'z_order', 'way_area', 'tags', 'access', 'ref', 'layer', 'bridge', 'tunnel', 'oneway',
+  ]);
+
+  /**
+   * Liste les clés de tag candidates pour un type de géométrie donné, en introspectant les
+   * colonnes réellement présentes sur la table osm2pgsql correspondante (chaque tag OSM commun
+   * devient sa propre colonne dans ce schéma, voir buildWhereInline) - alimente l'autocomplete
+   * de l'assistant de création de couche (source "Données OSM"), sans dépendance à un service
+   * externe type Taginfo/Overpass (déploiement hors-ligne).
+   */
+  async listTagKeys(geometryType: 'point' | 'line' | 'polygon'): Promise<string[]> {
+    const columns = await this.getTableColumns(`planet_osm_${geometryType}`);
+    return [...columns].filter((c) => !OsmQueryService.NON_TAG_COLUMNS.has(c) && !c.startsWith('addr:')).sort((a, b) => a.localeCompare(b));
+  }
+
+  /**
+   * Liste les valeurs distinctes réellement présentes pour une clé de tag donnée - complète
+   * listTagKeys() pour former le sélecteur clé→valeur de l'assistant de création de couche.
+   */
+  async listTagValues(geometryType: 'point' | 'line' | 'polygon', key: string): Promise<string[]> {
+    const columns = await this.getTableColumns(`planet_osm_${geometryType}`);
+    const col = this.sanitizeIdentifier(key);
+    if (!columns.has(col)) return [];
+
+    const rows = await this.prisma.$queryRawUnsafe<{ value: string }[]>(
+      `SELECT DISTINCT "${col}" AS value FROM osm.planet_osm_${geometryType} WHERE "${col}" IS NOT NULL ORDER BY "${col}" LIMIT 200`,
+    );
+    return rows.map((r) => r.value);
+  }
+
   /**
    * Build inline WHERE (escaping values to prevent SQL injection).
    */

@@ -49,6 +49,13 @@ const envSchema = z.object({
   MINIO_SECRET_KEY: z.string().default('minio_secret'),
   MINIO_BUCKET: z.string().default('geosm'),
   MINIO_USE_SSL: booleanEnv(false),
+  // Hôte/port utilisés UNIQUEMENT pour signer les URLs présignées renvoyées au navigateur -
+  // distincts de MINIO_ENDPOINT/MINIO_PORT qui servent aux appels serveur->MinIO internes au
+  // réseau Docker (ex. "minio", injoignable depuis un navigateur hors conteneur). Vides par
+  // défaut : retombent sur MINIO_ENDPOINT/MINIO_PORT si non définis (cas prod où l'API et MinIO
+  // partagent un même hôte public).
+  MINIO_PUBLIC_ENDPOINT: z.string().optional(),
+  MINIO_PUBLIC_PORT: z.coerce.number().optional(),
 
   MEILISEARCH_HOST: z.string().default('http://localhost:7700'),
   MEILISEARCH_API_KEY: z.string().default('masterKey'),

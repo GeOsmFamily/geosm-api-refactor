@@ -26,6 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-qgis \
     osm2pgsql \
     wget \
+    unzip \
+    zip \
     ca-certificates \
     gnupg \
   && install -d /usr/share/postgresql-common/pgdg \

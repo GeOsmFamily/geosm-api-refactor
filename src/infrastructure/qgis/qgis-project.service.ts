@@ -182,6 +182,26 @@ export class QGISProjectService {
     return this.runPythonScript('set_icon_on_layer.py', [projectPath, layerName, iconPath, String(iconSize ?? 8), iconColor ?? '#2196F3']);
   }
 
+  /** Couleur pleine (remplissage polygone ou trait ligne) - pendant de setIconOnLayer() pour
+   * les géométries non ponctuelles, qui n'ont pas de concept d'icône. */
+  async setFillStyle(projectPath: string, layerName: string, color: string, strokeColor?: string): Promise<PyQGISResult> {
+    return this.runPythonScript('set_fill_style.py', [projectPath, layerName, color, strokeColor ?? '#ffffff']);
+  }
+
+  /** Applique le style OGR natif d'un KML (IconStyle/LineStyle/PolyStyle) à une couche
+   * existante - alternative au choix couleur+icône pour un admin qui a déjà un KML stylé. */
+  async importKmlStyle(projectPath: string, layerName: string, kmlPath: string): Promise<PyQGISResult> {
+    return this.runPythonScript('import_kml_style.py', [projectPath, layerName, kmlPath]);
+  }
+
+  /** Empaquette un projet QGIS connecté à PostGIS en un projet 100% autonome (données copiées
+   * dans un unique GeoPackage, styles préservés, chemins relatifs) - voir
+   * ExportQgisProjectBundleUseCase pour le zip + téléchargement. */
+  async exportOfflineBundle(projectPath: string, outputDir: string): Promise<PyQGISResult> {
+    if (!existsSync(outputDir)) await mkdir(outputDir, { recursive: true });
+    return this.runPythonScript('export_offline_bundle.py', [projectPath, outputDir]);
+  }
+
   async downloadData(projectPath: string, layerName: string, clipLayerPath: string, outputPath: string): Promise<PyQGISResult> {
     const dir = path.dirname(outputPath);
     if (!existsSync(dir)) await mkdir(dir, { recursive: true });
