@@ -21,6 +21,7 @@ import { CreateInstanceTemplateUseCase } from '../../application/use-cases/admin
 import { ManageSequenceUseCase } from '../../application/use-cases/admin/manage-sequence.use-case.js';
 import { ReindexAllLayersUseCase } from '../../application/use-cases/search/reindex-all-layers.use-case.js';
 import { DatabaseBackupUseCase } from '../../application/use-cases/admin/database-backup.use-case.js';
+import { GetDatabaseOverviewUseCase } from '../../application/use-cases/admin/get-database-overview.use-case.js';
 
 function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
   const result = schema.safeParse(body);
@@ -80,6 +81,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // un pg_dump complet peut prendre plusieurs minutes sur cette base (tables OSM/SRTM volumineuses),
   // ce n'est pas une erreur : voir docs/deploiement.md pour un exemple d'appel avec timeout généreux.
   const databaseBackupUseCase = app.diContainer.resolve<DatabaseBackupUseCase>('databaseBackupUseCase');
+  const getDatabaseOverviewUseCase = app.diContainer.resolve<GetDatabaseOverviewUseCase>('getDatabaseOverviewUseCase');
 
   // GET /dashboard — returns stats
   app.get('/dashboard', { schema: { description: 'Obtenir le tableau de bord', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -162,6 +164,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // GET /config/db — returns sanitized DB connection info
   app.get('/config/db', { schema: { description: 'Obtenir la configuration de la base de donnees', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
     const result = await configDbUseCase.execute();
+    return reply.send(successResponse(result));
+  });
+
+  // GET /database/overview — taille totale + liste des tables (tous schémas) triée par taille
+  app.get('/database/overview', { schema: { description: 'Obtenir un aperçu de la base de données (taille, tables)', tags: ['Administration'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    const result = await getDatabaseOverviewUseCase.execute();
     return reply.send(successResponse(result));
   });
 

@@ -1,7 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
-import { RegisterDTO, UserProfileDTO } from '../../dtos/auth.dto.js';
+import { RegisterDTO, AuthTokensDTO, JwtPayload } from '../../dtos/auth.dto.js';
 import { IUserRepository } from '../../../domain/repositories/user.repository.js';
+import { IRefreshTokenRepository } from '../../../domain/repositories/refresh-token.repository.js';
 import { IPasswordService } from '../../services/password.service.js';
+import { ITokenService } from '../../services/token.service.js';
 import { IEmailService } from '../../services/email.service.js';
 import type { PrismaEmailVerificationTokenRepository } from '../../../infrastructure/database/repositories/prisma-email-verification-token.repository.js';
 import { ConflictError } from '../../../domain/errors/conflict.error.js';
@@ -12,15 +14,23 @@ import { createChildLogger } from '../../../infrastructure/observability/logger.
 const logger = createChildLogger('RegisterUseCase');
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
+/**
+ * Retourne des tokens (comme LoginUseCase/OsmLoginUseCase) plutôt qu'un simple profil : la
+ * connexion n'exige déjà pas d'email vérifié (voir LoginUseCase), donc forcer un aller-retour
+ * manuel vers /login juste après l'inscription n'apporte aucune sécurité supplémentaire, juste
+ * de la friction. Le mail de vérification reste envoyé et recommandé, mais ne bloque rien.
+ */
 export class RegisterUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
+    private readonly refreshTokenRepository: IRefreshTokenRepository,
     private readonly passwordService: IPasswordService,
+    private readonly tokenService: ITokenService,
     private readonly emailService: IEmailService,
     private readonly emailVerificationTokenRepository: PrismaEmailVerificationTokenRepository,
   ) {}
 
-  async execute(dto: RegisterDTO): Promise<UserProfileDTO> {
+  async execute(dto: RegisterDTO): Promise<AuthTokensDTO> {
     const email = Email.create(dto.email);
 
     const existingUser = await this.userRepository.existsByEmail(email.value);
@@ -54,18 +64,23 @@ export class RegisterUseCase {
     await this.emailService.sendVerificationEmail(user.email, verificationToken);
     logger.info('User registered', { userId: user.id });
 
-    return {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      avatar: user.avatar,
-      role: user.role,
-      isActive: user.isActive,
-      emailVerifiedAt: user.emailVerifiedAt,
-      lastLoginAt: user.lastLoginAt,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
+    const payload: JwtPayload = { sub: user.id, email: user.email, role: user.role };
+    const accessToken = this.tokenService.generateAccessToken(payload);
+    const refreshToken = this.tokenService.generateRefreshToken();
+    const family = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await this.refreshTokenRepository.create({
+      id: uuidv4(),
+      token: refreshToken,
+      userId: user.id,
+      family,
+      expiresAt,
+      revokedAt: null,
+      replacedByToken: null,
+    });
+
+    return { accessToken, refreshToken };
   }
 }

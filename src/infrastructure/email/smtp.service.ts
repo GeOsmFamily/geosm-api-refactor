@@ -12,7 +12,11 @@ export class SmtpEmailService implements IEmailService {
 
   constructor() {
     this.from = config.SMTP_FROM;
-    this.appUrl = config.APP_URL;
+    // CORS_ORIGIN (pas APP_URL, qui pointe vers l'API elle-même - voir app.config.ts) est
+    // l'origine publique du frontend, déjà utilisée pour ça par les redirections OSM OAuth
+    // (auth.routes.ts) - les liens de vérification/réinitialisation doivent pointer là, pas
+    // vers l'API qui ne sert aucune page pour ces routes.
+    this.appUrl = config.CORS_ORIGIN;
 
     if (config.SMTP_HOST && config.SMTP_USER) {
       this.transporter = nodemailer.createTransport({
@@ -32,7 +36,10 @@ export class SmtpEmailService implements IEmailService {
 
   private async send(to: string, subject: string, html: string): Promise<void> {
     if (!this.transporter) {
-      logger.info('Email (no SMTP)', { to, subject });
+      // Sans SMTP configuré (dev/démo), le corps complet (donc le lien de vérification/reset)
+      // est loggé - seul moyen de tester ces parcours sans serveur mail réel ; logger juste
+      // to/subject rendait le flux invérifiable.
+      logger.info('Email (no SMTP) - contenu complet ci-dessous', { to, subject, html });
       return;
     }
     try {

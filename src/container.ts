@@ -163,6 +163,9 @@ import { DeleteGeosignetUseCase } from './application/use-cases/geosignets/delet
 // Comment use cases
 import { PrismaCommentRepository } from './infrastructure/database/repositories/prisma-comment.repository.js';
 import { SaveCommentUseCase } from './application/use-cases/comments/save-comment.use-case.js';
+import { AdminListCommentsUseCase } from './application/use-cases/comments/admin-list-comments.use-case.js';
+import { FlagCommentUseCase } from './application/use-cases/comments/flag-comment.use-case.js';
+import { AdminDeleteCommentUseCase } from './application/use-cases/comments/admin-delete-comment.use-case.js';
 import { GetCommentsUseCase } from './application/use-cases/comments/get-comments.use-case.js';
 import { DeleteCommentUseCase } from './application/use-cases/comments/delete-comment.use-case.js';
 import { ReplyToCommentUseCase } from './application/use-cases/comments/reply-to-comment.use-case.js';
@@ -227,6 +230,11 @@ import { GenerateIconUseCase } from './application/use-cases/admin/generate-icon
 // Niche use cases
 import { SaveCoordPdfUseCase } from './application/use-cases/maps/save-coord-pdf.use-case.js';
 import { ConfigDbUseCase } from './application/use-cases/admin/config-db.use-case.js';
+import { GetDatabaseOverviewUseCase } from './application/use-cases/admin/get-database-overview.use-case.js';
+import { DockerService } from './infrastructure/docker/docker.service.js';
+import { ListContainersUseCase } from './application/use-cases/docker/list-containers.use-case.js';
+import { GetContainerStatsUseCase } from './application/use-cases/docker/get-container-stats.use-case.js';
+import { GetContainerLogsUseCase } from './application/use-cases/docker/get-container-logs.use-case.js';
 import { SearchLimitInTableUseCase } from './application/use-cases/geoportail/search-limit-in-table.use-case.js';
 import { SearchBoundariesUseCase } from './application/use-cases/geoportail/search-boundaries.use-case.js';
 import { GetBoundaryUseCase } from './application/use-cases/geoportail/get-boundary.use-case.js';
@@ -298,6 +306,8 @@ import { LogFrontendErrorUseCase } from './application/use-cases/logs/log-fronte
 // Feedback use case
 import { PrismaFeedbackRepository } from './infrastructure/database/repositories/prisma-feedback.repository.js';
 import { SubmitFeedbackUseCase } from './application/use-cases/feedback/submit-feedback.use-case.js';
+import { AdminListFeedbackUseCase } from './application/use-cases/feedback/admin-list-feedback.use-case.js';
+import { UpdateFeedbackStatusUseCase } from './application/use-cases/feedback/update-feedback-status.use-case.js';
 import { AlertingService } from './infrastructure/observability/alerting.service.js';
 
 // Additional admin use cases
@@ -503,6 +513,9 @@ interface Cradle {
   deleteCommentUseCase: DeleteCommentUseCase;
   replyToCommentUseCase: ReplyToCommentUseCase;
   resolveCommentUseCase: ResolveCommentUseCase;
+  adminListCommentsUseCase: AdminListCommentsUseCase;
+  flagCommentUseCase: FlagCommentUseCase;
+  adminDeleteCommentUseCase: AdminDeleteCommentUseCase;
   // Sharing
   sharedMapRepository: PrismaSharedMapRepository;
   createSharedMapUseCase: CreateSharedMapUseCase;
@@ -539,6 +552,8 @@ interface Cradle {
   feedbackRepository: PrismaFeedbackRepository;
   alertingService: AlertingService;
   submitFeedbackUseCase: SubmitFeedbackUseCase;
+  adminListFeedbackUseCase: AdminListFeedbackUseCase;
+  updateFeedbackStatusUseCase: UpdateFeedbackStatusUseCase;
   // Adressage
   adressageService: AdressageService;
   getAdresseUseCase: GetAdresseUseCase;
@@ -559,6 +574,11 @@ interface Cradle {
   // Niche
   saveCoordPdfUseCase: SaveCoordPdfUseCase;
   configDbUseCase: ConfigDbUseCase;
+  getDatabaseOverviewUseCase: GetDatabaseOverviewUseCase;
+  dockerService: DockerService;
+  listContainersUseCase: ListContainersUseCase;
+  getContainerStatsUseCase: GetContainerStatsUseCase;
+  getContainerLogsUseCase: GetContainerLogsUseCase;
   searchLimitInTableUseCase: SearchLimitInTableUseCase;
   searchBoundariesUseCase: SearchBoundariesUseCase;
   getBoundaryUseCase: GetBoundaryUseCase;
@@ -617,7 +637,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     // Auth use cases
     registerUseCase: asFunction((c: Cradle) =>
-      new RegisterUseCase(c.userRepository, c.passwordService, c.emailService, c.emailVerificationTokenRepository),
+      new RegisterUseCase(c.userRepository, c.refreshTokenRepository, c.passwordService, c.tokenService, c.emailService, c.emailVerificationTokenRepository),
     { lifetime: Lifetime.SCOPED }),
 
     loginUseCase: asFunction((c: Cradle) =>
@@ -861,6 +881,9 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     deleteCommentUseCase: asFunction((c: Cradle) => new DeleteCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
     replyToCommentUseCase: asFunction((c: Cradle) => new ReplyToCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
     resolveCommentUseCase: asFunction((c: Cradle) => new ResolveCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
+    adminListCommentsUseCase: asFunction((c: Cradle) => new AdminListCommentsUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
+    flagCommentUseCase: asFunction((c: Cradle) => new FlagCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
+    adminDeleteCommentUseCase: asFunction((c: Cradle) => new AdminDeleteCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
 
     // Sharing repositories and use cases
     sharedMapRepository: asFunction(() => new PrismaSharedMapRepository(prisma), { lifetime: Lifetime.SINGLETON }),
@@ -908,6 +931,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     submitFeedbackUseCase: asFunction((c: Cradle) =>
       new SubmitFeedbackUseCase(c.feedbackRepository, c.alertingService),
     { lifetime: Lifetime.SCOPED }),
+    adminListFeedbackUseCase: asFunction((c: Cradle) => new AdminListFeedbackUseCase(c.feedbackRepository), { lifetime: Lifetime.SCOPED }),
+    updateFeedbackStatusUseCase: asFunction((c: Cradle) => new UpdateFeedbackStatusUseCase(c.feedbackRepository), { lifetime: Lifetime.SCOPED }),
 
     // Adressage
     adressageService: asFunction(() => new AdressageService(prisma), { lifetime: Lifetime.SINGLETON }),
@@ -933,6 +958,11 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     // Niche
     saveCoordPdfUseCase: asFunction(() => new SaveCoordPdfUseCase(prisma), { lifetime: Lifetime.SCOPED }),
     configDbUseCase: asFunction(() => new ConfigDbUseCase(), { lifetime: Lifetime.SCOPED }),
+    getDatabaseOverviewUseCase: asFunction((c: Cradle) => new GetDatabaseOverviewUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+    dockerService: asFunction(() => new DockerService(), { lifetime: Lifetime.SINGLETON }),
+    listContainersUseCase: asFunction((c: Cradle) => new ListContainersUseCase(c.dockerService), { lifetime: Lifetime.SCOPED }),
+    getContainerStatsUseCase: asFunction((c: Cradle) => new GetContainerStatsUseCase(c.dockerService), { lifetime: Lifetime.SCOPED }),
+    getContainerLogsUseCase: asFunction((c: Cradle) => new GetContainerLogsUseCase(c.dockerService), { lifetime: Lifetime.SCOPED }),
     searchLimitInTableUseCase: asFunction(() => new SearchLimitInTableUseCase(prisma), { lifetime: Lifetime.SCOPED }),
     searchBoundariesUseCase: asFunction(() => new SearchBoundariesUseCase(prisma), { lifetime: Lifetime.SCOPED }),
     getBoundaryUseCase: asFunction(() => new GetBoundaryUseCase(prisma), { lifetime: Lifetime.SCOPED }),

@@ -36,6 +36,9 @@ import { qgisProjectRoutes } from './presentation/routes/qgis-project.routes.js'
 import { wmsProxyRoutes, wfsProxyRoutes } from './presentation/routes/wms-proxy.routes.js';
 import { defaultThemeRoutes } from './presentation/routes/default-theme.routes.js';
 import { adminRoutes } from './presentation/routes/admin.routes.js';
+import { adminCommentRoutes } from './presentation/routes/admin-comment.routes.js';
+import { adminFeedbackRoutes } from './presentation/routes/admin-feedback.routes.js';
+import { adminDockerRoutes } from './presentation/routes/admin-docker.routes.js';
 import { osmRoutes } from './presentation/routes/osm.routes.js';
 import { multipartPlugin } from './presentation/plugins/multipart.plugin.js';
 import { uploadRoutes } from './presentation/routes/upload.routes.js';
@@ -182,6 +185,9 @@ async function bootstrap(): Promise<void> {
   await app.register(wfsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wfs` });
   await app.register(defaultThemeRoutes, { prefix: `${appConfig.apiPrefix}/default-themes` });
   await app.register(adminRoutes, { prefix: `${appConfig.apiPrefix}/admin` });
+  await app.register(adminCommentRoutes, { prefix: `${appConfig.apiPrefix}/admin/comments` });
+  await app.register(adminFeedbackRoutes, { prefix: `${appConfig.apiPrefix}/admin/feedback` });
+  await app.register(adminDockerRoutes, { prefix: `${appConfig.apiPrefix}/admin/docker` });
   await app.register(osmRoutes, { prefix: `${appConfig.apiPrefix}/osm` });
   await app.register(uploadRoutes, { prefix: `${appConfig.apiPrefix}/layers` });
   await app.register(featureRoutes, { prefix: `${appConfig.apiPrefix}/layers/:layerId/features` });

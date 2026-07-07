@@ -584,6 +584,12 @@ model Comment {
   // racines (marquer un fil comme traité), mais le champ est générique.
   parentId   String?  @map("parent_id") @db.Uuid
   resolved   Boolean  @default(false)
+  // Modération (Lot A4 admin) : un modérateur signale un commentaire problématique pour le
+  // retrouver dans la file de modération, sans le supprimer immédiatement (garde une trace pour
+  // décider en connaissance de cause). flaggedAt sert de tri chronologique dans la file.
+  flagged    Boolean  @default(false)
+  flagReason String?  @map("flag_reason")
+  flaggedAt  DateTime? @map("flagged_at")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -594,6 +600,7 @@ model Comment {
   @@index([userId])
   @@index([instanceId])
   @@index([parentId])
+  @@index([flagged])
   @@map("comments")
 }
 
@@ -617,21 +624,33 @@ enum FeedbackType {
   FEATURE_REQUEST
 }
 
+// Suivi de traitement d'un signalement par un administrateur (Lot A5 admin) - NEW par défaut,
+// un modérateur bascule vers REVIEWED puis CLOSED en y ajoutant des notes internes.
+enum FeedbackStatus {
+  NEW
+  REVIEWED
+  CLOSED
+}
+
 // Formulaire de signalement du bouton "Infos" (voir InfoPanelComponent côté frontend) -
 // userId/contactEmail nullables : un visiteur non connecté doit pouvoir signaler un problème.
 model FeedbackSubmission {
-  id           String       @id @default(uuid()) @db.Uuid
+  id           String         @id @default(uuid()) @db.Uuid
   type         FeedbackType
   description  String
-  contactEmail String?      @map("contact_email")
+  contactEmail String?        @map("contact_email")
   page         String?
-  userId       String?      @map("user_id") @db.Uuid
-  createdAt    DateTime     @default(now()) @map("created_at")
+  userId       String?        @map("user_id") @db.Uuid
+  status       FeedbackStatus @default(NEW)
+  adminNotes   String?        @map("admin_notes")
+  reviewedAt   DateTime?      @map("reviewed_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([createdAt])
+  @@index([status])
   @@map("feedback_submissions")
 }
 

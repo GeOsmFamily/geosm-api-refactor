@@ -39,9 +39,11 @@ export async function instanceRoutes(app: FastifyInstance): Promise<void> {
   const removeInstanceUserUseCase = app.diContainer.resolve<RemoveInstanceUserUseCase>('removeInstanceUserUseCase');
   const changeInstanceUserRoleUseCase = app.diContainer.resolve<ChangeInstanceUserRoleUseCase>('changeInstanceUserRoleUseCase');
 
+  // Public, comme GET /slug/:slug et le catalogue (catalog.routes.ts) : un visiteur anonyme doit
+  // pouvoir découvrir les instances disponibles pour consulter le géoportail sans compte. Aucune
+  // donnée sensible exposée (nom/slug/bbox/centre), déjà accessible une par une via /slug/:slug.
   app.get('/', {
-    schema: { description: 'Lister les instances', tags: ['Instances'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(listInstancesQuerySchema) },
-    preHandler: [app.authenticate],
+    schema: { description: 'Lister les instances', tags: ['Instances'], querystring: zodToSwagger(listInstancesQuerySchema) },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = parseBody(listInstancesQuerySchema, request.query);
     const result = await listInstancesUseCase.execute(query);

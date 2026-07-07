@@ -314,6 +314,28 @@ services:
           memory: 256M
     restart: unless-stopped
 
+  # Lot A8 admin (infra en lecture seule) : expose une API Docker restreinte au réseau interne
+  # plutôt que de monter /var/run/docker.sock directement dans le conteneur api - même si l'API
+  # était compromise, ce proxy refuse toute action d'écriture/contrôle (POST=0 ci-dessous), et
+  # seules les infos conteneurs/images sont lisibles (pas de secrets, pas d'exec, pas de volumes).
+  # Aucun port publié sur l'hôte : uniquement joignable par les autres services du même réseau
+  # compose, via le nom de service "docker-socket-proxy:2375".
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    environment:
+      CONTAINERS: 1
+      IMAGES: 1
+      INFO: 1
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
 volumes:
   pgdata:
   redis-data:

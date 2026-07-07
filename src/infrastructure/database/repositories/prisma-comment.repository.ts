@@ -9,10 +9,21 @@ export interface CommentRecord {
   lon: number;
   parentId: string | null;
   resolved: boolean;
+  flagged: boolean;
+  flagReason: string | null;
+  flaggedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   authorName?: string;
   replies?: CommentRecord[];
+}
+
+export interface AdminListCommentsOptions {
+  page?: number;
+  limit?: number;
+  instanceId?: string;
+  flagged?: boolean;
+  resolved?: boolean;
 }
 
 const authorSelect = { user: { select: { firstName: true, lastName: true } } };
@@ -73,5 +84,43 @@ export class PrismaCommentRepository {
 
   async delete(id: string): Promise<void> {
     await this.prisma.comment.delete({ where: { id } });
+  }
+
+  /**
+   * File de modération admin (Lot A4) : tous les commentaires (racines ET réponses, contrairement
+   * à findByInstanceId qui ne remonte que les racines pour l'affichage carte) - un modérateur doit
+   * pouvoir retrouver une réponse signalée indépendamment de son fil parent.
+   */
+  async adminList(options: AdminListCommentsOptions): Promise<{ data: CommentRecord[]; total: number }> {
+    const page = options.page ?? 1;
+    const limit = options.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = {};
+    if (options.instanceId) where.instanceId = options.instanceId;
+    if (options.flagged !== undefined) where.flagged = options.flagged;
+    if (options.resolved !== undefined) where.resolved = options.resolved;
+
+    const [records, total] = await Promise.all([
+      this.prisma.comment.findMany({
+        where,
+        orderBy: [{ flagged: 'desc' }, { createdAt: 'desc' }],
+        skip,
+        take: limit,
+        include: authorSelect,
+      }),
+      this.prisma.comment.count({ where }),
+    ]);
+
+    return { data: records.map((r) => withAuthorName(r) as CommentRecord), total };
+  }
+
+  async setFlagged(id: string, flagged: boolean, flagReason?: string | null): Promise<CommentRecord> {
+    const record = await this.prisma.comment.update({
+      where: { id },
+      data: { flagged, flagReason: flagged ? (flagReason ?? null) : null, flaggedAt: flagged ? new Date() : null },
+      include: authorSelect,
+    });
+    return withAuthorName(record) as CommentRecord;
   }
 }
