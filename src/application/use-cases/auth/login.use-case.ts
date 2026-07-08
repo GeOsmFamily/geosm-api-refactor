@@ -6,6 +6,13 @@ import { IPasswordService } from '../../services/password.service.js';
 import { ITokenService } from '../../services/token.service.js';
 import { UnauthorizedError } from '../../../domain/errors/unauthorized.error.js';
 import { Email } from '../../../domain/value-objects/email.vo.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+import {
+  authLoginTotal,
+  authLoginFailedTotal,
+} from '../../../infrastructure/observability/metrics.js';
+
+const logger = createChildLogger('LoginUseCase');
 
 export class LoginUseCase {
   constructor(
@@ -20,15 +27,21 @@ export class LoginUseCase {
 
     const user = await this.userRepository.findByEmail(email.value);
     if (!user) {
+      authLoginFailedTotal.inc();
+      logger.warn('Login failed: unknown email', { email: email.value });
       throw new UnauthorizedError('Invalid email or password');
     }
 
     if (!user.isActive) {
+      authLoginFailedTotal.inc();
+      logger.warn('Login failed: account deactivated', { userId: user.id });
       throw new UnauthorizedError('Account is deactivated');
     }
 
     const isPasswordValid = await this.passwordService.verify(dto.password, user.passwordHash);
     if (!isPasswordValid) {
+      authLoginFailedTotal.inc();
+      logger.warn('Login failed: wrong password', { userId: user.id });
       throw new UnauthorizedError('Invalid email or password');
     }
 
@@ -56,6 +69,9 @@ export class LoginUseCase {
     });
 
     await this.userRepository.update(user.id, { lastLoginAt: new Date() });
+
+    authLoginTotal.inc();
+    logger.info('Login successful', { userId: user.id });
 
     return { accessToken, refreshToken };
   }

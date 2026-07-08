@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM node:22-bookworm-slim AS builder
+FROM node:26-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -13,15 +13,29 @@ RUN npx prisma generate --schema=src/infrastructure/database/prisma/schema.prism
 RUN npm run build
 
 # Stage 2: Production
-FROM node:22-bookworm-slim AS production
+FROM node:26-bookworm-slim AS production
 
+# Le dépôt Debian bookworm par défaut ne fournit que postgresql-client 15, alors que
+# docker-compose.yml utilise postgis:16-3.4 - pg_dump refuse par sécurité de dumper un serveur
+# plus récent que lui-même ("aborting because of server version mismatch"), confirmé en testant
+# réellement un backup plutôt qu'en supposant la version du paquet par défaut. On ajoute donc
+# le dépôt officiel PGDG pour installer postgresql-client-16 (aligné sur le serveur).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gdal-bin \
     python3 \
     python3-qgis \
     osm2pgsql \
     wget \
+    unzip \
+    zip \
     ca-certificates \
+    gnupg \
+  && install -d /usr/share/postgresql-common/pgdg \
+  && wget --quiet -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+  && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update && apt-get install -y --no-install-recommends \
+    postgis \
+    postgresql-client-16 \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -33,8 +47,10 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY src/infrastructure/database/prisma/ ./src/infrastructure/database/prisma/
 COPY python_scripts/ ./python_scripts/
+COPY prisma/ ./prisma/
+COPY scripts/ ./scripts/
 COPY docker/entrypoint.sh ./docker/entrypoint.sh
-RUN sed -i 's/\r$//' ./docker/entrypoint.sh && chmod +x ./docker/entrypoint.sh
+RUN sed -i 's/\r$//' ./docker/entrypoint.sh ./scripts/*.sh && chmod +x ./docker/entrypoint.sh ./scripts/*.sh
 
 ENV NODE_ENV=production
 ENV PORT=3000
@@ -43,8 +59,8 @@ ENV HOST=0.0.0.0
 RUN addgroup --system --gid 1001 appgroup && \
     adduser --system --uid 1001 --ingroup appgroup appuser
 
-RUN mkdir -p /data /qgis-projects /qgis-styles && \
-    chown -R appuser:appgroup /app /data /qgis-projects /qgis-styles
+RUN mkdir -p /data /projects /projects/icons /qgis-styles && \
+    chown -R appuser:appgroup /app /data /projects /qgis-styles
 
 USER appuser
 

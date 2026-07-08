@@ -1,0 +1,21 @@
+# CVE des paquets OS Debian 12 (bookworm) transitivement installés par gdal-bin/python3-qgis/
+# osm2pgsql (mesa, libaom, libassimp, mariadb-client, perl, python3, sqlite3, zlib) sans correctif
+# disponible dans les dépôts Debian au moment de l'ajout (statut Trivy affected/fix_deferred/
+# will_not_fix, colonne "Fixed Version" vide). Bloquer la CI dessus ne fait que la garder rouge
+# indéfiniment sans qu'aucune action ne soit possible côté ce dépôt - à retirer de cette liste
+# dès qu'un correctif Debian est publié (revérifier périodiquement via le scan Trivy planifié).
+CVE-2023-6879
+CVE-2025-2152
+CVE-2026-40393
+CVE-2026-58016
+CVE-2026-44172
+CVE-2026-49261
+CVE-2026-42496
+CVE-2026-8376
+CVE-2026-11940
+CVE-2025-7458
+CVE-2023-45853
+
+# Métadonnée linux-libc-dev (en-têtes kernel, pas de code exécuté dans le conteneur - le kernel
+# réel est celui de l'hôte Docker) : non pertinent pour la surface d'attaque de l'image.
+CVE-2026-43185

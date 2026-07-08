@@ -5,6 +5,9 @@ import { CreateBaseMapDTO } from '../../dtos/base-map.dto.js';
 import { BaseMap } from '../../../domain/entities/base-map.entity.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { Slug } from '../../../domain/value-objects/slug.vo.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateBaseMapUseCase');
 
 export class CreateBaseMapUseCase {
   constructor(
@@ -18,7 +21,7 @@ export class CreateBaseMapUseCase {
 
     const slug = Slug.create(dto.slug);
 
-    return this.baseMapRepository.create({
+    const baseMap = await this.baseMapRepository.create({
       id: uuidv4(),
       name: dto.name,
       slug: slug.value,
@@ -31,5 +34,7 @@ export class CreateBaseMapUseCase {
       config: dto.config ?? null,
       instanceId,
     });
+    logger.info('Base map created', { instanceId, baseMapId: baseMap.id });
+    return baseMap;
   }
 }

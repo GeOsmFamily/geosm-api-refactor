@@ -2,6 +2,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { IDefaultThemeRepository } from '../../../domain/repositories/default-theme.repository.js';
 import { DefaultTheme } from '../../../domain/entities/default-theme.entity.js';
 import { Slug } from '../../../domain/value-objects/slug.vo.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('SeedDefaultThemesUseCase');
 
 const DEFAULT_THEMES = [
   { name: 'Environment', slug: 'environment', icon: 'leaf', color: '#4CAF50', order: 1 },
@@ -36,6 +39,7 @@ export class SeedDefaultThemesUseCase {
       created.push(theme);
     }
 
+    logger.info('Default themes seeded', { count: created.length });
     return created;
   }
 }

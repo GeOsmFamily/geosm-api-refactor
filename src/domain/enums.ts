@@ -54,3 +54,13 @@ export enum BaseMapType {
   WMTS = 'WMTS',
   MAPBOX = 'MAPBOX',
 }
+
+export enum PaperSize {
+  A4 = 'A4',
+  A3 = 'A3',
+}
+
+export enum PlanOrientation {
+  PORTRAIT = 'PORTRAIT',
+  LANDSCAPE = 'LANDSCAPE',
+}

@@ -1,5 +1,12 @@
-import { OsmQueryService, type CreateOsmTableOptions, type OsmTableStats } from '../../../infrastructure/database/osm-query.service.js';
+import {
+  OsmQueryService,
+  type CreateOsmTableOptions,
+  type OsmTableStats,
+} from '../../../infrastructure/database/osm-query.service.js';
 import type { IInstanceRepository } from '../../../domain/repositories/instance.repository.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateOsmTableUseCase');
 
 export class CreateOsmTableUseCase {
   constructor(
@@ -26,6 +33,13 @@ export class CreateOsmTableUseCase {
       }
     }
 
-    return this.osmQueryService.createTable(options);
+    const stats = await this.osmQueryService.createTable(options);
+    logger.info('OSM table created', {
+      schema: options.schema,
+      table: options.table,
+      instanceId: options.instanceId,
+      rowCount: stats.count,
+    });
+    return stats;
   }
 }

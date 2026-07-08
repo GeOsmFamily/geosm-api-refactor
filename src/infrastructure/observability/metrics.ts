@@ -249,4 +249,24 @@ export const apiErrorsTotal = new client.Counter({
   registers: [register],
 });
 
+// --- Gemini (assistant IA) Metrics ---
+// Suivi latence/volume/erreurs des appels Gemini - utile pour surveiller coût et quota API,
+// jamais instrumenté auparavant malgré l'usage important (assistant conversationnel,
+// synthèse narrative, résumé de vue, rédaction de plans de localisation).
+
+export const geminiCallsTotal = new client.Counter({
+  name: 'gemini_calls_total',
+  help: 'Total number of Gemini API calls',
+  labelNames: ['method', 'status'] as const,
+  registers: [register],
+});
+
+export const geminiCallDurationSeconds = new client.Histogram({
+  name: 'gemini_call_duration_seconds',
+  help: 'Duration of Gemini API calls in seconds',
+  labelNames: ['method'] as const,
+  buckets: [0.5, 1, 2, 5, 10, 20, 30, 60],
+  registers: [register],
+});
+
 export const metricsRegister = register;

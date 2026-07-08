@@ -1,6 +1,12 @@
 import type { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
-import type { PostGISService, GeoJSONFeature } from '../../../infrastructure/database/postgis.service.js';
+import type {
+  PostGISService,
+  GeoJSONFeature,
+} from '../../../infrastructure/database/postgis.service.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GetFeatureUseCase');
 
 export class GetFeatureUseCase {
   constructor(
@@ -9,13 +15,18 @@ export class GetFeatureUseCase {
   ) {}
 
   async execute(layerId: string, featureId: number): Promise<GeoJSONFeature> {
+    logger.debug('Getting feature', { layerId, featureId });
     const layer = await this.layerRepository.findById(layerId);
     if (!layer) throw new NotFoundError('Layer', layerId);
     if (!layer.schemaName || !layer.tableName) {
       throw new NotFoundError('Spatial table for layer', layerId);
     }
 
-    const feature = await this.postGISService.getFeatureById(layer.schemaName, layer.tableName, featureId);
+    const feature = await this.postGISService.getFeatureById(
+      layer.schemaName,
+      layer.tableName,
+      featureId,
+    );
     if (!feature) throw new NotFoundError('Feature', String(featureId));
     return feature;
   }

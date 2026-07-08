@@ -3,6 +3,7 @@ import type { Transporter } from 'nodemailer';
 import type { IEmailService } from '../../application/services/email.service.js';
 import { config } from '../../config/env.config.js';
 import { logger } from '../observability/logger.js';
+import { emailSentTotal, emailFailedTotal } from '../observability/metrics.js';
 
 export class SmtpEmailService implements IEmailService {
   private transporter: Transporter | null = null;
@@ -11,7 +12,11 @@ export class SmtpEmailService implements IEmailService {
 
   constructor() {
     this.from = config.SMTP_FROM;
-    this.appUrl = config.APP_URL;
+    // CORS_ORIGIN (pas APP_URL, qui pointe vers l'API elle-même - voir app.config.ts) est
+    // l'origine publique du frontend, déjà utilisée pour ça par les redirections OSM OAuth
+    // (auth.routes.ts) - les liens de vérification/réinitialisation doivent pointer là, pas
+    // vers l'API qui ne sert aucune page pour ces routes.
+    this.appUrl = config.CORS_ORIGIN;
 
     if (config.SMTP_HOST && config.SMTP_USER) {
       this.transporter = nodemailer.createTransport({
@@ -23,7 +28,10 @@ export class SmtpEmailService implements IEmailService {
           pass: config.SMTP_PASS,
         },
       });
-      logger.info('SMTP email service initialized', { host: config.SMTP_HOST, port: config.SMTP_PORT });
+      logger.info('SMTP email service initialized', {
+        host: config.SMTP_HOST,
+        port: config.SMTP_PORT,
+      });
     } else {
       logger.warn('SMTP not configured — emails will be logged only');
     }
@@ -31,14 +39,19 @@ export class SmtpEmailService implements IEmailService {
 
   private async send(to: string, subject: string, html: string): Promise<void> {
     if (!this.transporter) {
-      logger.info('Email (no SMTP)', { to, subject });
+      // Sans SMTP configuré (dev/démo), le corps complet (donc le lien de vérification/reset)
+      // est loggé - seul moyen de tester ces parcours sans serveur mail réel ; logger juste
+      // to/subject rendait le flux invérifiable.
+      logger.info('Email (no SMTP) - contenu complet ci-dessous', { to, subject, html });
       return;
     }
     try {
       await this.transporter.sendMail({ from: this.from, to, subject, html });
+      emailSentTotal.inc();
       logger.info('Email sent', { to, subject });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      emailFailedTotal.inc();
       logger.error('Failed to send email', { to, subject, error: msg });
     }
   }

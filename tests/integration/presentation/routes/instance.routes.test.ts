@@ -76,9 +76,12 @@ describe('Instance Routes', () => {
       expect(body.success).toBe(true);
     });
 
-    it('should reject unauthenticated request (401)', async () => {
+    // Public depuis le 2026-07-07 (comme GET /slug/:slug et le catalogue) : un visiteur
+    // anonyme doit pouvoir découvrir les instances pour consulter le géoportail sans compte -
+    // voir project_geosm_auth_flow_fixes. Aucune donnée sensible exposée.
+    it('should allow unauthenticated request (200, public route)', async () => {
       const response = await app.inject({ method: 'GET', url: '/' });
-      expect(response.statusCode).toBe(401);
+      expect(response.statusCode).toBe(200);
     });
   });
 

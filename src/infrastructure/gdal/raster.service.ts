@@ -20,6 +20,10 @@ export interface ImportRasterResult {
   tableName: string;
   outputPath: string;
   info: RasterInfo;
+  /** Non-null si l'import PostGIS (raster2pgsql) a échoué - le raster reste malgré tout
+   * utilisable (le fichier GeoTIFF reprojeté existe et peut être servi en WMS), mais aucune
+   * copie n'existe dans une table PostGIS raster. */
+  postgisWarning: string | null;
 }
 
 export class RasterService {
@@ -36,7 +40,11 @@ export class RasterService {
     return `PG:host=${url.hostname} port=${url.port || 5432} user=${url.username} password=${url.password} dbname=${url.pathname.slice(1).split('?')[0]}`;
   }
 
-  async importRaster(filePath: string, tableName: string, options: { srid?: number; tileSize?: number } = {}): Promise<ImportRasterResult> {
+  async importRaster(
+    filePath: string,
+    tableName: string,
+    options: { srid?: number; tileSize?: number } = {},
+  ): Promise<ImportRasterResult> {
     const srid = options.srid ?? 4326;
     const tileSize = options.tileSize ?? 256;
     const safeTable = tableName.replace(/[^a-zA-Z0-9_]/g, '');
@@ -49,38 +57,42 @@ export class RasterService {
     const warpedPath = path.join(outputDir, `${safeTable}_warped.tif`);
 
     // Reproject with gdalwarp
-    await execAsync(
-      `gdalwarp -t_srs EPSG:${srid} -r bilinear "${filePath}" "${warpedPath}"`,
-      { timeout: 600000 }
-    );
+    await execAsync(`gdalwarp -t_srs EPSG:${srid} -r bilinear "${filePath}" "${warpedPath}"`, {
+      timeout: 600000,
+    });
 
     // Generate overviews
-    await execAsync(
-      `gdaladdo -r average "${warpedPath}" 2 4 8 16`,
-      { timeout: 300000 }
-    );
+    await execAsync(`gdaladdo -r average "${warpedPath}" 2 4 8 16`, { timeout: 300000 });
 
-    // Import to PostGIS raster using raster2pgsql
+    // Import to PostGIS raster using raster2pgsql - best-effort : le rendu WMS du raster
+    // (voir add_raster_layer.py) se fait directement depuis le fichier GeoTIFF reprojeté, pas
+    // depuis cette table, donc un échec ici n'empêche pas le raster d'être servi ; mais on
+    // remonte l'échec à l'appelant plutôt que de l'avaler silencieusement comme avant.
+    // psql (contrairement à Prisma) rejette le paramètre "?schema=" que DATABASE_URL contient
+    // toujours - on le retire avant de le lui passer.
+    let postgisWarning: string | null = null;
     try {
+      const psqlUrl = this.dbUrl.split('?')[0];
       await execAsync(
-        `raster2pgsql -s ${srid} -t ${tileSize}x${tileSize} -I -C -M "${warpedPath}" public."${safeTable}" | psql "${this.dbUrl}"`,
-        { timeout: 600000 }
+        `raster2pgsql -s ${srid} -t ${tileSize}x${tileSize} -I -C -M "${warpedPath}" public."${safeTable}" | psql "${psqlUrl}"`,
+        { timeout: 600000 },
       );
     } catch (error) {
-      logger.warn('raster2pgsql import skipped, keeping as GeoTIFF', { error: error instanceof Error ? error.message : String(error) });
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn('raster2pgsql import failed, keeping as GeoTIFF only', { error: message });
+      postgisWarning = message;
     }
 
     const info = await this.getRasterInfo(warpedPath);
 
-    return { tableName: safeTable, outputPath: warpedPath, info };
+    return { tableName: safeTable, outputPath: warpedPath, info, postgisWarning };
   }
 
-  async addToWMS(rasterPath: string, layerName: string, projectPath: string): Promise<void> {
-    logger.info('Registering raster in QGIS project', { rasterPath, layerName, projectPath });
-    // QGIS project registration would be handled by QGISProjectService
-  }
-
-  async downloadRaster(tableName: string, outputPath: string, format: string = 'GTiff'): Promise<string> {
+  async downloadRaster(
+    tableName: string,
+    outputPath: string,
+    format: string = 'GTiff',
+  ): Promise<string> {
     const safeTable = tableName.replace(/[^a-zA-Z0-9_]/g, '');
     const pgConn = this.getPgConnectionString();
 
@@ -91,7 +103,7 @@ export class RasterService {
 
     await execAsync(
       `gdal_translate -of ${format} "${pgConn}" -sql "SELECT rast FROM public.\\"${safeTable}\\"" "${outputPath}"`,
-      { timeout: 300000 }
+      { timeout: 300000 },
     );
 
     return outputPath;
@@ -116,6 +128,8 @@ export class RasterService {
   async cleanup(filePath: string): Promise<void> {
     try {
       if (existsSync(filePath)) await unlink(filePath);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }

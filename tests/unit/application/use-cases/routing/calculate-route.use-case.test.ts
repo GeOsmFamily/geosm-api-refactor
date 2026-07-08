@@ -10,17 +10,32 @@ describe('CalculateRouteUseCase', () => {
     useCase = new CalculateRouteUseCase(osrmService as any);
   });
 
-  it('should calculate route successfully', async () => {
-    const mockResult = { routes: [{ distance: 1000, duration: 60 }] };
+  it('should calculate route successfully, flattening the first OSRM route', async () => {
+    const mockResult = {
+      routes: [{ distance: 1000, duration: 60, geometry: 'encoded-geometry', legs: [{ steps: [] }] }],
+      waypoints: [{ location: [0, 0] }, { location: [1, 1] }],
+    };
     osrmService.route.mockResolvedValue(mockResult);
     const result = await useCase.execute([[0, 0], [1, 1]]);
-    expect(result).toEqual(mockResult);
+    expect(result).toEqual({
+      distance: 1000,
+      duration: 60,
+      geometry: 'encoded-geometry',
+      legs: [{ steps: [] }],
+      waypoints: mockResult.waypoints,
+    });
     expect(osrmService.route).toHaveBeenCalledWith([[0, 0], [1, 1]], undefined, undefined);
   });
 
-  it('should pass profile and options', async () => {
-    osrmService.route.mockResolvedValue({ routes: [] });
+  it('should pass profile and options through to OSRMService', async () => {
+    osrmService.route.mockResolvedValue({ routes: [{ distance: 500, duration: 30 }], waypoints: [] });
     await useCase.execute([[0, 0], [1, 1]], 'car', { steps: true });
     expect(osrmService.route).toHaveBeenCalledWith([[0, 0], [1, 1]], 'car', { steps: true });
+  });
+
+  it('should throw if OSRM returns no routes', async () => {
+    osrmService.route.mockResolvedValue({ routes: [] });
+
+    await expect(useCase.execute([[0, 0], [1, 1]])).rejects.toThrow('No route found');
   });
 });

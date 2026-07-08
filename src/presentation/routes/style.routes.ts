@@ -1,5 +1,9 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { layerIdParamSchema, updateSldSchema, updateMapboxSchema } from '../schemas/style.schema.js';
+import {
+  layerIdParamSchema,
+  updateSldSchema,
+  updateMapboxSchema,
+} from '../schemas/style.schema.js';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
@@ -11,54 +15,140 @@ import { UpdateLayerStyleUseCase } from '../../application/use-cases/styles/upda
 import { ResetLayerStyleUseCase } from '../../application/use-cases/styles/reset-layer-style.use-case.js';
 import { ListDefaultStylesUseCase } from '../../application/use-cases/styles/list-default-styles.use-case.js';
 
-function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
+function parseBody<T>(
+  schema: {
+    safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } };
+  },
+  body: unknown,
+): T {
   const result = schema.safeParse(body);
-  if (!result.success) throw new ValidationError('Validation failed', result.error?.format() as Record<string, unknown>);
+  if (!result.success)
+    throw new ValidationError(
+      'Validation failed',
+      result.error?.format() as Record<string, unknown>,
+    );
   return result.data as T;
 }
 
 export async function styleRoutes(app: FastifyInstance): Promise<void> {
-  const getLayerStyleUseCase = app.diContainer.resolve<GetLayerStyleUseCase>('getLayerStyleUseCase');
-  const updateLayerStyleUseCase = app.diContainer.resolve<UpdateLayerStyleUseCase>('updateLayerStyleUseCase');
-  const resetLayerStyleUseCase = app.diContainer.resolve<ResetLayerStyleUseCase>('resetLayerStyleUseCase');
-  const listDefaultStylesUseCase = app.diContainer.resolve<ListDefaultStylesUseCase>('listDefaultStylesUseCase');
+  const getLayerStyleUseCase =
+    app.diContainer.resolve<GetLayerStyleUseCase>('getLayerStyleUseCase');
+  const updateLayerStyleUseCase =
+    app.diContainer.resolve<UpdateLayerStyleUseCase>('updateLayerStyleUseCase');
+  const resetLayerStyleUseCase =
+    app.diContainer.resolve<ResetLayerStyleUseCase>('resetLayerStyleUseCase');
+  const listDefaultStylesUseCase = app.diContainer.resolve<ListDefaultStylesUseCase>(
+    'listDefaultStylesUseCase',
+  );
 
-  app.get('/', { schema: { description: 'Obtenir le style d\'une couche', tags: ['Styles'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { layerId } = parseBody(layerIdParamSchema, request.params);
-    const result = await getLayerStyleUseCase.execute(layerId);
-    return reply.send(successResponse(result));
-  });
+  app.get(
+    '/',
+    {
+      schema: {
+        description: "Obtenir le style d'une couche",
+        tags: ['Styles'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { layerId } = parseBody(layerIdParamSchema, request.params);
+      const result = await getLayerStyleUseCase.execute(layerId);
+      return reply.send(successResponse(result));
+    },
+  );
 
-  app.put('/sld', { schema: { description: 'Modifier le style SLD d\'une couche', tags: ['Styles'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateSldSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { layerId } = parseBody(layerIdParamSchema, request.params);
-    const dto = parseBody(updateSldSchema, request.body);
-    const styles = await getLayerStyleUseCase.execute(layerId);
-    if (styles.length === 0) {
-      return reply.status(404).send({ success: false, message: 'No styles found for this layer' });
-    }
-    const result = await updateLayerStyleUseCase.execute(styles[0].id, { sldBody: dto.sldBody });
-    return reply.send(successResponse(result));
-  });
+  app.put(
+    '/sld',
+    {
+      schema: {
+        description: "Modifier le style SLD d'une couche",
+        tags: ['Styles'],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(updateSldSchema),
+      },
+      preHandler: [
+        app.authenticate,
+        requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { layerId } = parseBody(layerIdParamSchema, request.params);
+      const dto = parseBody(updateSldSchema, request.body);
+      const styles = await getLayerStyleUseCase.execute(layerId);
+      if (styles.length === 0) {
+        return reply
+          .status(404)
+          .send({ success: false, message: 'No styles found for this layer' });
+      }
+      const result = await updateLayerStyleUseCase.execute(styles[0].id, { sldBody: dto.sldBody });
+      return reply.send(successResponse(result));
+    },
+  );
 
-  app.put('/mapbox', { schema: { description: 'Modifier le style Mapbox d\'une couche', tags: ['Styles'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateMapboxSchema) }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { layerId } = parseBody(layerIdParamSchema, request.params);
-    const dto = parseBody(updateMapboxSchema, request.body);
-    const styles = await getLayerStyleUseCase.execute(layerId);
-    if (styles.length === 0) {
-      return reply.status(404).send({ success: false, message: 'No styles found for this layer' });
-    }
-    const result = await updateLayerStyleUseCase.execute(styles[0].id, { mapboxStyle: dto.mapboxStyle });
-    return reply.send(successResponse(result));
-  });
+  app.put(
+    '/mapbox',
+    {
+      schema: {
+        description: "Modifier le style Mapbox d'une couche",
+        tags: ['Styles'],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(updateMapboxSchema),
+      },
+      preHandler: [
+        app.authenticate,
+        requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { layerId } = parseBody(layerIdParamSchema, request.params);
+      const dto = parseBody(updateMapboxSchema, request.body);
+      const styles = await getLayerStyleUseCase.execute(layerId);
+      if (styles.length === 0) {
+        return reply
+          .status(404)
+          .send({ success: false, message: 'No styles found for this layer' });
+      }
+      const result = await updateLayerStyleUseCase.execute(styles[0].id, {
+        mapboxStyle: dto.mapboxStyle,
+      });
+      return reply.send(successResponse(result));
+    },
+  );
 
-  app.post('/reset', { schema: { description: 'Reinitialiser le style d\'une couche', tags: ['Styles'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR)] }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { layerId } = parseBody(layerIdParamSchema, request.params);
-    await resetLayerStyleUseCase.execute(layerId);
-    return reply.send(successResponse(null));
-  });
+  app.post(
+    '/reset',
+    {
+      schema: {
+        description: "Reinitialiser le style d'une couche",
+        tags: ['Styles'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [
+        app.authenticate,
+        requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { layerId } = parseBody(layerIdParamSchema, request.params);
+      await resetLayerStyleUseCase.execute(layerId);
+      return reply.send(successResponse(null));
+    },
+  );
 
-  app.get('/defaults', { schema: { description: 'Lister les styles par defaut', tags: ['Styles'], security: [{ bearerAuth: [] }] }, preHandler: [app.authenticate] }, async (_request: FastifyRequest, reply: FastifyReply) => {
-    const result = await listDefaultStylesUseCase.execute();
-    return reply.send(successResponse(result));
-  });
+  app.get(
+    '/defaults',
+    {
+      schema: {
+        description: 'Lister les styles par defaut',
+        tags: ['Styles'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const result = await listDefaultStylesUseCase.execute();
+      return reply.send(successResponse(result));
+    },
+  );
 }

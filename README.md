@@ -13,9 +13,9 @@
 
 **GeOSM** (Geographic OpenStreetMap) est un geoportail open-source qui permet de **visualiser, gerer et diffuser des donnees geographiques**, principalement issues d'**OpenStreetMap**. Concu pour l'Afrique, il offre une infrastructure SIG complete permettant aux organisations de creer des portails cartographiques multi-instances avec des donnees provenant d'OSM, d'uploads utilisateur (GeoJSON, Shapefile, GeoPackage, KML) et d'imagerie raster.
 
-La plateforme couvre le cycle de vie complet des donnees geographiques : import (OSM via osm2pgsql, fichiers vectoriels via ogr2ogr), stockage (PostGIS), stylisation (SLD/Mapbox GL), visualisation (WMS/WFS via QGIS Server), edition de features, analyse spatiale, export multi-format et partage.
+La plateforme couvre le cycle de vie complet des donnees geographiques : import (OSM via osm2pgsql, fichiers vectoriels via ogr2ogr), stockage (PostGIS), stylisation (SLD/Mapbox GL), visualisation (WMS/WFS via QGIS Server), edition de features, analyse spatiale, export multi-format et partage. Elle integre egalement un **assistant IA conversationnel** (Gemini, function-calling) capable de piloter la recherche, l'analyse spatiale et la generation de plans de localisation en langage naturel, et permet de se connecter en un clic via **OpenStreetMap (OAuth 2.0)**.
 
-Ce depot contient l'**API REST backend** construite avec Fastify 5, suivant les principes de la **Clean Architecture** (Architecture Hexagonale).
+Ce depot contient l'**API REST backend** construite avec Fastify 5, suivant les principes de la **Clean Architecture** (Architecture Hexagonale). Voir [`docs/fonctionnalites-detaillees.md`](docs/fonctionnalites-detaillees.md) pour le detail exhaustif de chaque fonctionnalite, [`docs/reference-api.md`](docs/reference-api.md) pour la reference complete des endpoints, et [`CHANGELOG.md`](CHANGELOG.md) pour l'historique des changements.
 
 ---
 
@@ -290,6 +290,8 @@ Toutes les variables sont validees au demarrage avec Zod. Les variables sans val
 | `DATA_DIR` | Repertoire temporaire de donnees | `/tmp/geosm-data` | Non |
 | `NOMINATIM_URL` | URL du service de geocodage Nominatim | `http://localhost:8081` | Non |
 | `OSRM_URL` | URL du service de routage OSRM | `http://localhost:5000` | Non |
+| `OSM_IMPORT_PBF_PATH` | Chemin du fichier `.osm.pbf` reimporte par le job planifie mensuel (voir `ScheduledOsmImportUseCase`). Non defini = job no-op | - | Non |
+| `OSM_IMPORT_CRON` | Pattern cron du job d'import OSM programme | `0 2 1 * *` (1er du mois, 02h00) | Non |
 
 ### Observabilite
 
@@ -361,6 +363,7 @@ L'API est servie sous le prefixe `/api/v1`. La documentation interactive Swagger
 - Inscription, connexion, rafraichissement de token, deconnexion
 - Verification d'email, mot de passe oublie, reinitialisation
 - Profil utilisateur (consultation et mise a jour)
+- Connexion via OpenStreetMap (OAuth 2.0) -- login, liaison/deliaison de compte, consultation du profil OSM
 
 ### Utilisateurs (`/api/v1/users`) -- Super Admin uniquement
 - CRUD complet + changement de role + activation/desactivation
@@ -397,6 +400,7 @@ L'API est servie sous le prefixe `/api/v1`. La documentation interactive Swagger
 
 ### Recherche (`/api/v1/search`)
 - Recherche globale, par couches, par features
+- Suggestions personnalisees et recommandations de couches par co-activation
 
 ### Projets QGIS (`/api/v1/instances/:instanceId/qgis-project`)
 - Consultation et rechargement
@@ -413,6 +417,13 @@ L'API est servie sous le prefixe `/api/v1`. La documentation interactive Swagger
 
 ### Geoportail (`/api/v1/geoportail`)
 - Altitude, profil altimetrique, limites administratives, geolocalisation IP
+- Statistiques de couche et resume de vue narres en langage naturel (IA, Gemini)
+
+### Assistant IA (`/api/v1/assistant`)
+- Discussion avec l'assistant conversationnel (function-calling Gemini), historique de conversations
+
+### Geosignets (`/api/v1/geosignets`)
+- Sauvegarde et gestion de positions de carte nommees (centre + zoom)
 
 ### Dessins (`/api/v1/drawings`)
 - Sauvegarde et gestion de dessins GeoJSON
@@ -446,6 +457,13 @@ L'API est servie sous le prefixe `/api/v1`. La documentation interactive Swagger
 
 ### Administration (`/api/v1/admin`) -- Super Admin uniquement
 - Tableau de bord, gestion des jobs, import OSM, cache, sante systeme
+- Sauvegarde manuelle immediate de la base de donnees (en plus du backup quotidien automatique)
+
+### Logs (`/api/v1/logs`)
+- Remontee des erreurs JS non gerees du frontend
+
+### Feedback (`/api/v1/feedback`)
+- Soumission d'un signalement (bug/suggestion/fonctionnalite), authentification optionnelle, notification Slack
 
 ### WebSocket (`/ws/notifications`)
 - Notifications en temps reel (progression import/export)

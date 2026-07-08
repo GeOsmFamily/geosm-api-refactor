@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { RedisService } from '../../../infrastructure/cache/redis.service.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GetSystemHealthUseCase');
 
 export interface SystemHealth {
   database: 'up' | 'down';
@@ -19,15 +22,21 @@ export class GetSystemHealthUseCase {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       database = 'up';
-    } catch {
+    } catch (error) {
       database = 'down';
+      logger.error('Database health check failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     try {
       const result = await this.redisService.getClient().ping();
       redis = result === 'PONG' ? 'up' : 'down';
-    } catch {
+    } catch (error) {
       redis = 'down';
+      logger.error('Redis health check failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return { database, redis };

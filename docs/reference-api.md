@@ -208,6 +208,47 @@ Changement de mot de passe.
   ```
 - **Reponse** : `null`
 
+### `GET /osm/status`
+
+Indique si la connexion OpenStreetMap est configuree cote serveur (masque le bouton correspondant si non).
+
+- **Auth** : Non
+- **Reponse** : `{ "configured": boolean }`
+
+### `GET /osm/login-url`
+
+URL d'autorisation OSM a ouvrir pour se connecter via OpenStreetMap.
+
+- **Auth** : Non
+- **Reponse** : `{ "url": "https://www.openstreetmap.org/oauth2/authorize?..." }`
+
+### `GET /osm/link-url`
+
+URL d'autorisation OSM pour lier un compte OSM au compte deja connecte.
+
+- **Auth** : Oui
+- **Reponse** : `{ "url": "..." }`
+
+### `GET /osm/callback`
+
+Point de retour unique du flux OAuth OSM (login et liaison, differencies par le state signe). Redirige vers le frontend, ne renvoie pas de JSON.
+
+- **Auth** : Non (utilise le state signe anti-CSRF)
+
+### `GET /osm/profile`
+
+Profil OpenStreetMap lie au compte connecte (nom d'affichage, avatar, date de creation du compte OSM, nombre de contributions).
+
+- **Auth** : Oui
+- **Reponse** : Objet profil OSM, ou `null` si aucun compte lie
+
+### `DELETE /osm/link`
+
+Delie le compte OpenStreetMap du compte connecte.
+
+- **Auth** : Oui
+- **Reponse** : `null`
+
 ---
 
 ## Utilisateurs (`/api/v1/users`)
@@ -535,6 +576,13 @@ Obtenir les informations du fichier source.
 - **Auth** : Oui
 - **Reponse** : Informations du fichier source
 
+### `POST /:id/resync`
+
+Recree la table derivee d'une couche par defaut a partir de l'etat actuel des donnees OSM brutes (pas de nouveau telechargement/import OSM). Rejette (400) les couches qui ne sont pas des couches par defaut derivees d'OSM.
+
+- **Auth** : Oui (SUPER_ADMIN, ADMIN_INSTANCE)
+- **Reponse** : Couche mise a jour (`metadata.lastSyncedAt`, `featureCount`, `totalArea`, `totalLength`)
+
 ---
 
 ## Import de couche (`/api/v1/layers`)
@@ -800,6 +848,14 @@ Point le plus proche sur le reseau routier.
 - **Parametres** : `lon`, `lat`, `number` (int, optionnel)
 - **Reponse** : Resultat OSRM
 
+### `GET /nearest-feature`
+
+Feature(s) d'une couche la/les plus proche(s) d'un point, classees par distance **routiere reelle** (OSRM), pas a vol d'oiseau. Prefiltre les candidats via PostGIS (KNN `<->`) puis calcule les distances/durees reelles via une matrice OSRM one-to-many. Repli sur la distance a vol d'oiseau si OSRM echoue.
+
+- **Auth** : Non
+- **Parametres** : `layerId` (UUID), `lon`, `lat`, `limit` (int, optionnel)
+- **Reponse** : Liste triee `[{ featureId, name, distanceMeters, durationSeconds }]`
+
 ---
 
 ## Recherche (`/api/v1/search`)
@@ -827,6 +883,22 @@ Recherche de features.
 - **Auth** : Non
 - **Parametres** : `q`, `layerId` (optionnel), `limit`, `offset`
 - **Reponse** : Liste de features
+
+### `GET /suggestions`
+
+Suggestions de couches contextuelles pour une instance, classees par frequence d'activation passee.
+
+- **Auth** : Optionnelle
+- **Parametres** : `instanceId` (UUID), `limit` (int, optionnel)
+- **Reponse** : `[{ id, name, description }]`
+
+### `GET /layer-recommendations`
+
+Couches frequemment activees en meme temps qu'une couche donnee ("les utilisateurs qui ont active X ont aussi active Y").
+
+- **Auth** : Non
+- **Parametres** : `layerId` (UUID), `instanceId` (UUID), `limit` (int, optionnel)
+- **Reponse** : `[{ id, name, description, coUserCount }]`
 
 ---
 
@@ -1197,6 +1269,103 @@ Catalogue d'une instance.
 
 ---
 
+## Commentaires (`/api/v1/comments`)
+
+Commentaires geolocalises sur la carte avec fils de discussion (reponses) et statut de resolution.
+
+### `GET /`
+
+Liste des commentaires racine d'une instance, avec leurs reponses imbriquees et le nom d'auteur enrichi.
+
+- **Auth** : Oui
+- **Parametres** : `instanceId` (UUID, requis)
+- **Reponse** : Liste de commentaires avec `replies: []`
+
+### `POST /`
+
+Creer un commentaire.
+
+- **Auth** : Oui
+- **Corps** :
+  ```json
+  { "instanceId": "UUID", "text": "string (1-1000)", "lat": number, "lon": number }
+  ```
+- **Reponse** : `201`
+
+### `POST /:id/reply`
+
+Repondre a un commentaire. Herite `instanceId`/`lat`/`lon` du commentaire parent. Les reponses aux reponses sont aplaties (le `parentId` reste toujours celui du commentaire racine).
+
+- **Auth** : Oui
+- **Corps** :
+  ```json
+  { "text": "string (1-1000)" }
+  ```
+- **Reponse** : `201`
+
+### `PATCH /:id/resolve`
+
+Marquer un commentaire comme resolu/non resolu.
+
+- **Auth** : Oui
+- **Corps** :
+  ```json
+  { "resolved": boolean }
+  ```
+- **Reponse** : Commentaire mis a jour
+
+### `DELETE /:id`
+
+- **Auth** : Oui
+- **Reponse** : `204`
+
+---
+
+## Plans de localisation (`/api/v1/location-plans`)
+
+Generation asynchrone (BullMQ + QGIS) de plans de localisation professionnels au format PDF.
+
+### `POST /`
+
+Lance la generation d'un plan de localisation.
+
+- **Auth** : Oui
+- **Corps** :
+  ```json
+  {
+    "instanceId": "UUID",
+    "title": "string",
+    "description": "string (optionnel)",
+    "landmark": "string (optionnel)",
+    "lon": number,
+    "lat": number,
+    "scale": "int (optionnel, auto si absent)",
+    "paperSize": "A4 | A3 (defaut: A4)",
+    "orientation": "PORTRAIT | LANDSCAPE (defaut: PORTRAIT)",
+    "includeLegend": "boolean (defaut: true)",
+    "includeScale": "boolean (defaut: true)",
+    "includeGrid": "boolean (defaut: true)",
+    "includeNorthArrow": "boolean (defaut: true)"
+  }
+  ```
+- **Reponse** : `201`, `{ id, status: "PENDING", ... }`
+
+### `GET /:id`
+
+Statut du plan (`PENDING` | `PROCESSING` | `COMPLETED` | `FAILED`).
+
+- **Auth** : Oui
+- **Reponse** : Detail du plan
+
+### `GET /:id/download`
+
+Telecharge le PDF genere (disponible uniquement si `status: COMPLETED`).
+
+- **Auth** : Oui
+- **Reponse** : Fichier PDF (stream depuis MinIO)
+
+---
+
 ## Documents (`/api/v1/documents`)
 
 ### `GET /`
@@ -1395,11 +1564,19 @@ Importer des donnees OSM (PBF).
   ```
 - **Reponse** : Succes
 
+> **Import OSM programme** : un job BullMQ recurrent (`scheduled-osm-import`, cron configurable via `OSM_IMPORT_CRON`, defaut `0 2 1 * *`) reimporte automatiquement le fichier au chemin `OSM_IMPORT_PBF_PATH` puis resynchronise toutes les couches par defaut de toutes les instances actives (voir `POST /:id/resync` sur les couches). Pas de nouvel endpoint HTTP -- s'enregistre au demarrage du serveur. Sans `OSM_IMPORT_PBF_PATH`, le job tourne mais ne fait rien (no-op loggue).
+
 ### `GET /health`
 
 Sante du systeme (BD, Redis, etc.).
 
 - **Reponse** : Etat de chaque service
+
+### `POST /backup`
+
+Declenche immediatement un backup Postgres complet (dump vers MinIO, retention appliquee) - independamment du cron quotidien (`BACKUP_CRON`, defaut `0 3 * * *`). Utile avant une operation risquee.
+
+- **Reponse** : `{ "key": "backups/geosm-....dump", "sizeBytes": 2443070217, "deletedOldBackups": 0 }`
 
 ### `POST /cache/clear`
 
@@ -1457,6 +1634,97 @@ Supprimer une sequence.
 
 - **Corps** : `{ "name": "string" }`
 - **Reponse** : Succes
+
+---
+
+## Assistant IA (`/api/v1/assistant`)
+
+### `POST /chat`
+
+Discuter avec l'assistant IA du geoportail (Gemini, function-calling). L'assistant peut renvoyer du texte et/ou des `clientActions` que le frontend execute (activer une couche, zoomer...) - jamais executees cote serveur.
+
+- **Auth** : Oui
+- **Corps** : `{ "instanceId": "uuid", "conversationId": "uuid", "message": "string (1-2000 caracteres)" }`
+- **Reponse** : `{ "text": "string | null", "clientActions": [...] }`
+
+### `GET /conversations`
+
+Lister les conversations de l'utilisateur pour une instance.
+
+- **Auth** : Oui
+- **Parametres** : `instanceId` (UUID)
+- **Reponse** : Liste de conversations (metadonnees, sans l'historique complet)
+
+### `POST /conversations`
+
+Creer une nouvelle conversation.
+
+- **Auth** : Oui
+- **Corps** : `{ "instanceId": "uuid" }`
+- **Reponse** : `201`, conversation creee
+
+### `GET /conversations/:id`
+
+Detail d'une conversation avec son historique complet de messages/actions.
+
+- **Auth** : Oui
+
+### `DELETE /conversations/:id`
+
+Supprimer une conversation. Rejette si elle n'appartient pas a l'utilisateur demandeur.
+
+- **Auth** : Oui
+- **Reponse** : `204`
+
+---
+
+## Geosignets (`/api/v1/geosignets`)
+
+### `GET /`
+
+Lister les geosignets (positions de carte sauvegardees) de l'utilisateur connecte.
+
+- **Auth** : Oui
+- **Reponse** : `[{ id, name, center: [lon, lat], zoom }]`
+
+### `POST /`
+
+Creer un geosignet.
+
+- **Auth** : Oui
+- **Corps** : `{ "name": "string (1-255)", "center": [lon, lat], "zoom": number }`
+- **Reponse** : `201`
+
+### `DELETE /:id`
+
+Supprimer un geosignet. Rejette (`403`) si le geosignet n'appartient pas a l'utilisateur demandeur.
+
+- **Auth** : Oui
+- **Reponse** : `204`
+
+---
+
+## Logs (`/api/v1/logs`)
+
+### `POST /frontend-error`
+
+Remonte une erreur JS non geree cote frontend (voir le `GlobalErrorHandler` Angular) vers les logs serveur (Graylog) et incremente la metrique `api_errors_total{error_type="frontend"}`.
+
+- **Auth** : Optionnelle (associe l'erreur a l'utilisateur si un token est present)
+- **Corps** : `{ "message": "string (1-2000)", "stack": "string (optionnel, max 8000)", "url": "string (optionnel)", "userAgent": "string (optionnel)" }`
+- **Reponse** : `204`
+
+---
+
+## Feedback (`/api/v1/feedback`)
+
+### `POST /`
+
+Soumet un signalement (bug, suggestion, ou demande de fonctionnalite) depuis le bouton "Infos" du frontend. Notifie l'equipe via Slack (`AlertingService`, niveau `WARNING`).
+
+- **Auth** : Optionnelle (associe le signalement a l'utilisateur si connecte, sinon anonyme)
+- **Corps** : `{ "type": "BUG" | "SUGGESTION" | "FEATURE_REQUEST", "description": "string (1-5000)", "contactEmail": "string (optionnel)", "page": "string (optionnel)" }`
+- **Reponse** : `201`, l'objet `FeedbackSubmission` cree
 
 ---
 

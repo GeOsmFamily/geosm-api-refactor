@@ -1,6 +1,9 @@
 import { IUserRepository } from '../../../domain/repositories/user.repository.js';
 import { ToggleUserActiveDTO, UserResponseDTO } from '../../dtos/user.dto.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('ToggleUserActiveUseCase');
 
 export class ToggleUserActiveUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
@@ -10,11 +13,22 @@ export class ToggleUserActiveUseCase {
     if (!existing) throw new NotFoundError('User', id);
 
     const user = await this.userRepository.update(id, { isActive: dto.isActive });
+    // Utile en réponse à incident : désactiver un compte compromis doit laisser une trace.
+    logger.info(dto.isActive ? 'User reactivated by admin' : 'User deactivated by admin', {
+      userId: id,
+    });
     return {
-      id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName,
-      avatar: user.avatar, role: user.role, isActive: user.isActive,
-      emailVerifiedAt: user.emailVerifiedAt, lastLoginAt: user.lastLoginAt,
-      createdAt: user.createdAt, updatedAt: user.updatedAt,
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatar: user.avatar,
+      role: user.role,
+      isActive: user.isActive,
+      emailVerifiedAt: user.emailVerifiedAt,
+      lastLoginAt: user.lastLoginAt,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   }
 }

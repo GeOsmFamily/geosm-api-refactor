@@ -7,6 +7,9 @@ import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ConflictError } from '../../../domain/errors/conflict.error.js';
 import { Slug } from '../../../domain/value-objects/slug.vo.js';
 import { IndexLayerUseCase } from '../search/index-layer.use-case.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateLayerUseCase');
 
 export class CreateLayerUseCase {
   constructor(
@@ -21,7 +24,13 @@ export class CreateLayerUseCase {
 
     const slug = Slug.create(dto.slug);
     const existing = await this.layerRepository.findBySlug(slug.value, instanceId);
-    if (existing) throw new ConflictError('Layer with this slug already exists in this instance');
+    if (existing) {
+      logger.warn('Create layer rejected: slug already exists in instance', {
+        instanceId,
+        slug: slug.value,
+      });
+      throw new ConflictError('Layer with this slug already exists in this instance');
+    }
 
     const layer = await this.layerRepository.create({
       id: uuidv4(),
@@ -46,10 +55,15 @@ export class CreateLayerUseCase {
       qgisProjectId: null,
     });
 
+    logger.info('Layer created', { layerId: layer.id, instanceId, slug: slug.value });
+
     try {
       await this.indexLayerUseCase?.execute(layer);
-    } catch {
-      // Non-critical: indexing failure should not block layer creation
+    } catch (error) {
+      logger.error('Layer indexing failed after creation', {
+        layerId: layer.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return layer;

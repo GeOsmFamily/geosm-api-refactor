@@ -448,17 +448,52 @@ POST /api/v1/auth/forgot-password
 Corps : { email }
         |
         v
-1. Generer un token de reinitialisation
-2. Envoyer par email
+1. Generer un token aleatoire (uuidv4) et le STOCKER en BD (table PasswordResetToken,
+   expiration 1h, usage unique) - lie a l'utilisateur, jamais l'ID utilisateur lui-meme
+2. Invalider tout token en attente precedent pour cet utilisateur
+3. Envoyer le token par email
         |
         v
 POST /api/v1/auth/reset-password
 Corps : { token, password }
         |
         v
-1. Verifier le token
+1. Chercher le token en BD -> rejeter (401) si absent, deja utilise, ou expire
 2. Hacher le nouveau mot de passe
 3. Revoquer tous les refresh tokens existants
+4. Invalider le token de reinitialisation (et tout autre en attente pour cet utilisateur)
+```
+
+> Meme flux (generation -> stockage -> verification -> usage unique) pour la verification
+> d'email (`EmailVerificationToken`). Les deux tables suivent le meme principe que
+> `RefreshToken` : token aleatoire en clair compare directement, pas de hash ajoute.
+
+### Connexion via OpenStreetMap (OAuth 2.0)
+
+```
+GET /api/v1/auth/osm/login-url
+        |
+        v
+Retourne l'URL d'autorisation OSM (state anti-CSRF signe, purpose=login)
+        |
+        v
+Redirection navigateur vers osm.org -> utilisateur autorise l'application
+        |
+        v
+GET /api/v1/auth/osm/callback?code=...&state=...
+        |
+        v
+1. Verifier le state signe
+2. Echanger le code contre un token d'acces OSM
+3. Recuperer le profil OSM (GET /api/0.6/user/details.json)
+4. Chercher un OsmProfile existant par osmUserId
+   -> trouve : reconnecter cet utilisateur GeOSM
+   -> absent : creer un nouveau compte GeOSM (role VIEWER, mot de passe aleatoire inutilisable)
+5. Upsert OsmProfile (token OSM chiffre AES-256-GCM, changesetCount, avatar...)
+6. Emettre les tokens JWT GeOSM classiques (access + refresh)
+        |
+        v
+Redirection vers le frontend avec les tokens en query string
 ```
 
 ---

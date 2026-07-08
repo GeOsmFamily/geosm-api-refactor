@@ -7,7 +7,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [postgis, uuidOssp(map: "uuid-ossp")]
+  extensions = [postgis, postgisRaster(map: "postgis_raster"), uuidOssp(map: "uuid-ossp")]
 }
 
 enum Role {
@@ -81,11 +81,85 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  refreshTokens RefreshToken[]
-  exports       Export[]
-  instanceUsers InstanceUser[]
+  refreshTokens          RefreshToken[]
+  exports                Export[]
+  locationPlans          LocationPlan[]
+  instanceUsers          InstanceUser[]
+  comments               Comment[]
+  osmProfile             OsmProfile?
+  passwordResetTokens    PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  feedbackSubmissions    FeedbackSubmission[]
 
   @@map("users")
+}
+
+// Correctif sécurité critique : avant ce modèle, ResetPasswordUseCase traitait `dto.token`
+// comme s'il s'agissait directement de l'ID utilisateur ("Phase 1" - jamais complété), et
+// ForgotPasswordUseCase générait un token envoyé par email mais ne le stockait jamais nulle
+// part. Résultat : n'importe qui connaissant l'UUID d'un compte (pas un secret - visible dans
+// des réponses API, JWT, etc.) pouvait réinitialiser son mot de passe sans jamais avoir accès
+// à sa boîte mail. Ce modèle stocke un vrai token aléatoire à usage unique et expirant, sur le
+// même principe que RefreshToken (token en clair, comparaison directe - cohérent avec le reste
+// du code, pas de hash ajouté ici).
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @map("user_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_reset_tokens")
+}
+
+// Même correctif que PasswordResetToken, pour la même classe de faille : VerifyEmailUseCase
+// traitait `dto.token` comme l'ID utilisateur directement, et RegisterUseCase générait un token
+// envoyé par email mais jamais stocké. N'importe qui connaissant l'UUID d'un compte pouvait donc
+// marquer son email comme vérifié sans jamais avoir eu accès à la boîte mail - contournant tout
+// l'intérêt de la vérification (prouver la possession de l'adresse).
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @map("user_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("email_verification_tokens")
+}
+
+// Profil OpenStreetMap lié à un compte GeOSM (voir OsmOAuthService) - table séparée du User
+// plutôt qu'extension de colonnes : garde le modèle User propre et permet de délier un compte
+// OSM sans perdre le compte GeOSM associé. accessTokenEncrypted sert à re-rafraîchir le profil
+// (changesetCount, avatar...) périodiquement sans redemander une connexion - jamais exposé en
+// clair (voir infrastructure/utils/encryption.util.ts), et non requis pour l'authentification
+// elle-même (le JWT GeOSM classique gère la session une fois l'utilisateur résolu).
+model OsmProfile {
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @unique @map("user_id") @db.Uuid
+  osmUserId            BigInt    @unique @map("osm_user_id")
+  displayName          String    @map("display_name")
+  avatarUrl            String?   @map("avatar_url")
+  osmAccountCreatedAt  DateTime? @map("osm_account_created_at")
+  changesetCount       Int       @default(0) @map("changeset_count")
+  homeLat              Float?    @map("home_lat")
+  homeLon              Float?    @map("home_lon")
+  accessTokenEncrypted String    @map("access_token_encrypted")
+  linkedAt             DateTime  @default(now()) @map("linked_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("osm_profiles")
 }
 
 model RefreshToken {
@@ -294,7 +368,9 @@ model Export {
   id           String       @id @default(uuid()) @db.Uuid
   format       ExportFormat
   status       JobStatus    @default(PENDING)
-  layerId      String       @map("layer_id") @db.Uuid
+  layerId      String?      @map("layer_id") @db.Uuid
+  layerIds     Json?        @map("layer_ids")
+  isBulk       Boolean      @default(false) @map("is_bulk")
   userId       String       @map("user_id") @db.Uuid
   filePath     String?      @map("file_path")
   fileSize     Int?         @map("file_size")
@@ -305,12 +381,55 @@ model Export {
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
-  layer Layer @relation(fields: [layerId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  layer Layer? @relation(fields: [layerId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([layerId])
   @@map("exports")
+}
+
+enum PaperSize {
+  A4
+  A3
+}
+
+enum PlanOrientation {
+  PORTRAIT
+  LANDSCAPE
+}
+
+model LocationPlan {
+  id           String          @id @default(uuid()) @db.Uuid
+  userId       String          @map("user_id") @db.Uuid
+  instanceId   String          @map("instance_id") @db.Uuid
+  status       JobStatus       @default(PENDING)
+  title        String
+  description  String?
+  landmark     String?
+  lon          Float
+  lat          Float
+  scale        Int?
+  paperSize    PaperSize       @default(A4) @map("paper_size")
+  orientation  PlanOrientation @default(PORTRAIT)
+  // Éléments de mise en page optionnels (constructeur de mise en page personnalisée) -
+  // tous à true par défaut pour ne pas changer le rendu des plans déjà existants/en cours.
+  includeLegend     Boolean @default(true) @map("include_legend")
+  includeScale      Boolean @default(true) @map("include_scale")
+  includeGrid       Boolean @default(true) @map("include_grid")
+  includeNorthArrow Boolean @default(true) @map("include_north_arrow")
+  filePath     String?         @map("file_path")
+  fileSize     Int?            @map("file_size")
+  errorMessage String?         @map("error_message")
+  startedAt    DateTime?       @map("started_at")
+  completedAt  DateTime?       @map("completed_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("location_plans")
 }
 
 model DefaultTheme {
@@ -372,6 +491,22 @@ model AnalyticsEvent {
   @@map("analytics_events")
 }
 
+model AssistantConversation {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  instanceId String   @map("instance_id") @db.Uuid
+  title      String   @default("Nouvelle conversation")
+  // Tableau de tours {role: 'user'|'model', text: string, createdAt: string} - pas de table
+  // séparée : le volume par conversation reste faible (quelques dizaines de messages max),
+  // même pattern que MapComposition.layers/SharedMap.mapState pour ce type de données.
+  messages   Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, instanceId])
+  @@map("assistant_conversations")
+}
+
 model MapComposition {
   id          String   @id @default(uuid()) @db.Uuid
   name        String
@@ -422,4 +557,120 @@ model DefaultTag {
 
   @@unique([slug, themeId])
   @@map("default_tags")
+}
+
+model Geosignet {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String
+  center    Float[]
+  zoom      Float
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("geosignets")
+}
+
+model Comment {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  instanceId String   @map("instance_id") @db.Uuid
+  text       String
+  lat        Float
+  lon        Float
+  // parentId non nul = réponse dans le fil de discussion d'un commentaire racine (pas un
+  // nouveau pin sur la carte). "resolved" ne s'applique en pratique qu'aux commentaires
+  // racines (marquer un fil comme traité), mais le champ est générique.
+  parentId   String?  @map("parent_id") @db.Uuid
+  resolved   Boolean  @default(false)
+  // Modération (Lot A4 admin) : un modérateur signale un commentaire problématique pour le
+  // retrouver dans la file de modération, sans le supprimer immédiatement (garde une trace pour
+  // décider en connaissance de cause). flaggedAt sert de tri chronologique dans la file.
+  flagged    Boolean  @default(false)
+  flagReason String?  @map("flag_reason")
+  flaggedAt  DateTime? @map("flagged_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([instanceId])
+  @@index([parentId])
+  @@index([flagged])
+  @@map("comments")
+}
+
+// Table du MNT SRTM (profil altimétrique, voir PostGISService.drapeElevationProfile() et
+// scripts/import-srtm.sh) créée et peuplée directement par raster2pgsql, en dehors de Prisma.
+// Déclarée ici en lecture seule (@@ignore) uniquement pour que `prisma db push` sache qu'elle
+// est censée exister et ne tente pas de la supprimer au démarrage du conteneur (sans cela, tout
+// redémarrage échoue : "You are about to drop the srtm table, which is not empty").
+model Srtm {
+  rid      Int                  @id @default(autoincrement())
+  rast     Unsupported("raster")?
+  filename String?
+
+  @@map("srtm")
+  @@ignore
+}
+
+enum FeedbackType {
+  BUG
+  SUGGESTION
+  FEATURE_REQUEST
+}
+
+// Suivi de traitement d'un signalement par un administrateur (Lot A5 admin) - NEW par défaut,
+// un modérateur bascule vers REVIEWED puis CLOSED en y ajoutant des notes internes.
+enum FeedbackStatus {
+  NEW
+  REVIEWED
+  CLOSED
+}
+
+// Formulaire de signalement du bouton "Infos" (voir InfoPanelComponent côté frontend) -
+// userId/contactEmail nullables : un visiteur non connecté doit pouvoir signaler un problème.
+model FeedbackSubmission {
+  id           String         @id @default(uuid()) @db.Uuid
+  type         FeedbackType
+  description  String
+  contactEmail String?        @map("contact_email")
+  page         String?
+  userId       String?        @map("user_id") @db.Uuid
+  status       FeedbackStatus @default(NEW)
+  adminNotes   String?        @map("admin_notes")
+  reviewedAt   DateTime?      @map("reviewed_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([status])
+  @@map("feedback_submissions")
+}
+
+// Table de référence des limites administratives (pays/régions/communes), importée
+// MANUELLEMENT hors de cette application (ex. via ogr2ogr depuis un jeu de données GADM/OSM -
+// voir docs/deploiement.md) et utilisée par Instance.boundaryTable/boundaryId (voir
+// hasBoundary() sur l'entité Instance) ainsi que par FindAdminBoundaryUseCase/
+// SearchBoundariesUseCase. @@ignore : sans ce modèle, "prisma db push" (exécuté à chaque
+// démarrage du conteneur, voir docker/entrypoint.sh) considère cette table comme non gérée et
+// refuse de démarrer dès qu'elle contient des lignes ("data loss" sur un DROP TABLE implicite) -
+// un admin qui suit la documentation pour importer ses propres limites ferait planter l'API en
+// boucle au redémarrage suivant sans cette déclaration.
+model admin_boundaries {
+  id          Int                                           @id @default(autoincrement())
+  name        String
+  admin_level Int?
+  // MultiPolygon (pas Polygon) : les limites administratives réelles ont fréquemment des
+  // parties non contiguës (îles, enclaves) - tous les imports normalisent vers ce type via
+  // ST_Multi() (voir ImportBoundariesUseCase et scripts/seed-admin-boundaries.sh).
+  geom        Unsupported("geometry(MultiPolygon, 4326)")?
+
+  @@ignore
 }

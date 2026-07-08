@@ -6,8 +6,11 @@ export class PrismaLayerStyleRepository implements ILayerStyleRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findByLayerId(layerId: string): Promise<LayerStyle[]> {
-    const records = await this.prisma.layerStyle.findMany({ where: { layerId }, orderBy: { createdAt: 'asc' } });
-    return records.map(r => this.toDomain(r));
+    const records = await this.prisma.layerStyle.findMany({
+      where: { layerId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return records.map((r) => this.toDomain(r));
   }
 
   async findById(id: string): Promise<LayerStyle | null> {
@@ -21,7 +24,7 @@ export class PrismaLayerStyleRepository implements ILayerStyleRepository {
         id: data.id,
         name: data.name,
         sldBody: data.sldBody,
-        mapboxStyle: data.mapboxStyle as Prisma.InputJsonValue ?? Prisma.JsonNull,
+        mapboxStyle: (data.mapboxStyle as Prisma.InputJsonValue) ?? Prisma.JsonNull,
         isDefault: data.isDefault,
         layerId: data.layerId,
       },
@@ -29,11 +32,15 @@ export class PrismaLayerStyleRepository implements ILayerStyleRepository {
     return this.toDomain(record);
   }
 
-  async update(id: string, data: Partial<Omit<LayerStyle, 'id' | 'createdAt' | 'updatedAt'>>): Promise<LayerStyle> {
+  async update(
+    id: string,
+    data: Partial<Omit<LayerStyle, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<LayerStyle> {
     const updateData: Prisma.LayerStyleUpdateInput = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.sldBody !== undefined) updateData.sldBody = data.sldBody;
-    if ('mapboxStyle' in data) updateData.mapboxStyle = data.mapboxStyle as Prisma.InputJsonValue ?? Prisma.JsonNull;
+    if ('mapboxStyle' in data)
+      updateData.mapboxStyle = (data.mapboxStyle as Prisma.InputJsonValue) ?? Prisma.JsonNull;
     if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
     const record = await this.prisma.layerStyle.update({ where: { id }, data: updateData });
     return this.toDomain(record);

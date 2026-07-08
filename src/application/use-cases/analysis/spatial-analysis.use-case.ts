@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { ValidationError } from '../../../domain/errors/validation.error.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('SpatialAnalysisUseCase');
 
 export interface SpatialAnalysisInput {
   operation: 'buffer' | 'intersection' | 'union' | 'difference';
@@ -20,7 +23,10 @@ export class SpatialAnalysisUseCase {
 
   private validateGeometry(geom: Record<string, unknown>): string {
     if (!geom.type || !geom.coordinates) {
-      throw new ValidationError('Invalid GeoJSON geometry', { type: 'required', coordinates: 'required' });
+      throw new ValidationError('Invalid GeoJSON geometry', {
+        type: 'required',
+        coordinates: 'required',
+      });
     }
     return JSON.stringify(geom).replace(/'/g, "''");
   }
@@ -44,14 +50,19 @@ export class SpatialAnalysisUseCase {
           throw new ValidationError(`geometryB is required for ${input.operation}`, {});
         }
         const safeB = this.validateGeometry(input.geometryB);
-        const fn = input.operation === 'intersection' ? 'ST_Intersection'
-          : input.operation === 'union' ? 'ST_Union' : 'ST_Difference';
+        const fn =
+          input.operation === 'intersection'
+            ? 'ST_Intersection'
+            : input.operation === 'union'
+              ? 'ST_Union'
+              : 'ST_Difference';
         sql = `SELECT ST_AsGeoJSON(${fn}(ST_SetSRID(ST_GeomFromGeoJSON('${safeA}'), ${srid}), ST_SetSRID(ST_GeomFromGeoJSON('${safeB}'), ${srid})))::json AS geometry`;
         break;
       }
     }
 
     const rows = await this.prisma.$queryRawUnsafe<{ geometry: unknown }[]>(sql);
+    logger.info('Spatial analysis executed', { operation: input.operation });
     return {
       type: input.operation,
       geometry: rows[0]?.geometry ?? null,

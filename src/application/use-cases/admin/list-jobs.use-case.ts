@@ -1,4 +1,7 @@
 import { QueueService } from '../../../infrastructure/queue/queue.service.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('ListJobsUseCase');
 
 export interface JobInfo {
   id: string;
@@ -26,11 +29,21 @@ export class ListJobsUseCase {
       const queue = this.queueService.getQueue(name);
       if (!queue) continue;
 
-      const counts = await queue.getJobCounts('active', 'completed', 'failed', 'delayed', 'waiting');
+      const counts = await queue.getJobCounts(
+        'active',
+        'completed',
+        'failed',
+        'delayed',
+        'waiting',
+      );
 
       // Get recent jobs (last 20)
-      const jobs = await queue.getJobs(['active', 'completed', 'failed', 'waiting', 'delayed'], 0, 19);
-      const recentJobs: JobInfo[] = jobs.map(job => ({
+      const jobs = await queue.getJobs(
+        ['active', 'completed', 'failed', 'waiting', 'delayed'],
+        0,
+        19,
+      );
+      const recentJobs: JobInfo[] = jobs.map((job) => ({
         id: job.id ?? '',
         type: job.name,
         status: '', // will be filled below
@@ -48,6 +61,7 @@ export class ListJobsUseCase {
       queues.push({ name, counts, recentJobs });
     }
 
+    logger.debug('Job queues listed', { queueCount: queues.length });
     return { queues };
   }
 }

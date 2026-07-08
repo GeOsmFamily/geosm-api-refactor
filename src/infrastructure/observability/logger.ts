@@ -23,9 +23,7 @@ const consoleFormat = isProduction
       }),
     );
 
-const transports: winston.transport[] = [
-  new winston.transports.Console({ format: consoleFormat }),
-];
+const transports: winston.transport[] = [new winston.transports.Console({ format: consoleFormat })];
 
 // File transports with daily rotation (only if winston-daily-rotate-file is available)
 try {
@@ -73,7 +71,9 @@ if (graylogHost) {
     });
 
     // Custom GELF transport
-    const TransportBase = winston.transports.Console.constructor as new (opts?: Record<string, unknown>) => winston.transport;
+    const TransportBase = winston.transports.Console.constructor as new (
+      opts?: Record<string, unknown>,
+    ) => winston.transport;
     class GelfTransport extends TransportBase {
       log(info: Record<string, unknown>, callback: () => void): void {
         const { level, message, ...meta } = info;

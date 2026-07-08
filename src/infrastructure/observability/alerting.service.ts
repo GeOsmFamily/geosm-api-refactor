@@ -12,15 +12,26 @@ const alertLogger = createChildLogger('AlertingService');
 export class AlertingService {
   private readonly slackWebhookUrl: string | undefined;
   private readonly alertEmailTo: string | undefined;
-  private readonly emailService: { sendAlertEmail?: (to: string, subject: string, html: string) => Promise<void> } | null;
+  private readonly emailService: {
+    sendAlertEmail?: (to: string, subject: string, html: string) => Promise<void>;
+  } | null;
 
-  constructor(emailService?: { sendAlertEmail?: (to: string, subject: string, html: string) => Promise<void> } | null) {
+  constructor(
+    emailService?: {
+      sendAlertEmail?: (to: string, subject: string, html: string) => Promise<void>;
+    } | null,
+  ) {
     this.slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
     this.alertEmailTo = process.env.ALERT_EMAIL_TO;
     this.emailService = emailService ?? null;
   }
 
-  async sendAlert(level: AlertLevel, title: string, message: string, metadata?: AlertMetadata): Promise<void> {
+  async sendAlert(
+    level: AlertLevel,
+    title: string,
+    message: string,
+    metadata?: AlertMetadata,
+  ): Promise<void> {
     const alertData = {
       level,
       title,
@@ -46,29 +57,47 @@ export class AlertingService {
     if (level === 'CRITICAL' && this.alertEmailTo && this.emailService?.sendAlertEmail) {
       try {
         const html = `<h2>[${level}] ${title}</h2><p>${message}</p><pre>${JSON.stringify(metadata, null, 2)}</pre><p><small>${alertData.timestamp} on ${alertData.hostname}</small></p>`;
-        await this.emailService.sendAlertEmail(this.alertEmailTo, `[GeOSM ALERT - ${level}] ${title}`, html);
+        await this.emailService.sendAlertEmail(
+          this.alertEmailTo,
+          `[GeOSM ALERT - ${level}] ${title}`,
+          html,
+        );
       } catch (err) {
-        alertLogger.error('Failed to send alert email', { error: err instanceof Error ? err.message : String(err) });
+        alertLogger.error('Failed to send alert email', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
   }
 
   async alertOnHighErrorRate(threshold: number): Promise<void> {
     // This would be called periodically by a monitoring loop
-    await this.sendAlert('WARNING', 'High Error Rate', `Error rate has exceeded ${threshold}%`, { threshold });
+    await this.sendAlert('WARNING', 'High Error Rate', `Error rate has exceeded ${threshold}%`, {
+      threshold,
+    });
   }
 
   async alertOnSlowQueries(thresholdMs: number): Promise<void> {
-    await this.sendAlert('WARNING', 'Slow Database Queries Detected', `Queries exceeding ${thresholdMs}ms threshold`, { thresholdMs });
+    await this.sendAlert(
+      'WARNING',
+      'Slow Database Queries Detected',
+      `Queries exceeding ${thresholdMs}ms threshold`,
+      { thresholdMs },
+    );
   }
 
   async alertOnJobFailure(jobName: string, error: Error | string): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : error;
-    await this.sendAlert('CRITICAL', 'Job Processing Failed', `Job "${jobName}" failed: ${errorMessage}`, {
-      jobName,
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    await this.sendAlert(
+      'CRITICAL',
+      'Job Processing Failed',
+      `Job "${jobName}" failed: ${errorMessage}`,
+      {
+        jobName,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+    );
   }
 
   async alertOnDiskSpace(thresholdPercent: number): Promise<void> {
@@ -77,13 +106,20 @@ export class AlertingService {
       const output = execSync("df -h / | tail -1 | awk '{print $5}'").toString().trim();
       const usagePercent = parseInt(output.replace('%', ''), 10);
       if (usagePercent >= thresholdPercent) {
-        await this.sendAlert('WARNING', 'Disk Space Alert', `Disk usage at ${usagePercent}% (threshold: ${thresholdPercent}%)`, {
-          usagePercent,
-          thresholdPercent,
-        });
+        await this.sendAlert(
+          'WARNING',
+          'Disk Space Alert',
+          `Disk usage at ${usagePercent}% (threshold: ${thresholdPercent}%)`,
+          {
+            usagePercent,
+            thresholdPercent,
+          },
+        );
       }
     } catch (err) {
-      alertLogger.warn('Failed to check disk space', { error: err instanceof Error ? err.message : String(err) });
+      alertLogger.warn('Failed to check disk space', {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -92,12 +128,17 @@ export class AlertingService {
     const freeMem = os.freemem();
     const usagePercent = Math.round(((totalMem - freeMem) / totalMem) * 100);
     if (usagePercent >= thresholdPercent) {
-      await this.sendAlert('WARNING', 'High Memory Usage', `Memory usage at ${usagePercent}% (threshold: ${thresholdPercent}%)`, {
-        usagePercent,
-        thresholdPercent,
-        totalMem: Math.round(totalMem / 1024 / 1024),
-        freeMem: Math.round(freeMem / 1024 / 1024),
-      });
+      await this.sendAlert(
+        'WARNING',
+        'High Memory Usage',
+        `Memory usage at ${usagePercent}% (threshold: ${thresholdPercent}%)`,
+        {
+          usagePercent,
+          thresholdPercent,
+          totalMem: Math.round(totalMem / 1024 / 1024),
+          freeMem: Math.round(freeMem / 1024 / 1024),
+        },
+      );
     }
   }
 
@@ -112,8 +153,18 @@ export class AlertingService {
   }): Promise<void> {
     if (!this.slackWebhookUrl) return;
 
-    const color = alertData.level === 'CRITICAL' ? '#ff0000' : alertData.level === 'WARNING' ? '#ffaa00' : '#36a64f';
-    const emoji = alertData.level === 'CRITICAL' ? ':rotating_light:' : alertData.level === 'WARNING' ? ':warning:' : ':information_source:';
+    const color =
+      alertData.level === 'CRITICAL'
+        ? '#ff0000'
+        : alertData.level === 'WARNING'
+          ? '#ffaa00'
+          : '#36a64f';
+    const emoji =
+      alertData.level === 'CRITICAL'
+        ? ':rotating_light:'
+        : alertData.level === 'WARNING'
+          ? ':warning:'
+          : ':information_source:';
 
     const payload = {
       attachments: [
@@ -141,7 +192,9 @@ export class AlertingService {
         alertLogger.warn('Slack webhook returned non-OK status', { status: response.status });
       }
     } catch (err) {
-      alertLogger.error('Failed to send Slack notification', { error: err instanceof Error ? err.message : String(err) });
+      alertLogger.error('Failed to send Slack notification', {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 }
