@@ -6,9 +6,7 @@ import { createChildLogger } from '../../../infrastructure/observability/logger.
 const logger = createChildLogger('GetProfileUseCase');
 
 export class GetProfileUseCase {
-  constructor(
-    private readonly userRepository: IUserRepository,
-  ) {}
+  constructor(private readonly userRepository: IUserRepository) {}
 
   async execute(userId: string): Promise<UserProfileDTO> {
     logger.debug('Getting user profile', { userId });

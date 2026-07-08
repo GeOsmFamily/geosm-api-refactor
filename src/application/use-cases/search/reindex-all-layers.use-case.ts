@@ -20,7 +20,11 @@ export class ReindexAllLayersUseCase {
     private readonly meiliSearchService: MeiliSearchService,
   ) {}
 
-  async execute(): Promise<{ instancesProcessed: number; layersIndexed: number; layersFailed: number }> {
+  async execute(): Promise<{
+    instancesProcessed: number;
+    layersIndexed: number;
+    layersFailed: number;
+  }> {
     // Doit précéder l'indexation : addDocuments seul crée l'index sans attribut filtrable,
     // et toute recherche avec `filter: instanceId = "..."` échouerait ensuite en Bad Request.
     await this.meiliSearchService.updateFilterableAttributes('layers', ['instanceId']);
@@ -30,15 +34,18 @@ export class ReindexAllLayersUseCase {
     let layersFailed = 0;
 
     for (const instance of instances) {
-      const { data: layers } = await this.layerRepository.findByInstance(instance.id, { limit: 1000 });
+      const { data: layers } = await this.layerRepository.findByInstance(instance.id, {
+        limit: 1000,
+      });
       for (const layer of layers) {
         try {
           await this.indexLayerUseCase.execute(layer);
           layersIndexed++;
         } catch (error) {
           layersFailed++;
-          logger.error('Échec de la réindexation d\'une couche', {
-            layerId: layer.id, error: error instanceof Error ? error.message : error,
+          logger.error("Échec de la réindexation d'une couche", {
+            layerId: layer.id,
+            error: error instanceof Error ? error.message : error,
           });
         }
       }

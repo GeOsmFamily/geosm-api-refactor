@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Prisma } from '@prisma/client';
-import { PrismaSharedMapRepository, SharedMapRecord } from '../../../infrastructure/database/repositories/prisma-shared-map.repository.js';
+import {
+  PrismaSharedMapRepository,
+  SharedMapRecord,
+} from '../../../infrastructure/database/repositories/prisma-shared-map.repository.js';
 import crypto from 'crypto';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
@@ -14,7 +17,11 @@ export interface CreateSharedMapDTO {
 export class CreateSharedMapUseCase {
   constructor(private readonly sharedMapRepository: PrismaSharedMapRepository) {}
 
-  async execute(userId: string, instanceId: string, dto: CreateSharedMapDTO): Promise<SharedMapRecord> {
+  async execute(
+    userId: string,
+    instanceId: string,
+    dto: CreateSharedMapDTO,
+  ): Promise<SharedMapRecord> {
     const shortCode = crypto.randomBytes(4).toString('hex'); // 8 hex chars
     const expiresAt = dto.expiresInDays
       ? new Date(Date.now() + dto.expiresInDays * 24 * 60 * 60 * 1000)

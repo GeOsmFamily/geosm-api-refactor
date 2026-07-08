@@ -7,7 +7,13 @@ export type UpdateUserData = Partial<Omit<UserProps, 'id' | 'createdAt' | 'updat
 export interface IUserRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
-  findAll(options?: { page?: number; limit?: number; search?: string; role?: Role; isActive?: boolean }): Promise<{ data: User[]; total: number }>;
+  findAll(options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: Role;
+    isActive?: boolean;
+  }): Promise<{ data: User[]; total: number }>;
   create(data: CreateUserData): Promise<User>;
   update(id: string, data: UpdateUserData): Promise<User>;
   delete(id: string): Promise<void>;

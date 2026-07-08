@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { logger } from '../../infrastructure/observability/logger.js';
 
-const SENSITIVE_PARAMS = new Set(['password', 'token', 'secret', 'authorization', 'api_key', 'apiKey']);
+const SENSITIVE_PARAMS = new Set([
+  'password',
+  'token',
+  'secret',
+  'authorization',
+  'api_key',
+  'apiKey',
+]);
 
 function sanitizeQuery(query: Record<string, unknown>): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};

@@ -1,4 +1,7 @@
-import { SvgGeneratorService, SvgOptions } from '../../../infrastructure/utils/svg-generator.service.js';
+import {
+  SvgGeneratorService,
+  SvgOptions,
+} from '../../../infrastructure/utils/svg-generator.service.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
 const logger = createChildLogger('GenerateIconUseCase');

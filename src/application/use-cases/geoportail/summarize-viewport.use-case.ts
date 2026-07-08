@@ -5,14 +5,16 @@ import { logger } from '../../../infrastructure/observability/logger.js';
 import { localize } from '../../utils/localize.js';
 
 const NARRATIVE_PROMPT_BY_LANG: Record<string, (layerList: string) => string> = {
-  fr: (layerList) => `Voici les couches actuellement affichées sur une carte, avec leur nombre d'entités : ${layerList}. `
-    + `Rédige en français un court paragraphe (2-3 phrases) qui met en avant ce qui est notable dans cette `
-    + `zone pour un public non-technique (élu local, ONG). Ne répète pas mécaniquement les chiffres, donne `
-    + `une lecture qualitative (ex: couverture faible/forte, thématiques dominantes).`,
-  en: (layerList) => `Here are the layers currently shown on a map, with their feature count: ${layerList}. `
-    + `Write a short paragraph in English (2-3 sentences) highlighting what's notable about this `
-    + `area for a non-technical audience (local official, NGO). Don't just repeat the numbers, give `
-    + `a qualitative reading (e.g. weak/strong coverage, dominant themes).`,
+  fr: (layerList) =>
+    `Voici les couches actuellement affichées sur une carte, avec leur nombre d'entités : ${layerList}. ` +
+    `Rédige en français un court paragraphe (2-3 phrases) qui met en avant ce qui est notable dans cette ` +
+    `zone pour un public non-technique (élu local, ONG). Ne répète pas mécaniquement les chiffres, donne ` +
+    `une lecture qualitative (ex: couverture faible/forte, thématiques dominantes).`,
+  en: (layerList) =>
+    `Here are the layers currently shown on a map, with their feature count: ${layerList}. ` +
+    `Write a short paragraph in English (2-3 sentences) highlighting what's notable about this ` +
+    `area for a non-technical audience (local official, NGO). Don't just repeat the numbers, give ` +
+    `a qualitative reading (e.g. weak/strong coverage, dominant themes).`,
 };
 
 export interface ViewportSummary {
@@ -47,7 +49,8 @@ export class SummarizeViewportUseCase {
         perLayer.push({ name: localize(layer.name, lang), featureCount: stats.featureCount });
       } catch (error) {
         logger.warn('Statistiques indisponibles pour une couche du résumé de vue', {
-          layerId, error: error instanceof Error ? error.message : error,
+          layerId,
+          error: error instanceof Error ? error.message : error,
         });
       }
     }

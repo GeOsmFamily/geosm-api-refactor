@@ -5,9 +5,7 @@ import { createChildLogger } from '../../../infrastructure/observability/logger.
 const logger = createChildLogger('DeleteExportUseCase');
 
 export class DeleteExportUseCase {
-  constructor(
-    private readonly exportRepository: IExportRepository,
-  ) {}
+  constructor(private readonly exportRepository: IExportRepository) {}
 
   async execute(id: string): Promise<void> {
     const existing = await this.exportRepository.findById(id);

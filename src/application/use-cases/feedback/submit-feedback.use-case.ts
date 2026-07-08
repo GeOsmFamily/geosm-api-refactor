@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { FeedbackType } from '@prisma/client';
-import { PrismaFeedbackRepository, FeedbackRecord } from '../../../infrastructure/database/repositories/prisma-feedback.repository.js';
+import {
+  PrismaFeedbackRepository,
+  FeedbackRecord,
+} from '../../../infrastructure/database/repositories/prisma-feedback.repository.js';
 import { AlertingService } from '../../../infrastructure/observability/alerting.service.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 

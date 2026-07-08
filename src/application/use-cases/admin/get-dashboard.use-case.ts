@@ -29,7 +29,12 @@ export class GetDashboardUseCase {
       this.defaultThemeRepository.count(),
     ]);
 
-    logger.debug('Dashboard stats retrieved', { instanceCount: instances.total, userCount: users.total, exportCount, themeCount });
+    logger.debug('Dashboard stats retrieved', {
+      instanceCount: instances.total,
+      userCount: users.total,
+      exportCount,
+      themeCount,
+    });
     return {
       instanceCount: instances.total,
       userCount: users.total,

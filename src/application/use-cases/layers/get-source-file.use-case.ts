@@ -36,7 +36,7 @@ export class GetSourceFileUseCase {
     if (!exists) {
       if (!layer.schemaName || !layer.tableName) {
         throw new ValidationError(
-          'Cette couche n\'a pas de données PostGIS exploitables (source externe, ex. projet QGIS) : téléchargement impossible.',
+          "Cette couche n'a pas de données PostGIS exploitables (source externe, ex. projet QGIS) : téléchargement impossible.",
           {},
         );
       }
@@ -51,10 +51,24 @@ export class GetSourceFileUseCase {
   private async exportAndUpload(schema: string, table: string, objectName: string): Promise<void> {
     const tmpPath = path.join(config.DATA_DIR, `layer-export-${randomUUID()}.geojson`);
     try {
-      await this.ogr2ogrService.exportToFile({ schema, table, format: 'GeoJSON', outputPath: tmpPath });
+      await this.ogr2ogrService.exportToFile({
+        schema,
+        table,
+        format: 'GeoJSON',
+        outputPath: tmpPath,
+      });
       const buffer = await readFile(tmpPath);
-      await this.storageService.uploadFile(objectName, buffer, 'application/geo+json', buffer.length);
-      logger.info('Export GeoJSON généré à la demande et mis en cache dans MinIO', { schema, table, objectName });
+      await this.storageService.uploadFile(
+        objectName,
+        buffer,
+        'application/geo+json',
+        buffer.length,
+      );
+      logger.info('Export GeoJSON généré à la demande et mis en cache dans MinIO', {
+        schema,
+        table,
+        objectName,
+      });
     } finally {
       await unlink(tmpPath).catch(() => undefined);
     }

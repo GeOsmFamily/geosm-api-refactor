@@ -16,10 +16,17 @@ export class ChangeUserRoleUseCase {
     // Trace d'audit sensible : élévation/rétrogradation de privilèges d'un compte.
     logger.info('User role changed', { userId: id, fromRole: existing.role, toRole: dto.role });
     return {
-      id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName,
-      avatar: user.avatar, role: user.role, isActive: user.isActive,
-      emailVerifiedAt: user.emailVerifiedAt, lastLoginAt: user.lastLoginAt,
-      createdAt: user.createdAt, updatedAt: user.updatedAt,
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatar: user.avatar,
+      role: user.role,
+      isActive: user.isActive,
+      emailVerifiedAt: user.emailVerifiedAt,
+      lastLoginAt: user.lastLoginAt,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   }
 }

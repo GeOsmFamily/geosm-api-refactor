@@ -78,7 +78,11 @@ export class PrismaCommentRepository {
   }
 
   async setResolved(id: string, resolved: boolean): Promise<CommentRecord> {
-    const record = await this.prisma.comment.update({ where: { id }, data: { resolved }, include: authorSelect });
+    const record = await this.prisma.comment.update({
+      where: { id },
+      data: { resolved },
+      include: authorSelect,
+    });
     return withAuthorName(record) as CommentRecord;
   }
 
@@ -91,7 +95,9 @@ export class PrismaCommentRepository {
    * à findByInstanceId qui ne remonte que les racines pour l'affichage carte) - un modérateur doit
    * pouvoir retrouver une réponse signalée indépendamment de son fil parent.
    */
-  async adminList(options: AdminListCommentsOptions): Promise<{ data: CommentRecord[]; total: number }> {
+  async adminList(
+    options: AdminListCommentsOptions,
+  ): Promise<{ data: CommentRecord[]; total: number }> {
     const page = options.page ?? 1;
     const limit = options.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -115,10 +121,18 @@ export class PrismaCommentRepository {
     return { data: records.map((r) => withAuthorName(r) as CommentRecord), total };
   }
 
-  async setFlagged(id: string, flagged: boolean, flagReason?: string | null): Promise<CommentRecord> {
+  async setFlagged(
+    id: string,
+    flagged: boolean,
+    flagReason?: string | null,
+  ): Promise<CommentRecord> {
     const record = await this.prisma.comment.update({
       where: { id },
-      data: { flagged, flagReason: flagged ? (flagReason ?? null) : null, flaggedAt: flagged ? new Date() : null },
+      data: {
+        flagged,
+        flagReason: flagged ? (flagReason ?? null) : null,
+        flaggedAt: flagged ? new Date() : null,
+      },
       include: authorSelect,
     });
     return withAuthorName(record) as CommentRecord;

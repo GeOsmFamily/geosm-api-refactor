@@ -6,11 +6,12 @@ import { createChildLogger } from '../../../infrastructure/observability/logger.
 const logger = createChildLogger('UpdateLayerStyleUseCase');
 
 export class UpdateLayerStyleUseCase {
-  constructor(
-    private readonly layerStyleRepository: ILayerStyleRepository,
-  ) {}
+  constructor(private readonly layerStyleRepository: ILayerStyleRepository) {}
 
-  async execute(id: string, data: Partial<Omit<LayerStyle, 'id' | 'createdAt' | 'updatedAt'>>): Promise<LayerStyle> {
+  async execute(
+    id: string,
+    data: Partial<Omit<LayerStyle, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<LayerStyle> {
     const existing = await this.layerStyleRepository.findById(id);
     if (!existing) throw new NotFoundError('LayerStyle', id);
     const updated = await this.layerStyleRepository.update(id, data);

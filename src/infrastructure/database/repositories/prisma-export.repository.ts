@@ -11,7 +11,10 @@ export class PrismaExportRepository implements IExportRepository {
     return record ? this.toDomain(record) : null;
   }
 
-  async findByUser(userId: string, options?: { page?: number; limit?: number; status?: JobStatus }): Promise<{ data: Export[]; total: number }> {
+  async findByUser(
+    userId: string,
+    options?: { page?: number; limit?: number; status?: JobStatus },
+  ): Promise<{ data: Export[]; total: number }> {
     const page = options?.page ?? 1;
     const limit = options?.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -24,7 +27,7 @@ export class PrismaExportRepository implements IExportRepository {
       this.prisma.export.count({ where }),
     ]);
 
-    return { data: records.map(r => this.toDomain(r)), total };
+    return { data: records.map((r) => this.toDomain(r)), total };
   }
 
   async create(data: Omit<Export, 'createdAt' | 'updatedAt'>): Promise<Export> {
@@ -48,7 +51,10 @@ export class PrismaExportRepository implements IExportRepository {
     return this.toDomain(record);
   }
 
-  async update(id: string, data: Partial<Omit<Export, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Export> {
+  async update(
+    id: string,
+    data: Partial<Omit<Export, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<Export> {
     const updateData: Prisma.ExportUpdateInput = {};
     if (data.format !== undefined) updateData.format = data.format;
     if (data.status !== undefined) updateData.status = data.status;

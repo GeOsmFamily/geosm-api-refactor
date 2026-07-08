@@ -21,7 +21,10 @@ export class ChangePasswordUseCase {
       throw new NotFoundError('User', userId);
     }
 
-    const isCurrentPasswordValid = await this.passwordService.verify(dto.currentPassword, user.passwordHash);
+    const isCurrentPasswordValid = await this.passwordService.verify(
+      dto.currentPassword,
+      user.passwordHash,
+    );
     if (!isCurrentPasswordValid) {
       logger.warn('Change password rejected: wrong current password', { userId });
       throw new UnauthorizedError('Current password is incorrect');

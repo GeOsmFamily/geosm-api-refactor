@@ -10,9 +10,18 @@ import { GetAssistantConversationUseCase } from '../../application/use-cases/ass
 import { DeleteAssistantConversationUseCase } from '../../application/use-cases/assistant/delete-assistant-conversation.use-case.js';
 import { resolveLang } from '../utils/lang.util.js';
 
-function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
+function parseBody<T>(
+  schema: {
+    safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } };
+  },
+  body: unknown,
+): T {
   const result = schema.safeParse(body);
-  if (!result.success) throw new ValidationError('Validation failed', result.error?.format() as Record<string, unknown>);
+  if (!result.success)
+    throw new ValidationError(
+      'Validation failed',
+      result.error?.format() as Record<string, unknown>,
+    );
   return result.data as T;
 }
 
@@ -27,55 +36,99 @@ const createConversationBodySchema = z.object({ instanceId: z.string().uuid() })
 const conversationIdParamSchema = z.object({ id: z.string().uuid() });
 
 export async function assistantRoutes(app: FastifyInstance): Promise<void> {
-  const assistantChatUseCase = app.diContainer.resolve<AssistantChatUseCase>('assistantChatUseCase');
-  const listAssistantConversationsUseCase = app.diContainer.resolve<ListAssistantConversationsUseCase>('listAssistantConversationsUseCase');
-  const createAssistantConversationUseCase = app.diContainer.resolve<CreateAssistantConversationUseCase>('createAssistantConversationUseCase');
-  const getAssistantConversationUseCase = app.diContainer.resolve<GetAssistantConversationUseCase>('getAssistantConversationUseCase');
-  const deleteAssistantConversationUseCase = app.diContainer.resolve<DeleteAssistantConversationUseCase>('deleteAssistantConversationUseCase');
+  const assistantChatUseCase =
+    app.diContainer.resolve<AssistantChatUseCase>('assistantChatUseCase');
+  const listAssistantConversationsUseCase =
+    app.diContainer.resolve<ListAssistantConversationsUseCase>('listAssistantConversationsUseCase');
+  const createAssistantConversationUseCase =
+    app.diContainer.resolve<CreateAssistantConversationUseCase>(
+      'createAssistantConversationUseCase',
+    );
+  const getAssistantConversationUseCase = app.diContainer.resolve<GetAssistantConversationUseCase>(
+    'getAssistantConversationUseCase',
+  );
+  const deleteAssistantConversationUseCase =
+    app.diContainer.resolve<DeleteAssistantConversationUseCase>(
+      'deleteAssistantConversationUseCase',
+    );
 
   // GET /api/v1/assistant/conversations?instanceId=...
-  app.get('/conversations', {
-    schema: { description: 'Lister les conversations de l\'assistant IA de l\'utilisateur', tags: ['Assistant IA'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(listConversationsQuerySchema) },
-    preHandler: [app.authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { instanceId } = parseBody(listConversationsQuerySchema, request.query);
-    const userId = (request.user as { sub: string }).sub;
-    const result = await listAssistantConversationsUseCase.execute(userId, instanceId);
-    return reply.send(successResponse(result));
-  });
+  app.get(
+    '/conversations',
+    {
+      schema: {
+        description: "Lister les conversations de l'assistant IA de l'utilisateur",
+        tags: ['Assistant IA'],
+        security: [{ bearerAuth: [] }],
+        querystring: zodToSwagger(listConversationsQuerySchema),
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { instanceId } = parseBody(listConversationsQuerySchema, request.query);
+      const userId = (request.user as { sub: string }).sub;
+      const result = await listAssistantConversationsUseCase.execute(userId, instanceId);
+      return reply.send(successResponse(result));
+    },
+  );
 
   // POST /api/v1/assistant/conversations
-  app.post('/conversations', {
-    schema: { description: 'Créer une nouvelle conversation avec l\'assistant IA', tags: ['Assistant IA'], security: [{ bearerAuth: [] }], body: zodToSwagger(createConversationBodySchema) },
-    preHandler: [app.authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { instanceId } = parseBody(createConversationBodySchema, request.body);
-    const userId = (request.user as { sub: string }).sub;
-    const result = await createAssistantConversationUseCase.execute(userId, instanceId);
-    return reply.status(201).send(successResponse(result));
-  });
+  app.post(
+    '/conversations',
+    {
+      schema: {
+        description: "Créer une nouvelle conversation avec l'assistant IA",
+        tags: ['Assistant IA'],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(createConversationBodySchema),
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { instanceId } = parseBody(createConversationBodySchema, request.body);
+      const userId = (request.user as { sub: string }).sub;
+      const result = await createAssistantConversationUseCase.execute(userId, instanceId);
+      return reply.status(201).send(successResponse(result));
+    },
+  );
 
   // GET /api/v1/assistant/conversations/:id
-  app.get('/conversations/:id', {
-    schema: { description: 'Détail d\'une conversation (avec historique complet)', tags: ['Assistant IA'], security: [{ bearerAuth: [] }] },
-    preHandler: [app.authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = parseBody(conversationIdParamSchema, request.params);
-    const userId = (request.user as { sub: string }).sub;
-    const result = await getAssistantConversationUseCase.execute(userId, id);
-    return reply.send(successResponse(result));
-  });
+  app.get(
+    '/conversations/:id',
+    {
+      schema: {
+        description: "Détail d'une conversation (avec historique complet)",
+        tags: ['Assistant IA'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = parseBody(conversationIdParamSchema, request.params);
+      const userId = (request.user as { sub: string }).sub;
+      const result = await getAssistantConversationUseCase.execute(userId, id);
+      return reply.send(successResponse(result));
+    },
+  );
 
   // DELETE /api/v1/assistant/conversations/:id
-  app.delete('/conversations/:id', {
-    schema: { description: 'Supprimer une conversation', tags: ['Assistant IA'], security: [{ bearerAuth: [] }] },
-    preHandler: [app.authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = parseBody(conversationIdParamSchema, request.params);
-    const userId = (request.user as { sub: string }).sub;
-    await deleteAssistantConversationUseCase.execute(userId, id);
-    return reply.status(204).send();
-  });
+  app.delete(
+    '/conversations/:id',
+    {
+      schema: {
+        description: 'Supprimer une conversation',
+        tags: ['Assistant IA'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = parseBody(conversationIdParamSchema, request.params);
+      const userId = (request.user as { sub: string }).sub;
+      await deleteAssistantConversationUseCase.execute(userId, id);
+      return reply.status(204).send();
+    },
+  );
 
   // POST /api/v1/assistant/chat
   // Assistant IA agentique (Gemini function-calling) : pilote les endpoints existants
@@ -85,18 +138,28 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
   // `clientActions` pour que le frontend les exécute lui-même, jamais exécutées par le
   // backend. L'historique est persisté côté serveur par conversation (voir
   // AssistantConversation) - le client n'a besoin de renvoyer que le nouveau message.
-  app.post('/chat', {
-    schema: {
-      description: 'Discuter avec l\'assistant IA du géoportail (function-calling Gemini)',
-      tags: ['Assistant IA'],
-      security: [{ bearerAuth: [] }],
-      body: zodToSwagger(chatBodySchema),
+  app.post(
+    '/chat',
+    {
+      schema: {
+        description: "Discuter avec l'assistant IA du géoportail (function-calling Gemini)",
+        tags: ['Assistant IA'],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(chatBodySchema),
+      },
+      preHandler: [app.authenticate],
     },
-    preHandler: [app.authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { instanceId, conversationId, message } = parseBody(chatBodySchema, request.body);
-    const userId = (request.user as { sub: string }).sub;
-    const result = await assistantChatUseCase.execute(userId, instanceId, conversationId, message, resolveLang(request));
-    return reply.send(successResponse(result));
-  });
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { instanceId, conversationId, message } = parseBody(chatBodySchema, request.body);
+      const userId = (request.user as { sub: string }).sub;
+      const result = await assistantChatUseCase.execute(
+        userId,
+        instanceId,
+        conversationId,
+        message,
+        resolveLang(request),
+      );
+      return reply.send(successResponse(result));
+    },
+  );
 }

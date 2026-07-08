@@ -33,7 +33,15 @@ export class GetDatabaseOverviewUseCase {
       this.prisma.$queryRawUnsafe<{ size_bytes: bigint; size_pretty: string }[]>(
         `SELECT pg_database_size(current_database()) AS size_bytes, pg_size_pretty(pg_database_size(current_database())) AS size_pretty`,
       ),
-      this.prisma.$queryRawUnsafe<{ schemaname: string; relname: string; size_bytes: bigint; size_pretty: string; row_estimate: bigint }[]>(
+      this.prisma.$queryRawUnsafe<
+        {
+          schemaname: string;
+          relname: string;
+          size_bytes: bigint;
+          size_pretty: string;
+          row_estimate: bigint;
+        }[]
+      >(
         `SELECT schemaname, relname,
                 pg_total_relation_size(relid) AS size_bytes,
                 pg_size_pretty(pg_total_relation_size(relid)) AS size_pretty,

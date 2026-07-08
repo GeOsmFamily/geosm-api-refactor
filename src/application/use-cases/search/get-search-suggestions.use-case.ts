@@ -24,7 +24,12 @@ export class GetSearchSuggestionsUseCase {
     private readonly layerRepository: ILayerRepository,
   ) {}
 
-  async execute(userId: string | undefined, instanceId: string, limit = 5, lang = 'fr'): Promise<LayerSuggestion[]> {
+  async execute(
+    userId: string | undefined,
+    instanceId: string,
+    limit = 5,
+    lang = 'fr',
+  ): Promise<LayerSuggestion[]> {
     let ranked = userId
       ? await this.analyticsRepository.getTopActivatedLayersForUser(userId, instanceId, limit)
       : [];
@@ -36,7 +41,12 @@ export class GetSearchSuggestionsUseCase {
     const suggestions: LayerSuggestion[] = [];
     for (const r of ranked) {
       const layer = await this.layerRepository.findById(r.layerId);
-      if (layer) suggestions.push({ id: layer.id, name: localize(layer.name, lang), description: localize(layer.description, lang) || null });
+      if (layer)
+        suggestions.push({
+          id: layer.id,
+          name: localize(layer.name, lang),
+          description: localize(layer.description, lang) || null,
+        });
     }
     logger.debug('Search suggestions computed', { userId, instanceId, count: suggestions.length });
     return suggestions;

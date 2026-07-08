@@ -27,7 +27,12 @@ export class FindNearestFeatureUseCase {
     private readonly osrmService: OSRMService,
   ) {}
 
-  async execute(layerId: string, lon: number, lat: number, limit = 3): Promise<NearestFeatureResult[]> {
+  async execute(
+    layerId: string,
+    lon: number,
+    lat: number,
+    limit = 3,
+  ): Promise<NearestFeatureResult[]> {
     const layer = await this.layerRepository.findById(layerId);
     if (!layer) throw new NotFoundError('Layer', layerId);
     if (!layer.schemaName || !layer.tableName) {
@@ -35,7 +40,11 @@ export class FindNearestFeatureUseCase {
     }
 
     const candidates = await this.postGISService.findNearestCandidates(
-      layer.schemaName, layer.tableName, lon, lat, Math.max(CANDIDATE_POOL_SIZE, limit),
+      layer.schemaName,
+      layer.tableName,
+      lon,
+      lat,
+      Math.max(CANDIDATE_POOL_SIZE, limit),
     );
     if (candidates.length === 0) return [];
 
@@ -45,10 +54,21 @@ export class FindNearestFeatureUseCase {
     const fallback: NearestFeatureResult[] = candidates
       .sort((a, b) => a.straightDistance - b.straightDistance)
       .slice(0, limit)
-      .map((c) => ({ id: c.id, name: c.name, lon: c.lon, lat: c.lat, distance: c.straightDistance, duration: null, routed: false }));
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        lon: c.lon,
+        lat: c.lat,
+        distance: c.straightDistance,
+        duration: null,
+        routed: false,
+      }));
 
     try {
-      const coordinates: [number, number][] = [[lon, lat], ...candidates.map((c) => [c.lon, c.lat] as [number, number])];
+      const coordinates: [number, number][] = [
+        [lon, lat],
+        ...candidates.map((c) => [c.lon, c.lat] as [number, number]),
+      ];
       const destinations = candidates.map((_, i) => i + 1);
       const table = await this.osrmService.table(coordinates, [0], destinations);
 
@@ -70,7 +90,10 @@ export class FindNearestFeatureUseCase {
 
       return ranked;
     } catch (err) {
-      logger.warn('OSRM table request failed, falling back to straight-line distance for nearest-feature search', { error: (err as Error).message });
+      logger.warn(
+        'OSRM table request failed, falling back to straight-line distance for nearest-feature search',
+        { error: (err as Error).message },
+      );
       return fallback;
     }
   }

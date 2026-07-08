@@ -9,7 +9,7 @@ export class ManageSequenceUseCase {
   async createSequence(name: string, start: number = 1, increment: number = 1) {
     const safeName = name.replace(/[^a-zA-Z0-9_]/g, '');
     await this.prisma.$executeRawUnsafe(
-      `CREATE SEQUENCE IF NOT EXISTS "${safeName}" START ${Number(start)} INCREMENT ${Number(increment)}`
+      `CREATE SEQUENCE IF NOT EXISTS "${safeName}" START ${Number(start)} INCREMENT ${Number(increment)}`,
     );
     logger.info('Sequence created', { name: safeName, start, increment });
     return { name: safeName, start, increment };
@@ -23,8 +23,10 @@ export class ManageSequenceUseCase {
   }
 
   async listSequences() {
-    const rows = await this.prisma.$queryRawUnsafe<{ sequence_name: string; start_value: string; increment: string }[]>(
-      `SELECT sequence_name, start_value::text, increment::text FROM information_schema.sequences WHERE sequence_schema = 'public'`
+    const rows = await this.prisma.$queryRawUnsafe<
+      { sequence_name: string; start_value: string; increment: string }[]
+    >(
+      `SELECT sequence_name, start_value::text, increment::text FROM information_schema.sequences WHERE sequence_schema = 'public'`,
     );
     return rows;
   }

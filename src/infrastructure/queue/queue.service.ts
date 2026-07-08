@@ -2,7 +2,12 @@ import { Queue, Worker, Job } from 'bullmq';
 import { trace } from '@opentelemetry/api';
 import { config } from '../../config/env.config.js';
 import { logger } from '../observability/logger.js';
-import { jobsProcessedTotal, jobsProcessingDurationSeconds, jobsWaitingCount, jobsFailedTotal } from '../observability/metrics.js';
+import {
+  jobsProcessedTotal,
+  jobsProcessingDurationSeconds,
+  jobsWaitingCount,
+  jobsFailedTotal,
+} from '../observability/metrics.js';
 
 const tracer = trace.getTracer('geosm-bullmq');
 
@@ -37,7 +42,12 @@ export class QueueService {
     return this.queues.get(name);
   }
 
-  async addJob(queueName: string, jobName: string, data: JobData, opts?: { priority?: number; delay?: number; attempts?: number }): Promise<Job> {
+  async addJob(
+    queueName: string,
+    jobName: string,
+    data: JobData,
+    opts?: { priority?: number; delay?: number; attempts?: number },
+  ): Promise<Job> {
     const queue = this.createQueue(queueName);
     return queue.add(jobName, data, {
       attempts: opts?.attempts ?? 3,
@@ -55,7 +65,12 @@ export class QueueService {
    * Idempotent : un job du même nom avec le même pattern n'est pas dupliqué par BullMQ,
    * donc rappeler cette méthode à chaque démarrage du serveur est sans danger.
    */
-  async addRepeatableJob(queueName: string, jobName: string, data: JobData, cronPattern: string): Promise<Job> {
+  async addRepeatableJob(
+    queueName: string,
+    jobName: string,
+    data: JobData,
+    cronPattern: string,
+  ): Promise<Job> {
     const queue = this.createQueue(queueName);
     return queue.add(jobName, data, { repeat: { pattern: cronPattern } });
   }
@@ -66,7 +81,11 @@ export class QueueService {
     return queue.getRepeatableJobs();
   }
 
-  registerWorker(queueName: string, processor: (job: Job) => Promise<unknown>, concurrency = 1): Worker {
+  registerWorker(
+    queueName: string,
+    processor: (job: Job) => Promise<unknown>,
+    concurrency = 1,
+  ): Worker {
     if (this.workers.has(queueName)) return this.workers.get(queueName)!;
     // Span manuel autour de l'exécution du job - aucune auto-instrumentation OTel ne couvre
     // BullMQ, sans quoi un job long (import OSM, backup...) resterait invisible en tracing.
@@ -87,7 +106,10 @@ export class QueueService {
     worker.on('completed', (job) => {
       jobsProcessedTotal.inc({ queue: queueName, status: 'completed' });
       if (job.processedOn && job.finishedOn) {
-        jobsProcessingDurationSeconds.observe({ queue: queueName }, (job.finishedOn - job.processedOn) / 1000);
+        jobsProcessingDurationSeconds.observe(
+          { queue: queueName },
+          (job.finishedOn - job.processedOn) / 1000,
+        );
       }
       logger.info(`Job completed: ${job.id} in queue ${queueName}`);
     });

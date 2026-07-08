@@ -1,4 +1,7 @@
-import { PrismaDocumentRepository, DocumentRecord } from '../../../infrastructure/database/repositories/prisma-document.repository.js';
+import {
+  PrismaDocumentRepository,
+  DocumentRecord,
+} from '../../../infrastructure/database/repositories/prisma-document.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 

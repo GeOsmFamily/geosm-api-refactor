@@ -17,7 +17,11 @@ export class DeleteDrawingUseCase {
     const drawing = await this.drawingRepository.findById(id);
     if (!drawing) throw new NotFoundError('Drawing', id);
     if (drawing.userId !== userId) {
-      logger.warn('Delete drawing rejected: not the owner (possible IDOR attempt)', { requestingUserId: userId, ownerId: drawing.userId, drawingId: id });
+      logger.warn('Delete drawing rejected: not the owner (possible IDOR attempt)', {
+        requestingUserId: userId,
+        ownerId: drawing.userId,
+        drawingId: id,
+      });
       throw new ForbiddenError('Ce dessin appartient à un autre utilisateur.');
     }
     await this.drawingRepository.delete(id);

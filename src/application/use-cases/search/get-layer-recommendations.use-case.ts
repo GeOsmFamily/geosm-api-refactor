@@ -24,15 +24,34 @@ export class GetLayerRecommendationsUseCase {
     private readonly layerRepository: ILayerRepository,
   ) {}
 
-  async execute(layerId: string, instanceId: string, limit = 5, lang = 'fr'): Promise<LayerRecommendation[]> {
-    const coActivated = await this.analyticsRepository.getCoActivatedLayers(layerId, instanceId, limit);
+  async execute(
+    layerId: string,
+    instanceId: string,
+    limit = 5,
+    lang = 'fr',
+  ): Promise<LayerRecommendation[]> {
+    const coActivated = await this.analyticsRepository.getCoActivatedLayers(
+      layerId,
+      instanceId,
+      limit,
+    );
 
     const recommendations: LayerRecommendation[] = [];
     for (const r of coActivated) {
       const layer = await this.layerRepository.findById(r.layerId);
-      if (layer) recommendations.push({ id: layer.id, name: localize(layer.name, lang), description: localize(layer.description, lang) || null, coUserCount: r.coUserCount });
+      if (layer)
+        recommendations.push({
+          id: layer.id,
+          name: localize(layer.name, lang),
+          description: localize(layer.description, lang) || null,
+          coUserCount: r.coUserCount,
+        });
     }
-    logger.debug('Layer recommendations computed', { layerId, instanceId, count: recommendations.length });
+    logger.debug('Layer recommendations computed', {
+      layerId,
+      instanceId,
+      count: recommendations.length,
+    });
     return recommendations;
   }
 }

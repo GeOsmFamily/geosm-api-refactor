@@ -18,7 +18,11 @@ export class DeleteCommentUseCase {
     const comment = await this.commentRepository.findById(id);
     if (!comment) throw new NotFoundError('Comment', id);
     if (comment.userId !== userId) {
-      logger.warn('Delete comment rejected: not the owner (possible IDOR attempt)', { requestingUserId: userId, ownerId: comment.userId, commentId: id });
+      logger.warn('Delete comment rejected: not the owner (possible IDOR attempt)', {
+        requestingUserId: userId,
+        ownerId: comment.userId,
+        commentId: id,
+      });
       throw new ForbiddenError('Ce commentaire appartient à un autre utilisateur.');
     }
     await this.commentRepository.delete(id);

@@ -28,7 +28,10 @@ export class SmtpEmailService implements IEmailService {
           pass: config.SMTP_PASS,
         },
       });
-      logger.info('SMTP email service initialized', { host: config.SMTP_HOST, port: config.SMTP_PORT });
+      logger.info('SMTP email service initialized', {
+        host: config.SMTP_HOST,
+        port: config.SMTP_PORT,
+      });
     } else {
       logger.warn('SMTP not configured — emails will be logged only');
     }

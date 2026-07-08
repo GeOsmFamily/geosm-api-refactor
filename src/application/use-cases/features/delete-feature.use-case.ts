@@ -19,7 +19,11 @@ export class DeleteFeatureUseCase {
     }
 
     // Verify feature exists
-    const existing = await this.postGISService.getFeatureById(layer.schemaName, layer.tableName, featureId);
+    const existing = await this.postGISService.getFeatureById(
+      layer.schemaName,
+      layer.tableName,
+      featureId,
+    );
     if (!existing) throw new NotFoundError('Feature', String(featureId));
 
     await this.postGISService.deleteFeature(layer.schemaName, layer.tableName, featureId);

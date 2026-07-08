@@ -1,4 +1,7 @@
-import { PrismaSharedMapRepository, SharedMapRecord } from '../../../infrastructure/database/repositories/prisma-shared-map.repository.js';
+import {
+  PrismaSharedMapRepository,
+  SharedMapRecord,
+} from '../../../infrastructure/database/repositories/prisma-shared-map.repository.js';
 import { PrismaInstanceRepository } from '../../../infrastructure/database/repositories/prisma-instance.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';

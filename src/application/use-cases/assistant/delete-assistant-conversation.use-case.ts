@@ -12,7 +12,11 @@ export class DeleteAssistantConversationUseCase {
     const record = await this.conversationRepository.findById(id);
     if (!record) throw new NotFoundError('AssistantConversation', id);
     if (record.userId !== userId) {
-      logger.warn('Delete assistant conversation rejected: not the owner', { requestingUserId: userId, ownerId: record.userId, conversationId: id });
+      logger.warn('Delete assistant conversation rejected: not the owner', {
+        requestingUserId: userId,
+        ownerId: record.userId,
+        conversationId: id,
+      });
       throw new ForbiddenError('Cette conversation appartient à un autre utilisateur.');
     }
     await this.conversationRepository.delete(id);

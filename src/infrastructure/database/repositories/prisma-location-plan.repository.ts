@@ -40,7 +40,10 @@ export class PrismaLocationPlanRepository implements ILocationPlanRepository {
     return this.toDomain(record);
   }
 
-  async update(id: string, data: Partial<Omit<LocationPlan, 'id' | 'createdAt' | 'updatedAt'>>): Promise<LocationPlan> {
+  async update(
+    id: string,
+    data: Partial<Omit<LocationPlan, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<LocationPlan> {
     const record = await this.prisma.locationPlan.update({
       where: { id },
       data: {

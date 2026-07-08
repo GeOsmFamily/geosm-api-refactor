@@ -38,7 +38,10 @@ export class NominatimService {
     });
   }
 
-  async search(query: string, options?: { viewbox?: string; bounded?: boolean; limit?: number; countrycodes?: string }): Promise<NominatimResult[]> {
+  async search(
+    query: string,
+    options?: { viewbox?: string; bounded?: boolean; limit?: number; countrycodes?: string },
+  ): Promise<NominatimResult[]> {
     return this.traced('nominatim.search', async () => {
       const params = new URLSearchParams({ q: query, format: 'json', polygon_geojson: '1' });
       if (options?.viewbox) params.set('viewbox', options.viewbox);
@@ -66,7 +69,11 @@ export class NominatimService {
 
   async lookup(osmIds: string[]): Promise<NominatimResult[]> {
     return this.traced('nominatim.lookup', async () => {
-      const params = new URLSearchParams({ osm_ids: osmIds.join(','), format: 'json', polygon_geojson: '1' });
+      const params = new URLSearchParams({
+        osm_ids: osmIds.join(','),
+        format: 'json',
+        polygon_geojson: '1',
+      });
       const response = await fetch(`${this.baseUrl}/lookup?${params}`, {
         headers: { 'User-Agent': 'GeOSM-API/1.0' },
       });

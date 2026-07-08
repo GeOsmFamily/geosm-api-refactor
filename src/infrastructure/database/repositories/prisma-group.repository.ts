@@ -11,7 +11,9 @@ export class PrismaGroupRepository implements IGroupRepository {
   }
 
   async findBySlug(slug: string, instanceId: string): Promise<Group | null> {
-    const record = await this.prisma.group.findUnique({ where: { slug_instanceId: { slug, instanceId } } });
+    const record = await this.prisma.group.findUnique({
+      where: { slug_instanceId: { slug, instanceId } },
+    });
     return record ? this.toDomain(record) : null;
   }
 
@@ -20,21 +22,30 @@ export class PrismaGroupRepository implements IGroupRepository {
       where: { instanceId },
       orderBy: { order: 'asc' },
     });
-    return records.map(r => this.toDomain(r));
+    return records.map((r) => this.toDomain(r));
   }
 
   async create(data: Omit<Group, 'createdAt' | 'updatedAt'>): Promise<Group> {
     const record = await this.prisma.group.create({
       data: {
-        id: data.id, name: data.name, slug: data.slug, description: data.description,
-        icon: data.icon, color: data.color, order: data.order, isActive: data.isActive,
+        id: data.id,
+        name: data.name,
+        slug: data.slug,
+        description: data.description,
+        icon: data.icon,
+        color: data.color,
+        order: data.order,
+        isActive: data.isActive,
         instanceId: data.instanceId,
       },
     });
     return this.toDomain(record);
   }
 
-  async update(id: string, data: Partial<Omit<Group, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Group> {
+  async update(
+    id: string,
+    data: Partial<Omit<Group, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<Group> {
     const record = await this.prisma.group.update({ where: { id }, data });
     return this.toDomain(record);
   }
@@ -49,9 +60,17 @@ export class PrismaGroupRepository implements IGroupRepository {
 
   private toDomain(record: PrismaGroup): Group {
     return new Group({
-      id: record.id, name: record.name, slug: record.slug, description: record.description,
-      icon: record.icon, color: record.color, order: record.order, isActive: record.isActive,
-      instanceId: record.instanceId, createdAt: record.createdAt, updatedAt: record.updatedAt,
+      id: record.id,
+      name: record.name,
+      slug: record.slug,
+      description: record.description,
+      icon: record.icon,
+      color: record.color,
+      order: record.order,
+      isActive: record.isActive,
+      instanceId: record.instanceId,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
     });
   }
 }

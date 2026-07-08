@@ -25,7 +25,10 @@ export class CreateLayerUseCase {
     const slug = Slug.create(dto.slug);
     const existing = await this.layerRepository.findBySlug(slug.value, instanceId);
     if (existing) {
-      logger.warn('Create layer rejected: slug already exists in instance', { instanceId, slug: slug.value });
+      logger.warn('Create layer rejected: slug already exists in instance', {
+        instanceId,
+        slug: slug.value,
+      });
       throw new ConflictError('Layer with this slug already exists in this instance');
     }
 
@@ -57,7 +60,10 @@ export class CreateLayerUseCase {
     try {
       await this.indexLayerUseCase?.execute(layer);
     } catch (error) {
-      logger.error('Layer indexing failed after creation', { layerId: layer.id, error: error instanceof Error ? error.message : String(error) });
+      logger.error('Layer indexing failed after creation', {
+        layerId: layer.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return layer;

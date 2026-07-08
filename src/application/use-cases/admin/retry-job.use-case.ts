@@ -17,7 +17,11 @@ export class RetryJobUseCase {
       if (job) {
         const state = await job.getState();
         if (state !== 'failed') {
-          logger.warn('Retry rejected: job is not in failed state', { jobId, queue: queueName, currentState: state });
+          logger.warn('Retry rejected: job is not in failed state', {
+            jobId,
+            queue: queueName,
+            currentState: state,
+          });
           return { success: false, message: `Job is not in failed state (current: ${state})` };
         }
         await job.retry(state);

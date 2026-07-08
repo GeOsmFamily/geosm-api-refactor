@@ -11,11 +11,13 @@ export interface AdminBoundaryResult {
 }
 
 export class FindAdminBoundaryUseCase {
-  constructor(
-    private readonly prisma: PrismaClient,
-  ) {}
+  constructor(private readonly prisma: PrismaClient) {}
 
-  async execute(lat: number, lon: number, tableName: string = 'public.admin_boundaries'): Promise<AdminBoundaryResult[]> {
+  async execute(
+    lat: number,
+    lon: number,
+    tableName: string = 'public.admin_boundaries',
+  ): Promise<AdminBoundaryResult[]> {
     const parts = tableName.split('.');
     const schema = parts.length > 1 ? parts[0] : 'public';
     const table = parts.length > 1 ? parts[1] : parts[0];

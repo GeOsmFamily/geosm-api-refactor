@@ -13,7 +13,13 @@ export interface GeosignetRecord {
 export class PrismaGeosignetRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async create(data: { id: string; userId: string; name: string; center: number[]; zoom: number }): Promise<GeosignetRecord> {
+  async create(data: {
+    id: string;
+    userId: string;
+    name: string;
+    center: number[];
+    zoom: number;
+  }): Promise<GeosignetRecord> {
     return this.prisma.geosignet.create({ data }) as Promise<GeosignetRecord>;
   }
 

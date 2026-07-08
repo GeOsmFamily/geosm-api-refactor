@@ -1,4 +1,7 @@
-import { PrismaMapCompositionRepository, MapCompositionRecord } from '../../../infrastructure/database/repositories/prisma-map-composition.repository.js';
+import {
+  PrismaMapCompositionRepository,
+  MapCompositionRecord,
+} from '../../../infrastructure/database/repositories/prisma-map-composition.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 

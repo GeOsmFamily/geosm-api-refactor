@@ -26,34 +26,63 @@ const logsQuerySchema = z.object({ tail: z.coerce.number().int().min(1).max(2000
  * instance).
  */
 export async function adminDockerRoutes(app: FastifyInstance): Promise<void> {
-  const listContainersUseCase = app.diContainer.resolve<ListContainersUseCase>('listContainersUseCase');
-  const getContainerStatsUseCase = app.diContainer.resolve<GetContainerStatsUseCase>('getContainerStatsUseCase');
-  const getContainerLogsUseCase = app.diContainer.resolve<GetContainerLogsUseCase>('getContainerLogsUseCase');
+  const listContainersUseCase =
+    app.diContainer.resolve<ListContainersUseCase>('listContainersUseCase');
+  const getContainerStatsUseCase = app.diContainer.resolve<GetContainerStatsUseCase>(
+    'getContainerStatsUseCase',
+  );
+  const getContainerLogsUseCase =
+    app.diContainer.resolve<GetContainerLogsUseCase>('getContainerLogsUseCase');
 
-  app.get('/containers', {
-    schema: { description: 'Lister les conteneurs Docker (lecture seule)', tags: ['Administration'], security: [{ bearerAuth: [] }] },
-    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
-  }, async (_request: FastifyRequest, reply: FastifyReply) => {
-    const result = await listContainersUseCase.execute();
-    return reply.send(successResponse(result));
-  });
+  app.get(
+    '/containers',
+    {
+      schema: {
+        description: 'Lister les conteneurs Docker (lecture seule)',
+        tags: ['Administration'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+    },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const result = await listContainersUseCase.execute();
+      return reply.send(successResponse(result));
+    },
+  );
 
-  app.get('/containers/:id/stats', {
-    schema: { description: 'Statistiques CPU/mémoire d\'un conteneur', tags: ['Administration'], security: [{ bearerAuth: [] }] },
-    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = parseBody(idParamSchema, request.params);
-    const result = await getContainerStatsUseCase.execute(id);
-    return reply.send(successResponse(result));
-  });
+  app.get(
+    '/containers/:id/stats',
+    {
+      schema: {
+        description: "Statistiques CPU/mémoire d'un conteneur",
+        tags: ['Administration'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = parseBody(idParamSchema, request.params);
+      const result = await getContainerStatsUseCase.execute(id);
+      return reply.send(successResponse(result));
+    },
+  );
 
-  app.get('/containers/:id/logs', {
-    schema: { description: 'Derniers logs d\'un conteneur', tags: ['Administration'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(logsQuerySchema) },
-    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = parseBody(idParamSchema, request.params);
-    const { tail } = parseBody(logsQuerySchema, request.query);
-    const result = await getContainerLogsUseCase.execute(id, tail);
-    return reply.send(successResponse(result));
-  });
+  app.get(
+    '/containers/:id/logs',
+    {
+      schema: {
+        description: "Derniers logs d'un conteneur",
+        tags: ['Administration'],
+        security: [{ bearerAuth: [] }],
+        querystring: zodToSwagger(logsQuerySchema),
+      },
+      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = parseBody(idParamSchema, request.params);
+      const { tail } = parseBody(logsQuerySchema, request.query);
+      const result = await getContainerLogsUseCase.execute(id, tail);
+      return reply.send(successResponse(result));
+    },
+  );
 }

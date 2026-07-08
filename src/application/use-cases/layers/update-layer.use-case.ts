@@ -22,7 +22,10 @@ export class UpdateLayerUseCase {
     try {
       await this.indexLayerUseCase?.execute(layer);
     } catch (error) {
-      logger.warn('Failed to re-index updated layer', { layerId: id, error: error instanceof Error ? error.message : String(error) });
+      logger.warn('Failed to re-index updated layer', {
+        layerId: id,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return layer;

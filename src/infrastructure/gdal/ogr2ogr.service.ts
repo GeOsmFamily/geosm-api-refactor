@@ -2,7 +2,10 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { config } from '../../config/env.config.js';
 import { logger } from '../observability/logger.js';
-import { ogr2ogrOperationsTotal, ogr2ogrOperationDurationSeconds } from '../observability/metrics.js';
+import {
+  ogr2ogrOperationsTotal,
+  ogr2ogrOperationDurationSeconds,
+} from '../observability/metrics.js';
 import { existsSync } from 'fs';
 import { mkdir, unlink } from 'fs/promises';
 import path from 'path';
@@ -42,7 +45,12 @@ export class Ogr2OgrService {
   }
 
   // Import a file into PostGIS using ogr2ogr
-  async importFile(filePath: string, schema: string, table: string, srid: number = 4326): Promise<ImportResult> {
+  async importFile(
+    filePath: string,
+    schema: string,
+    table: string,
+    srid: number = 4326,
+  ): Promise<ImportResult> {
     const pgConn = this.getPgConnectionString();
     const safeSchema = schema.replace(/[^a-zA-Z0-9_]/g, '');
     const safeTable = table.replace(/[^a-zA-Z0-9_]/g, '');
@@ -58,15 +66,21 @@ export class Ogr2OgrService {
 
     const cmd = [
       'ogr2ogr',
-      '-f', '"PostgreSQL"',
+      '-f',
+      '"PostgreSQL"',
       `"${pgConn}"`,
       `"${inputPath}"`,
-      '-nln', `"${safeSchema}"."${safeTable}"`,
+      '-nln',
+      `"${safeSchema}"."${safeTable}"`,
       '-overwrite',
-      '-t_srs', `EPSG:${srid}`,
-      '-lco', 'GEOMETRY_NAME=geom',
-      '-lco', 'FID=id',
-      '-lco', 'PRECISION=NO',
+      '-t_srs',
+      `EPSG:${srid}`,
+      '-lco',
+      'GEOMETRY_NAME=geom',
+      '-lco',
+      'FID=id',
+      '-lco',
+      'PRECISION=NO',
       '-progress',
     ].join(' ');
 
@@ -122,22 +136,25 @@ export class Ogr2OgrService {
     }
 
     const formatMap: Record<string, string> = {
-      'GPKG': 'GPKG',
-      'GeoJSON': 'GeoJSON',
+      GPKG: 'GPKG',
+      GeoJSON: 'GeoJSON',
       'ESRI Shapefile': 'ESRI Shapefile',
-      'KML': 'KML',
-      'CSV': 'CSV',
+      KML: 'KML',
+      CSV: 'CSV',
     };
 
     const outputFormat = formatMap[options.format] || 'GPKG';
 
     const cmd = [
       'ogr2ogr',
-      '-f', `"${outputFormat}"`,
+      '-f',
+      `"${outputFormat}"`,
       `"${options.outputPath}"`,
       `"${pgConn}"`,
-      '-sql', `"${sql.replace(/"/g, '\\"')}"`,
-      '-t_srs', `EPSG:${options.srid || 4326}`,
+      '-sql',
+      `"${sql.replace(/"/g, '\\"')}"`,
+      '-t_srs',
+      `EPSG:${options.srid || 4326}`,
     ].join(' ');
 
     logger.info('Running ogr2ogr export', { format: outputFormat, output: options.outputPath });
@@ -157,7 +174,9 @@ export class Ogr2OgrService {
   }
 
   // Get info about a geospatial file
-  async getFileInfo(filePath: string): Promise<{ featureCount: number; geometryType: string; srid: number; fields: string[] }> {
+  async getFileInfo(
+    filePath: string,
+  ): Promise<{ featureCount: number; geometryType: string; srid: number; fields: string[] }> {
     const ext = path.extname(filePath).toLowerCase();
     let inputPath = filePath;
     if (ext === '.zip') inputPath = `/vsizip/${filePath}`;
@@ -191,7 +210,12 @@ export class Ogr2OgrService {
   // Create GPKG from PostGIS SQL (like the old carto service)
   async createGpkgFromSql(sql: string, outputPath: string): Promise<string> {
     return this.exportToFile({
-      schema: '', table: '', format: 'GPKG', outputPath, sql, srid: 4326,
+      schema: '',
+      table: '',
+      format: 'GPKG',
+      outputPath,
+      sql,
+      srid: 4326,
     });
   }
 
@@ -199,6 +223,8 @@ export class Ogr2OgrService {
   async cleanup(filePath: string): Promise<void> {
     try {
       if (existsSync(filePath)) await unlink(filePath);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }

@@ -12,7 +12,8 @@ export interface GlobalSearchResult {
 /** Voir SearchLayersUseCase.localizeHit - même repli name_{lang} -> name_fr -> name brut. */
 function localizeHit(hit: Record<string, unknown>, lang: string): Record<string, unknown> {
   const localizedName = hit[`name_${lang}`] ?? hit['name_fr'] ?? hit['name'];
-  const localizedDescription = hit[`description_${lang}`] ?? hit['description_fr'] ?? hit['description'];
+  const localizedDescription =
+    hit[`description_${lang}`] ?? hit['description_fr'] ?? hit['description'];
   return { ...hit, name: localizedName, description: localizedDescription };
 }
 

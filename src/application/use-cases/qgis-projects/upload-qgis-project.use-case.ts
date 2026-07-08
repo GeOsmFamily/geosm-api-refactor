@@ -48,15 +48,20 @@ export class UploadQgisProjectUseCase {
       try {
         await execAsync(`unzip -o "${input.uploadedFilePath}" -d "${destDir}"`);
       } catch (error) {
-        throw new ValidationError('Échec de l\'extraction de l\'archive du projet QGIS.', { error: String(error) });
+        throw new ValidationError("Échec de l'extraction de l'archive du projet QGIS.", {
+          error: String(error),
+        });
       }
       const qgsPath = await this.findQgsFile(destDir);
       if (!qgsPath) {
-        throw new ValidationError('Aucun fichier .qgs trouvé dans l\'archive fournie.', {});
+        throw new ValidationError("Aucun fichier .qgs trouvé dans l'archive fournie.", {});
       }
       filePath = qgsPath;
     } else {
-      throw new ValidationError('Format de projet QGIS non supporté (.qgz, .qgs ou .zip attendu).', { originalFilename: input.originalFilename });
+      throw new ValidationError(
+        'Format de projet QGIS non supporté (.qgz, .qgs ou .zip attendu).',
+        { originalFilename: input.originalFilename },
+      );
     }
 
     const project = await this.qgisProjectRepository.create({

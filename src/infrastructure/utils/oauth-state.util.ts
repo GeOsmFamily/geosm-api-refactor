@@ -19,7 +19,9 @@ export function signOAuthState(payload: Record<string, string> = {}): string {
 export function verifyOAuthState(state: string): Record<string, string> | null {
   const [body, signature] = state.split('.');
   if (!body || !signature) return null;
-  const expectedSignature = createHmac('sha256', jwtConfig.accessSecret).update(body).digest('base64url');
+  const expectedSignature = createHmac('sha256', jwtConfig.accessSecret)
+    .update(body)
+    .digest('base64url');
   const sigBuf = Buffer.from(signature);
   const expectedBuf = Buffer.from(expectedSignature);
   if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) return null;

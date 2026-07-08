@@ -49,9 +49,13 @@ export class OSRMService {
     });
   }
 
-  async route(coordinates: [number, number][], profile = 'driving', options?: { alternatives?: boolean; steps?: boolean; geometries?: string }): Promise<OSRMRouteResult> {
+  async route(
+    coordinates: [number, number][],
+    profile = 'driving',
+    options?: { alternatives?: boolean; steps?: boolean; geometries?: string },
+  ): Promise<OSRMRouteResult> {
     return this.traced('osrm.route', async () => {
-      const coordStr = coordinates.map(c => `${c[0]},${c[1]}`).join(';');
+      const coordStr = coordinates.map((c) => `${c[0]},${c[1]}`).join(';');
       const params = new URLSearchParams();
       if (options?.alternatives) params.set('alternatives', 'true');
       if (options?.steps) params.set('steps', 'true');
@@ -65,7 +69,9 @@ export class OSRMService {
 
   async nearest(lon: number, lat: number, number = 1): Promise<OSRMNearestResult> {
     return this.traced('osrm.nearest', async () => {
-      const response = await fetch(`${this.baseUrl}/nearest/v1/driving/${lon},${lat}?number=${number}`);
+      const response = await fetch(
+        `${this.baseUrl}/nearest/v1/driving/${lon},${lat}?number=${number}`,
+      );
       if (!response.ok) throw new Error(`OSRM nearest failed: ${response.statusText}`);
       return response.json() as Promise<OSRMNearestResult>;
     });
@@ -74,9 +80,14 @@ export class OSRMService {
   // Matrice de distances/durées un-vers-plusieurs en un seul appel HTTP (plutôt que N appels
   // à route() pour N candidats) - utilisé par FindNearestFeatureUseCase pour classer des
   // candidats par distance ROUTIÈRE réelle.
-  async table(coordinates: [number, number][], sources: number[], destinations: number[], profile = 'driving'): Promise<OSRMTableResult> {
+  async table(
+    coordinates: [number, number][],
+    sources: number[],
+    destinations: number[],
+    profile = 'driving',
+  ): Promise<OSRMTableResult> {
     return this.traced('osrm.table', async () => {
-      const coordStr = coordinates.map(c => `${c[0]},${c[1]}`).join(';');
+      const coordStr = coordinates.map((c) => `${c[0]},${c[1]}`).join(';');
       const params = new URLSearchParams();
       params.set('sources', sources.join(';'));
       params.set('destinations', destinations.join(';'));

@@ -1,4 +1,7 @@
-import { PrismaDrawingRepository, DrawingRecord } from '../../../infrastructure/database/repositories/prisma-drawing.repository.js';
+import {
+  PrismaDrawingRepository,
+  DrawingRecord,
+} from '../../../infrastructure/database/repositories/prisma-drawing.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 

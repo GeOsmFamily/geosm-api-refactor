@@ -31,25 +31,47 @@ const idParamSchema = z.object({ id: z.string().uuid() });
 
 /** Suivi admin des signalements utilisateur (Lot A5) - montée sous /admin/feedback. */
 export async function adminFeedbackRoutes(app: FastifyInstance): Promise<void> {
-  const adminListFeedbackUseCase = app.diContainer.resolve<AdminListFeedbackUseCase>('adminListFeedbackUseCase');
-  const updateFeedbackStatusUseCase = app.diContainer.resolve<UpdateFeedbackStatusUseCase>('updateFeedbackStatusUseCase');
+  const adminListFeedbackUseCase = app.diContainer.resolve<AdminListFeedbackUseCase>(
+    'adminListFeedbackUseCase',
+  );
+  const updateFeedbackStatusUseCase = app.diContainer.resolve<UpdateFeedbackStatusUseCase>(
+    'updateFeedbackStatusUseCase',
+  );
 
-  app.get('/', {
-    schema: { description: 'Lister les signalements utilisateur', tags: ['Administration'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(listQuerySchema) },
-    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = parseBody(listQuerySchema, request.query);
-    const result = await adminListFeedbackUseCase.execute(query);
-    return reply.send(successResponse(result));
-  });
+  app.get(
+    '/',
+    {
+      schema: {
+        description: 'Lister les signalements utilisateur',
+        tags: ['Administration'],
+        security: [{ bearerAuth: [] }],
+        querystring: zodToSwagger(listQuerySchema),
+      },
+      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const query = parseBody(listQuerySchema, request.query);
+      const result = await adminListFeedbackUseCase.execute(query);
+      return reply.send(successResponse(result));
+    },
+  );
 
-  app.patch('/:id', {
-    schema: { description: 'Mettre à jour le statut d\'un signalement', tags: ['Administration'], security: [{ bearerAuth: [] }], body: zodToSwagger(updateStatusSchema) },
-    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = parseBody(idParamSchema, request.params);
-    const { status, adminNotes } = parseBody(updateStatusSchema, request.body);
-    const result = await updateFeedbackStatusUseCase.execute(id, status, adminNotes);
-    return reply.send(successResponse(result));
-  });
+  app.patch(
+    '/:id',
+    {
+      schema: {
+        description: "Mettre à jour le statut d'un signalement",
+        tags: ['Administration'],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(updateStatusSchema),
+      },
+      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = parseBody(idParamSchema, request.params);
+      const { status, adminNotes } = parseBody(updateStatusSchema, request.body);
+      const result = await updateFeedbackStatusUseCase.execute(id, status, adminNotes);
+      return reply.send(successResponse(result));
+    },
+  );
 }

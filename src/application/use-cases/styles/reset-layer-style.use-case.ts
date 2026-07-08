@@ -4,9 +4,7 @@ import { createChildLogger } from '../../../infrastructure/observability/logger.
 const logger = createChildLogger('ResetLayerStyleUseCase');
 
 export class ResetLayerStyleUseCase {
-  constructor(
-    private readonly layerStyleRepository: ILayerStyleRepository,
-  ) {}
+  constructor(private readonly layerStyleRepository: ILayerStyleRepository) {}
 
   async execute(layerId: string): Promise<void> {
     const styles = await this.layerStyleRepository.findByLayerId(layerId);

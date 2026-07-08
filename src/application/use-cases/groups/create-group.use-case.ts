@@ -23,7 +23,10 @@ export class CreateGroupUseCase {
     const slug = Slug.create(dto.slug);
     const existing = await this.groupRepository.findBySlug(slug.value, instanceId);
     if (existing) {
-      logger.warn('Create group rejected: slug already exists in instance', { instanceId, slug: slug.value });
+      logger.warn('Create group rejected: slug already exists in instance', {
+        instanceId,
+        slug: slug.value,
+      });
       throw new ConflictError('Group with this slug already exists in this instance');
     }
 

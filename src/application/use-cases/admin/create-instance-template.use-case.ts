@@ -38,16 +38,25 @@ export class CreateInstanceTemplateUseCase {
     });
 
     // Create default thematiques/groups
-    const defaultThematiques = input.thematiques ?? ['Environnement', 'Transport', 'Administration', 'Urbanisme'];
+    const defaultThematiques = input.thematiques ?? [
+      'Environnement',
+      'Transport',
+      'Administration',
+      'Urbanisme',
+    ];
 
     for (let i = 0; i < defaultThematiques.length; i++) {
       await this.prisma.$executeRawUnsafe(
         `INSERT INTO "Group" (id, name, color, icon, "order", "instanceId", "createdAt", "updatedAt")
-         VALUES (gen_random_uuid(), '${defaultThematiques[i].replace(/'/g, "''")}', '#3B82F6', 'folder', ${i}, '${String(instance.id)}', NOW(), NOW())`
+         VALUES (gen_random_uuid(), '${defaultThematiques[i].replace(/'/g, "''")}', '#3B82F6', 'folder', ${i}, '${String(instance.id)}', NOW(), NOW())`,
       );
     }
 
-    logger.info('Instance template created', { instanceId: instance.id, slug: instance.slug, thematiquesCount: defaultThematiques.length });
+    logger.info('Instance template created', {
+      instanceId: instance.id,
+      slug: instance.slug,
+      thematiquesCount: defaultThematiques.length,
+    });
     return instance;
   }
 }

@@ -1,4 +1,7 @@
-import { PrismaDrawingRepository, DrawingRecord } from '../../../infrastructure/database/repositories/prisma-drawing.repository.js';
+import {
+  PrismaDrawingRepository,
+  DrawingRecord,
+} from '../../../infrastructure/database/repositories/prisma-drawing.repository.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
 const logger = createChildLogger('GetDrawingsUseCase');

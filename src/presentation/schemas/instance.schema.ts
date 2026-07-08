@@ -5,7 +5,10 @@ export const listInstancesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
-  isActive: z.preprocess(v => v === 'true' ? true : v === 'false' ? false : v, z.boolean().optional()),
+  isActive: z.preprocess(
+    (v) => (v === 'true' ? true : v === 'false' ? false : v),
+    z.boolean().optional(),
+  ),
 });
 
 // "schema.table" ou "table" - identifiants SQL simples uniquement. Ces valeurs sont ensuite

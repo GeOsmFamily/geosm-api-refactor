@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Prisma } from '@prisma/client';
-import { PrismaDrawingRepository, DrawingRecord } from '../../../infrastructure/database/repositories/prisma-drawing.repository.js';
+import {
+  PrismaDrawingRepository,
+  DrawingRecord,
+} from '../../../infrastructure/database/repositories/prisma-drawing.repository.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
 const logger = createChildLogger('SaveDrawingUseCase');

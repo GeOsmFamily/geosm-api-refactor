@@ -10,26 +10,46 @@ export interface GeolocateResult {
 }
 
 export class GeolocateIpUseCase {
-  private readonly defaultCenter: GeolocateResult = { lat: 3.848, lon: 11.502, city: 'Yaounde', country: 'Cameroon' };
+  private readonly defaultCenter: GeolocateResult = {
+    lat: 3.848,
+    lon: 11.502,
+    city: 'Yaounde',
+    country: 'Cameroon',
+  };
 
   async execute(ip: string): Promise<GeolocateResult> {
     try {
       // Skip private/local IPs
-      if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('172.')) {
+      if (
+        ip === '127.0.0.1' ||
+        ip === '::1' ||
+        ip.startsWith('10.') ||
+        ip.startsWith('192.168.') ||
+        ip.startsWith('172.')
+      ) {
         return this.defaultCenter;
       }
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3000);
 
-      const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,lat,lon,city,country`, {
-        signal: controller.signal,
-      });
+      const response = await fetch(
+        `http://ip-api.com/json/${ip}?fields=status,lat,lon,city,country`,
+        {
+          signal: controller.signal,
+        },
+      );
       clearTimeout(timeout);
 
       if (!response.ok) return this.defaultCenter;
 
-      const data = await response.json() as { status: string; lat?: number; lon?: number; city?: string; country?: string };
+      const data = (await response.json()) as {
+        status: string;
+        lat?: number;
+        lon?: number;
+        city?: string;
+        country?: string;
+      };
       if (data.status !== 'success' || data.lat === undefined || data.lon === undefined) {
         return this.defaultCenter;
       }
@@ -41,7 +61,9 @@ export class GeolocateIpUseCase {
         country: data.country,
       };
     } catch (error) {
-      logger.error('IP geolocation lookup failed, using default center', { error: error instanceof Error ? error.message : String(error) });
+      logger.error('IP geolocation lookup failed, using default center', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.defaultCenter;
     }
   }

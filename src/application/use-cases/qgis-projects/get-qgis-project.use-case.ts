@@ -5,9 +5,7 @@ import { createChildLogger } from '../../../infrastructure/observability/logger.
 const logger = createChildLogger('GetQgisProjectUseCase');
 
 export class GetQgisProjectUseCase {
-  constructor(
-    private readonly qgisProjectRepository: IQgisProjectRepository,
-  ) {}
+  constructor(private readonly qgisProjectRepository: IQgisProjectRepository) {}
 
   async execute(instanceId: string): Promise<QgisProject[]> {
     logger.debug('Fetching QGIS projects', { instanceId });

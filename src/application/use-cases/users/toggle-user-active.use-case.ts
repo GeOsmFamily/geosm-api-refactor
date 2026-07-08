@@ -14,12 +14,21 @@ export class ToggleUserActiveUseCase {
 
     const user = await this.userRepository.update(id, { isActive: dto.isActive });
     // Utile en réponse à incident : désactiver un compte compromis doit laisser une trace.
-    logger.info(dto.isActive ? 'User reactivated by admin' : 'User deactivated by admin', { userId: id });
+    logger.info(dto.isActive ? 'User reactivated by admin' : 'User deactivated by admin', {
+      userId: id,
+    });
     return {
-      id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName,
-      avatar: user.avatar, role: user.role, isActive: user.isActive,
-      emailVerifiedAt: user.emailVerifiedAt, lastLoginAt: user.lastLoginAt,
-      createdAt: user.createdAt, updatedAt: user.updatedAt,
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatar: user.avatar,
+      role: user.role,
+      isActive: user.isActive,
+      emailVerifiedAt: user.emailVerifiedAt,
+      lastLoginAt: user.lastLoginAt,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   }
 }

@@ -40,7 +40,9 @@ export class PrismaFeedbackRepository {
     return this.prisma.feedbackSubmission.findUnique({ where: { id } });
   }
 
-  async adminList(options: AdminListFeedbackOptions): Promise<{ data: FeedbackRecord[]; total: number }> {
+  async adminList(
+    options: AdminListFeedbackOptions,
+  ): Promise<{ data: FeedbackRecord[]; total: number }> {
     const page = options.page ?? 1;
     const limit = options.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -50,14 +52,23 @@ export class PrismaFeedbackRepository {
     if (options.status) where.status = options.status;
 
     const [data, total] = await Promise.all([
-      this.prisma.feedbackSubmission.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit }),
+      this.prisma.feedbackSubmission.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
       this.prisma.feedbackSubmission.count({ where }),
     ]);
 
     return { data, total };
   }
 
-  async updateStatus(id: string, status: FeedbackStatus, adminNotes?: string | null): Promise<FeedbackRecord> {
+  async updateStatus(
+    id: string,
+    status: FeedbackStatus,
+    adminNotes?: string | null,
+  ): Promise<FeedbackRecord> {
     return this.prisma.feedbackSubmission.update({
       where: { id },
       data: { status, adminNotes, reviewedAt: new Date() },

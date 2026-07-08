@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
-import { Osm2pgsqlService, type Osm2pgsqlOptions } from '../../../infrastructure/osm/osm2pgsql.service.js';
+import {
+  Osm2pgsqlService,
+  type Osm2pgsqlOptions,
+} from '../../../infrastructure/osm/osm2pgsql.service.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
 const logger = createChildLogger('ImportOsmDataUseCase');
@@ -15,7 +18,7 @@ export interface ImportOsmDataInput {
 export class ImportOsmDataUseCase {
   constructor(
     private readonly osm2pgsqlService: Osm2pgsqlService,
-    private readonly prisma: PrismaClient
+    private readonly prisma: PrismaClient,
   ) {}
 
   async execute(input: ImportOsmDataInput): Promise<{ success: boolean; message: string }> {
@@ -48,7 +51,9 @@ export class ImportOsmDataUseCase {
   private async moveTablesToOsmSchema(): Promise<void> {
     await this.prisma.$executeRawUnsafe('CREATE SCHEMA IF NOT EXISTS osm');
     for (const t of ['point', 'line', 'polygon', 'roads', 'nodes', 'ways', 'rels']) {
-      await this.prisma.$executeRawUnsafe(`ALTER TABLE IF EXISTS public.planet_osm_${t} SET SCHEMA osm`);
+      await this.prisma.$executeRawUnsafe(
+        `ALTER TABLE IF EXISTS public.planet_osm_${t} SET SCHEMA osm`,
+      );
     }
   }
 }

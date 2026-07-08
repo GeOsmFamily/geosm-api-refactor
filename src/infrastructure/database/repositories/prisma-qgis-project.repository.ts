@@ -6,8 +6,11 @@ export class PrismaQgisProjectRepository implements IQgisProjectRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findByInstanceId(instanceId: string): Promise<QgisProject[]> {
-    const records = await this.prisma.qgisProject.findMany({ where: { instanceId }, orderBy: { createdAt: 'asc' } });
-    return records.map(r => this.toDomain(r));
+    const records = await this.prisma.qgisProject.findMany({
+      where: { instanceId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return records.map((r) => this.toDomain(r));
   }
 
   async findById(id: string): Promise<QgisProject | null> {
@@ -28,7 +31,10 @@ export class PrismaQgisProjectRepository implements IQgisProjectRepository {
     return this.toDomain(record);
   }
 
-  async update(id: string, data: Partial<Omit<QgisProject, 'id' | 'createdAt' | 'updatedAt'>>): Promise<QgisProject> {
+  async update(
+    id: string,
+    data: Partial<Omit<QgisProject, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<QgisProject> {
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.filePath !== undefined) updateData.filePath = data.filePath;

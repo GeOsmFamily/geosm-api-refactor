@@ -46,7 +46,7 @@ export class CreateLayersFromQgisProjectUseCase {
       const slug = Slug.create(selection.displayName);
       const existing = await this.layerRepository.findBySlug(slug.value, instanceId);
       if (existing) {
-        logger.warn('Couche ignorée (slug déjà utilisé dans l\'instance)', { slug: slug.value });
+        logger.warn("Couche ignorée (slug déjà utilisé dans l'instance)", { slug: slug.value });
         continue;
       }
 
@@ -67,7 +67,11 @@ export class CreateLayersFromQgisProjectUseCase {
         isQueryable: true,
         opacity: 1,
         order: 0,
-        metadata: { importedAt: new Date().toISOString(), source: 'qgis-project', qgisProjectId: project.id },
+        metadata: {
+          importedAt: new Date().toISOString(),
+          source: 'qgis-project',
+          qgisProjectId: project.id,
+        },
         subGroupId: input.subGroupId,
         instanceId,
         qgisProjectId: project.id,
@@ -75,7 +79,10 @@ export class CreateLayersFromQgisProjectUseCase {
       created.push(layer);
     }
 
-    logger.info('Couches créées depuis un projet QGIS', { qgisProjectId: project.id, count: created.length });
+    logger.info('Couches créées depuis un projet QGIS', {
+      qgisProjectId: project.id,
+      count: created.length,
+    });
     return created;
   }
 }

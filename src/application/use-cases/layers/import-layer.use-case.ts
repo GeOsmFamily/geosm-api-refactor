@@ -18,9 +18,15 @@ export interface ImportLayerDto {
 export class ImportLayerUseCase {
   constructor(
     private layerRepository: { findById: (id: string) => Promise<unknown> },
-    private exportRepository: { create: (data: Omit<Export, 'createdAt' | 'updatedAt'>) => Promise<Export> },
-    private storageService: { uploadFile: (key: string, data: Buffer, contentType?: string) => Promise<string> },
-    private queueService: { addJob: (queue: string, name: string, data: Record<string, unknown>) => Promise<unknown> },
+    private exportRepository: {
+      create: (data: Omit<Export, 'createdAt' | 'updatedAt'>) => Promise<Export>;
+    },
+    private storageService: {
+      uploadFile: (key: string, data: Buffer, contentType?: string) => Promise<string>;
+    },
+    private queueService: {
+      addJob: (queue: string, name: string, data: Record<string, unknown>) => Promise<unknown>;
+    },
   ) {}
 
   async execute(dto: ImportLayerDto): Promise<{ exportId: string; message: string }> {
@@ -57,7 +63,12 @@ export class ImportLayerUseCase {
       format: dto.format,
     });
 
-    logger.info('Layer import job queued', { layerId: dto.layerId, userId: dto.userId, exportId: exportRecord.id, format: dto.format });
+    logger.info('Layer import job queued', {
+      layerId: dto.layerId,
+      userId: dto.userId,
+      exportId: exportRecord.id,
+      format: dto.format,
+    });
     return { exportId: exportRecord.id, message: 'Layer import job queued successfully' };
   }
 }

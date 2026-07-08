@@ -24,7 +24,9 @@ export class GetSystemHealthUseCase {
       database = 'up';
     } catch (error) {
       database = 'down';
-      logger.error('Database health check failed', { error: error instanceof Error ? error.message : String(error) });
+      logger.error('Database health check failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     try {
@@ -32,7 +34,9 @@ export class GetSystemHealthUseCase {
       redis = result === 'PONG' ? 'up' : 'down';
     } catch (error) {
       redis = 'down';
-      logger.error('Redis health check failed', { error: error instanceof Error ? error.message : String(error) });
+      logger.error('Redis health check failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return { database, redis };

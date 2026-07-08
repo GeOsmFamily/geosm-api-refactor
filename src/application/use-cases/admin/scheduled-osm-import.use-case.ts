@@ -31,7 +31,11 @@ export class ScheduledOsmImportUseCase {
 
   async execute(): Promise<ScheduledOsmImportResult> {
     const result: ScheduledOsmImportResult = {
-      imported: false, instancesProcessed: 0, layersResynced: 0, layersSkipped: 0, layersFailed: 0,
+      imported: false,
+      instancesProcessed: 0,
+      layersResynced: 0,
+      layersSkipped: 0,
+      layersFailed: 0,
     };
 
     if (!this.pbfPath) {
@@ -43,11 +47,16 @@ export class ScheduledOsmImportUseCase {
     await this.importOsmDataUseCase.execute({ pbfPath: this.pbfPath, append: true });
     result.imported = true;
 
-    const { data: instances } = await this.instanceRepository.findAll({ isActive: true, limit: 1000 });
+    const { data: instances } = await this.instanceRepository.findAll({
+      isActive: true,
+      limit: 1000,
+    });
     result.instancesProcessed = instances.length;
 
     for (const instance of instances) {
-      const { data: layers } = await this.layerRepository.findByInstance(instance.id, { limit: 1000 });
+      const { data: layers } = await this.layerRepository.findByInstance(instance.id, {
+        limit: 1000,
+      });
       for (const layer of layers) {
         try {
           await this.resyncLayerUseCase.execute(layer.id);
@@ -60,9 +69,14 @@ export class ScheduledOsmImportUseCase {
             result.layersSkipped++;
           } else {
             result.layersFailed++;
-            logger.error('Échec de la resynchronisation d\'une couche pendant l\'import OSM programmé', {
-              layerId: layer.id, instanceId: instance.id, error: error instanceof Error ? error.message : error,
-            });
+            logger.error(
+              "Échec de la resynchronisation d'une couche pendant l'import OSM programmé",
+              {
+                layerId: layer.id,
+                instanceId: instance.id,
+                error: error instanceof Error ? error.message : error,
+              },
+            );
           }
         }
       }

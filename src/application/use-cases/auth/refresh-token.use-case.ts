@@ -23,10 +23,13 @@ export class RefreshTokenUseCase {
 
     if (existingToken.isRevoked) {
       await this.refreshTokenRepository.revokeAllByFamily(existingToken.family);
-      logger.warn('Refresh token reuse detected - all sessions in family revoked (possible token theft)', {
-        userId: existingToken.userId,
-        family: existingToken.family,
-      });
+      logger.warn(
+        'Refresh token reuse detected - all sessions in family revoked (possible token theft)',
+        {
+          userId: existingToken.userId,
+          family: existingToken.family,
+        },
+      );
       throw new UnauthorizedError('Refresh token reuse detected. All sessions revoked.');
     }
 

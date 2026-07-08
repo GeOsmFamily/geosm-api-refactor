@@ -4,9 +4,18 @@ import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
 import { GetCatalogUseCase } from '../../application/use-cases/catalog/get-catalog.use-case.js';
 
-function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
+function parseBody<T>(
+  schema: {
+    safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } };
+  },
+  body: unknown,
+): T {
   const result = schema.safeParse(body);
-  if (!result.success) throw new ValidationError('Validation failed', result.error?.format() as Record<string, unknown>);
+  if (!result.success)
+    throw new ValidationError(
+      'Validation failed',
+      result.error?.format() as Record<string, unknown>,
+    );
   return result.data as T;
 }
 
@@ -16,24 +25,31 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
   const getCatalogUseCase = app.diContainer.resolve<GetCatalogUseCase>('getCatalogUseCase');
 
   // GET /api/v1/catalog
-  app.get('/', {
-    schema: { description: 'Obtenir le catalogue complet', tags: ['Catalogue'] },
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const acceptLang = request.headers['accept-language'];
-    const lang = acceptLang ? acceptLang.split(',')[0].split('-')[0].trim().toLowerCase() : 'fr';
-    const catalog = await getCatalogUseCase.execute(undefined, lang);
-    return reply.send(successResponse(catalog));
-  });
+  app.get(
+    '/',
+    {
+      schema: { description: 'Obtenir le catalogue complet', tags: ['Catalogue'] },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const acceptLang = request.headers['accept-language'];
+      const lang = acceptLang ? acceptLang.split(',')[0].split('-')[0].trim().toLowerCase() : 'fr';
+      const catalog = await getCatalogUseCase.execute(undefined, lang);
+      return reply.send(successResponse(catalog));
+    },
+  );
 
   // GET /api/v1/catalog/:instanceSlug
-  app.get('/:instanceSlug', {
-    schema: { description: 'Obtenir le catalogue par instance', tags: ['Catalogue'] },
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { instanceSlug } = parseBody(instanceSlugParamSchema, request.params);
-    const acceptLang = request.headers['accept-language'];
-    const lang = acceptLang ? acceptLang.split(',')[0].split('-')[0].trim().toLowerCase() : 'fr';
-    const catalog = await getCatalogUseCase.execute(instanceSlug, lang);
-    return reply.send(successResponse(catalog));
-  });
+  app.get(
+    '/:instanceSlug',
+    {
+      schema: { description: 'Obtenir le catalogue par instance', tags: ['Catalogue'] },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { instanceSlug } = parseBody(instanceSlugParamSchema, request.params);
+      const acceptLang = request.headers['accept-language'];
+      const lang = acceptLang ? acceptLang.split(',')[0].split('-')[0].trim().toLowerCase() : 'fr';
+      const catalog = await getCatalogUseCase.execute(instanceSlug, lang);
+      return reply.send(successResponse(catalog));
+    },
+  );
 }
-

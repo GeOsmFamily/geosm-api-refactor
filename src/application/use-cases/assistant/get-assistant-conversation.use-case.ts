@@ -1,4 +1,7 @@
-import { PrismaAssistantConversationRepository, AssistantConversationRecord } from '../../../infrastructure/database/repositories/prisma-assistant-conversation.repository.js';
+import {
+  PrismaAssistantConversationRepository,
+  AssistantConversationRecord,
+} from '../../../infrastructure/database/repositories/prisma-assistant-conversation.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ForbiddenError } from '../../../domain/errors/forbidden.error.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
@@ -12,7 +15,11 @@ export class GetAssistantConversationUseCase {
     const record = await this.conversationRepository.findById(id);
     if (!record) throw new NotFoundError('AssistantConversation', id);
     if (record.userId !== userId) {
-      logger.warn('Get assistant conversation rejected: not the owner', { requestingUserId: userId, ownerId: record.userId, conversationId: id });
+      logger.warn('Get assistant conversation rejected: not the owner', {
+        requestingUserId: userId,
+        ownerId: record.userId,
+        conversationId: id,
+      });
       throw new ForbiddenError('Cette conversation appartient à un autre utilisateur.');
     }
     return record;

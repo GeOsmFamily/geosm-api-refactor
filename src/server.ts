@@ -74,9 +74,9 @@ async function bootstrap(): Promise<void> {
 
   app.setErrorHandler(errorHandler);
 
-  await app.register(fastifyHelmet, { 
+  await app.register(fastifyHelmet, {
     contentSecurityPolicy: false,
-    crossOriginResourcePolicy: false
+    crossOriginResourcePolicy: false,
   });
   await corsPlugin(app);
   await swaggerPlugin(app);
@@ -98,59 +98,113 @@ async function bootstrap(): Promise<void> {
 
   // S'assure que le bucket MinIO existe (jamais créé automatiquement sinon -
   // les exports échouaient avec "The specified bucket does not exist").
-  const bootstrapStorageService = app.diContainer.resolve('storageService') as import('./infrastructure/storage/minio.service.js').MinioStorageService;
+  const bootstrapStorageService = app.diContainer.resolve(
+    'storageService',
+  ) as import('./infrastructure/storage/minio.service.js').MinioStorageService;
   await bootstrapStorageService.ensureBucket();
 
   // Register WebSocket notification routes
-  const notificationService = app.diContainer.resolve('notificationService') as import('./infrastructure/websocket/notification.service.js').NotificationService;
+  const notificationService = app.diContainer.resolve(
+    'notificationService',
+  ) as import('./infrastructure/websocket/notification.service.js').NotificationService;
   notificationService.registerRoutes(app);
 
   // Register layer import worker
-  const queueService = app.diContainer.resolve('queueService') as import('./infrastructure/queue/queue.service.js').QueueService;
+  const queueService = app.diContainer.resolve(
+    'queueService',
+  ) as import('./infrastructure/queue/queue.service.js').QueueService;
   queueService.createQueue('layer-import');
-  queueService.registerWorker('layer-import', createLayerImportProcessor({
-    exportRepository: app.diContainer.resolve('exportRepository') as import('./infrastructure/database/repositories/prisma-export.repository.js').PrismaExportRepository,
-    layerRepository: app.diContainer.resolve('layerRepository') as import('./infrastructure/database/repositories/prisma-layer.repository.js').PrismaLayerRepository,
-    storageService: app.diContainer.resolve('storageService') as import('./infrastructure/storage/minio.service.js').MinioStorageService,
-    notificationService,
-    postGISService: app.diContainer.resolve('postGISService') as import('./infrastructure/database/postgis.service.js').PostGISService,
-    ogr2ogrService: app.diContainer.resolve('ogr2ogrService') as import('./infrastructure/gdal/ogr2ogr.service.js').Ogr2OgrService,
-  }));
+  queueService.registerWorker(
+    'layer-import',
+    createLayerImportProcessor({
+      exportRepository: app.diContainer.resolve(
+        'exportRepository',
+      ) as import('./infrastructure/database/repositories/prisma-export.repository.js').PrismaExportRepository,
+      layerRepository: app.diContainer.resolve(
+        'layerRepository',
+      ) as import('./infrastructure/database/repositories/prisma-layer.repository.js').PrismaLayerRepository,
+      storageService: app.diContainer.resolve(
+        'storageService',
+      ) as import('./infrastructure/storage/minio.service.js').MinioStorageService,
+      notificationService,
+      postGISService: app.diContainer.resolve(
+        'postGISService',
+      ) as import('./infrastructure/database/postgis.service.js').PostGISService,
+      ogr2ogrService: app.diContainer.resolve(
+        'ogr2ogrService',
+      ) as import('./infrastructure/gdal/ogr2ogr.service.js').Ogr2OgrService,
+    }),
+  );
 
   // Register export worker
   queueService.createQueue('layer-export');
-  queueService.registerWorker('layer-export', createExportProcessor({
-    exportRepository: app.diContainer.resolve('exportRepository') as import('./infrastructure/database/repositories/prisma-export.repository.js').PrismaExportRepository,
-    layerRepository: app.diContainer.resolve('layerRepository') as import('./infrastructure/database/repositories/prisma-layer.repository.js').PrismaLayerRepository,
-    storageService: app.diContainer.resolve('storageService') as import('./infrastructure/storage/minio.service.js').MinioStorageService,
-    notificationService,
-    ogr2ogrService: app.diContainer.resolve('ogr2ogrService') as import('./infrastructure/gdal/ogr2ogr.service.js').Ogr2OgrService,
-  }));
+  queueService.registerWorker(
+    'layer-export',
+    createExportProcessor({
+      exportRepository: app.diContainer.resolve(
+        'exportRepository',
+      ) as import('./infrastructure/database/repositories/prisma-export.repository.js').PrismaExportRepository,
+      layerRepository: app.diContainer.resolve(
+        'layerRepository',
+      ) as import('./infrastructure/database/repositories/prisma-layer.repository.js').PrismaLayerRepository,
+      storageService: app.diContainer.resolve(
+        'storageService',
+      ) as import('./infrastructure/storage/minio.service.js').MinioStorageService,
+      notificationService,
+      ogr2ogrService: app.diContainer.resolve(
+        'ogr2ogrService',
+      ) as import('./infrastructure/gdal/ogr2ogr.service.js').Ogr2OgrService,
+    }),
+  );
 
   // Register location plan worker (génération PDF via QGIS, cf. python_scripts/generate_location_plan.py)
   queueService.createQueue('location-plan');
-  queueService.registerWorker('location-plan', createLocationPlanProcessor({
-    locationPlanRepository: app.diContainer.resolve('locationPlanRepository') as import('./infrastructure/database/repositories/prisma-location-plan.repository.js').PrismaLocationPlanRepository,
-    storageService: app.diContainer.resolve('storageService') as import('./infrastructure/storage/minio.service.js').MinioStorageService,
-    notificationService,
-    qgisProjectService: app.diContainer.resolve('qgisProjectService') as import('./infrastructure/qgis/qgis-project.service.js').QGISProjectService,
-  }));
+  queueService.registerWorker(
+    'location-plan',
+    createLocationPlanProcessor({
+      locationPlanRepository: app.diContainer.resolve(
+        'locationPlanRepository',
+      ) as import('./infrastructure/database/repositories/prisma-location-plan.repository.js').PrismaLocationPlanRepository,
+      storageService: app.diContainer.resolve(
+        'storageService',
+      ) as import('./infrastructure/storage/minio.service.js').MinioStorageService,
+      notificationService,
+      qgisProjectService: app.diContainer.resolve(
+        'qgisProjectService',
+      ) as import('./infrastructure/qgis/qgis-project.service.js').QGISProjectService,
+    }),
+  );
 
   // Register scheduled OSM import worker + job récurrent (ré-import mensuel des données
   // OSM brutes + resynchronisation des couches par défaut de toutes les instances actives).
   queueService.createQueue('scheduled-osm-import');
-  queueService.registerWorker('scheduled-osm-import', createScheduledOsmImportProcessor({
-    scheduledOsmImportUseCase: app.diContainer.resolve('scheduledOsmImportUseCase') as import('./application/use-cases/admin/scheduled-osm-import.use-case.js').ScheduledOsmImportUseCase,
-  }));
-  await queueService.addRepeatableJob('scheduled-osm-import', 'monthly-import', {}, envConfig.OSM_IMPORT_CRON);
+  queueService.registerWorker(
+    'scheduled-osm-import',
+    createScheduledOsmImportProcessor({
+      scheduledOsmImportUseCase: app.diContainer.resolve(
+        'scheduledOsmImportUseCase',
+      ) as import('./application/use-cases/admin/scheduled-osm-import.use-case.js').ScheduledOsmImportUseCase,
+    }),
+  );
+  await queueService.addRepeatableJob(
+    'scheduled-osm-import',
+    'monthly-import',
+    {},
+    envConfig.OSM_IMPORT_CRON,
+  );
 
   // Register database backup worker + job récurrent (pg_dump -> MinIO, voir
   // DatabaseBackupUseCase - contrairement à l'import OSM, actif par défaut sans configuration
   // supplémentaire requise).
   queueService.createQueue('database-backup');
-  queueService.registerWorker('database-backup', createDatabaseBackupProcessor({
-    databaseBackupUseCase: app.diContainer.resolve('databaseBackupUseCase') as import('./application/use-cases/admin/database-backup.use-case.js').DatabaseBackupUseCase,
-  }));
+  queueService.registerWorker(
+    'database-backup',
+    createDatabaseBackupProcessor({
+      databaseBackupUseCase: app.diContainer.resolve(
+        'databaseBackupUseCase',
+      ) as import('./application/use-cases/admin/database-backup.use-case.js').DatabaseBackupUseCase,
+    }),
+  );
   await queueService.addRepeatableJob('database-backup', 'daily-backup', {}, envConfig.BACKUP_CRON);
 
   // Route publique pour servir les icônes SVG personnalisées des couches
@@ -170,17 +224,27 @@ async function bootstrap(): Promise<void> {
   await app.register(authRoutes, { prefix: `${appConfig.apiPrefix}/auth` });
   await app.register(userRoutes, { prefix: `${appConfig.apiPrefix}/users` });
   await app.register(instanceRoutes, { prefix: `${appConfig.apiPrefix}/instances` });
-  await app.register(groupRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/groups` });
-  await app.register(subGroupRoutes, { prefix: `${appConfig.apiPrefix}/groups/:groupId/sub-groups` });
-  await app.register(layerRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/layers` });
-  await app.register(baseMapRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/base-maps` });
+  await app.register(groupRoutes, {
+    prefix: `${appConfig.apiPrefix}/instances/:instanceId/groups`,
+  });
+  await app.register(subGroupRoutes, {
+    prefix: `${appConfig.apiPrefix}/groups/:groupId/sub-groups`,
+  });
+  await app.register(layerRoutes, {
+    prefix: `${appConfig.apiPrefix}/instances/:instanceId/layers`,
+  });
+  await app.register(baseMapRoutes, {
+    prefix: `${appConfig.apiPrefix}/instances/:instanceId/base-maps`,
+  });
   await app.register(styleRoutes, { prefix: `${appConfig.apiPrefix}/layers/:layerId/style` });
   await app.register(exportRoutes, { prefix: `${appConfig.apiPrefix}/exports` });
   await app.register(locationPlanRoutes, { prefix: `${appConfig.apiPrefix}/location-plans` });
   await app.register(geocodingRoutes, { prefix: `${appConfig.apiPrefix}/geocode` });
   await app.register(routingRoutes, { prefix: `${appConfig.apiPrefix}/routing` });
   await app.register(searchRoutes, { prefix: `${appConfig.apiPrefix}/search` });
-  await app.register(qgisProjectRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/qgis-project` });
+  await app.register(qgisProjectRoutes, {
+    prefix: `${appConfig.apiPrefix}/instances/:instanceId/qgis-project`,
+  });
   await app.register(wmsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wms` });
   await app.register(wfsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wfs` });
   await app.register(defaultThemeRoutes, { prefix: `${appConfig.apiPrefix}/default-themes` });
@@ -200,7 +264,9 @@ async function bootstrap(): Promise<void> {
   await app.register(logsRoutes, { prefix: `${appConfig.apiPrefix}/logs` });
   await app.register(feedbackRoutes, { prefix: `${appConfig.apiPrefix}/feedback` });
   await app.register(catalogRoutes, { prefix: `${appConfig.apiPrefix}/catalog` });
-  await app.register(mapCompositionRoutes, { prefix: `${appConfig.apiPrefix}/instances/:instanceId/maps` });
+  await app.register(mapCompositionRoutes, {
+    prefix: `${appConfig.apiPrefix}/instances/:instanceId/maps`,
+  });
   await app.register(documentRoutes, { prefix: `${appConfig.apiPrefix}/documents` });
   await app.register(seoRoutes, { prefix: `${appConfig.apiPrefix}/seo` });
   await app.register(adressageRoutes, { prefix: `${appConfig.apiPrefix}/adressage` });

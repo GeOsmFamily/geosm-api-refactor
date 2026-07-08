@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Prisma } from '@prisma/client';
-import { PrismaAnalyticsRepository, AnalyticsEventRecord } from '../../../infrastructure/database/repositories/prisma-analytics.repository.js';
+import {
+  PrismaAnalyticsRepository,
+  AnalyticsEventRecord,
+} from '../../../infrastructure/database/repositories/prisma-analytics.repository.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
 const logger = createChildLogger('TrackEventUseCase');

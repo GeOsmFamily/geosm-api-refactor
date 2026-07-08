@@ -1,4 +1,8 @@
-import { OsmQueryService, type CreateOsmTableOptions, type OsmTableStats } from '../../../infrastructure/database/osm-query.service.js';
+import {
+  OsmQueryService,
+  type CreateOsmTableOptions,
+  type OsmTableStats,
+} from '../../../infrastructure/database/osm-query.service.js';
 import type { IInstanceRepository } from '../../../domain/repositories/instance.repository.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
@@ -30,7 +34,12 @@ export class CreateOsmTableUseCase {
     }
 
     const stats = await this.osmQueryService.createTable(options);
-    logger.info('OSM table created', { schema: options.schema, table: options.table, instanceId: options.instanceId, rowCount: stats.count });
+    logger.info('OSM table created', {
+      schema: options.schema,
+      table: options.table,
+      instanceId: options.instanceId,
+      rowCount: stats.count,
+    });
     return stats;
   }
 }

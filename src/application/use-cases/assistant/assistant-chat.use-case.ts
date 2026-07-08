@@ -1,4 +1,8 @@
-import type { GeminiService, GeminiFunctionDeclaration, GeminiMessage } from '../../../infrastructure/external-apis/gemini.service.js';
+import type {
+  GeminiService,
+  GeminiFunctionDeclaration,
+  GeminiMessage,
+} from '../../../infrastructure/external-apis/gemini.service.js';
 import type { SearchGeocodingUseCase } from '../geocoding/search-geocoding.use-case.js';
 import type { SearchLayersUseCase } from '../search/search-layers.use-case.js';
 import type { GetLayerStatsUseCase } from '../layers/get-layer-stats.use-case.js';
@@ -6,7 +10,10 @@ import type { SpatialAnalysisUseCase } from '../analysis/spatial-analysis.use-ca
 import type { FindNearestFeatureUseCase } from '../routing/find-nearest-feature.use-case.js';
 import type { CreateLocationPlanUseCase } from '../location-plans/create-location-plan.use-case.js';
 import type { GetLocationPlanUseCase } from '../location-plans/get-location-plan.use-case.js';
-import type { PrismaAssistantConversationRepository, AssistantMessageRecord } from '../../../infrastructure/database/repositories/prisma-assistant-conversation.repository.js';
+import type {
+  PrismaAssistantConversationRepository,
+  AssistantMessageRecord,
+} from '../../../infrastructure/database/repositories/prisma-assistant-conversation.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ForbiddenError } from '../../../domain/errors/forbidden.error.js';
 import { logger } from '../../../infrastructure/observability/logger.js';
@@ -48,16 +55,20 @@ interface DataToolResult {
 const TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: 'geocode',
-    description: 'Trouve les coordonnées géographiques (latitude/longitude) d\'un lieu nommé (ville, quartier, adresse...).',
+    description:
+      "Trouve les coordonnées géographiques (latitude/longitude) d'un lieu nommé (ville, quartier, adresse...).",
     parameters: {
       type: 'OBJECT',
-      properties: { query: { type: 'STRING', description: 'Le nom du lieu à rechercher, ex: "Douala"' } },
+      properties: {
+        query: { type: 'STRING', description: 'Le nom du lieu à rechercher, ex: "Douala"' },
+      },
       required: ['query'],
     },
   },
   {
     name: 'search_layers',
-    description: 'Recherche des couches cartographiques disponibles sur le géoportail par mot-clé (ex: "hôpitaux", "écoles").',
+    description:
+      'Recherche des couches cartographiques disponibles sur le géoportail par mot-clé (ex: "hôpitaux", "écoles").',
     parameters: {
       type: 'OBJECT',
       properties: { query: { type: 'STRING', description: 'Le terme de recherche' } },
@@ -66,7 +77,8 @@ const TOOLS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'get_layer_stats',
-    description: 'Obtient les statistiques (nombre d\'entités, superficie, longueur) d\'une couche à partir de son identifiant.',
+    description:
+      "Obtient les statistiques (nombre d'entités, superficie, longueur) d'une couche à partir de son identifiant.",
     parameters: {
       type: 'OBJECT',
       properties: { layerId: { type: 'STRING', description: 'Identifiant UUID de la couche' } },
@@ -75,7 +87,8 @@ const TOOLS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'buffer_around_point',
-    description: 'Calcule une zone tampon (cercle) autour d\'un point et l\'affiche sur la carte, pour des requêtes comme "à moins de 5km de X".',
+    description:
+      'Calcule une zone tampon (cercle) autour d\'un point et l\'affiche sur la carte, pour des requêtes comme "à moins de 5km de X".',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -88,7 +101,8 @@ const TOOLS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'find_nearest_feature',
-    description: 'Trouve les entités d\'une couche les plus proches d\'un point, classées par distance routière réelle.',
+    description:
+      "Trouve les entités d'une couche les plus proches d'un point, classées par distance routière réelle.",
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -102,9 +116,10 @@ const TOOLS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'create_location_plan',
-    description: 'Génère un plan de localisation professionnel en PDF pour un point donné. Un bouton de téléchargement apparaît '
-      + 'automatiquement dans l\'interface une fois prêt - ne mentionne jamais d\'identifiant technique dans ta réponse, dis '
-      + 'simplement que le plan est prêt et peut être téléchargé ci-dessous (ou qu\'il est encore en cours si le statut n\'est pas COMPLETED).',
+    description:
+      'Génère un plan de localisation professionnel en PDF pour un point donné. Un bouton de téléchargement apparaît ' +
+      "automatiquement dans l'interface une fois prêt - ne mentionne jamais d'identifiant technique dans ta réponse, dis " +
+      "simplement que le plan est prêt et peut être téléchargé ci-dessous (ou qu'il est encore en cours si le statut n'est pas COMPLETED).",
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -119,12 +134,16 @@ const TOOLS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'activate_layer',
-    description: 'Active (affiche) une couche sur la carte pour l\'utilisateur. Utilise l\'identifiant obtenu via search_layers.',
+    description:
+      "Active (affiche) une couche sur la carte pour l'utilisateur. Utilise l'identifiant obtenu via search_layers.",
     parameters: {
       type: 'OBJECT',
       properties: {
         layerId: { type: 'STRING', description: 'Identifiant UUID de la couche à activer' },
-        layerName: { type: 'STRING', description: 'Nom de la couche, pour référence dans la réponse' },
+        layerName: {
+          type: 'STRING',
+          description: 'Nom de la couche, pour référence dans la réponse',
+        },
       },
       required: ['layerId'],
     },
@@ -136,7 +155,10 @@ const TOOLS: GeminiFunctionDeclaration[] = [
       type: 'OBJECT',
       properties: {
         layerId: { type: 'STRING', description: 'Identifiant UUID de la couche à désactiver' },
-        layerName: { type: 'STRING', description: 'Nom de la couche, pour référence dans la réponse' },
+        layerName: {
+          type: 'STRING',
+          description: 'Nom de la couche, pour référence dans la réponse',
+        },
       },
       required: ['layerId'],
     },
@@ -205,15 +227,18 @@ const RESPONSE_LANGUAGE_INSTRUCTION: Record<string, string> = {
 };
 
 function buildSystemInstruction(lang: string): string {
-  const languageInstruction = RESPONSE_LANGUAGE_INSTRUCTION[lang] ?? RESPONSE_LANGUAGE_INSTRUCTION['fr'];
-  return `Tu es l'assistant du géoportail GeOSM (plateforme cartographique open-source basée sur OpenStreetMap). `
-    + `Tu as deux rôles : (1) agir sur la carte pour l'utilisateur en pilotant les outils disponibles, et (2) servir de guide `
-    + `utilisateur quand on te demande comment faire quelque chose dans l'interface (utilise la connaissance ci-dessous, sans `
-    + `inventer de fonctionnalité qui n'y figure pas). ${languageInstruction} Pour une demande comme `
-    + `"montre-moi les hôpitaux à Douala", enchaîne : geocode("Douala") pour situer la ville, search_layers("hôpitaux") pour `
-    + `trouver la couche, puis activate_layer et zoom_to pour l'afficher. N'invente jamais d'identifiant de couche : utilise `
-    + `toujours un layerId obtenu via search_layers. Si un outil échoue ou ne trouve rien, explique-le clairement à l'utilisateur `
-    + `plutôt que d'inventer une réponse.\n${GEOPORTAL_GUIDE}`;
+  const languageInstruction =
+    RESPONSE_LANGUAGE_INSTRUCTION[lang] ?? RESPONSE_LANGUAGE_INSTRUCTION['fr'];
+  return (
+    `Tu es l'assistant du géoportail GeOSM (plateforme cartographique open-source basée sur OpenStreetMap). ` +
+    `Tu as deux rôles : (1) agir sur la carte pour l'utilisateur en pilotant les outils disponibles, et (2) servir de guide ` +
+    `utilisateur quand on te demande comment faire quelque chose dans l'interface (utilise la connaissance ci-dessous, sans ` +
+    `inventer de fonctionnalité qui n'y figure pas). ${languageInstruction} Pour une demande comme ` +
+    `"montre-moi les hôpitaux à Douala", enchaîne : geocode("Douala") pour situer la ville, search_layers("hôpitaux") pour ` +
+    `trouver la couche, puis activate_layer et zoom_to pour l'afficher. N'invente jamais d'identifiant de couche : utilise ` +
+    `toujours un layerId obtenu via search_layers. Si un outil échoue ou ne trouve rien, explique-le clairement à l'utilisateur ` +
+    `plutôt que d'inventer une réponse.\n${GEOPORTAL_GUIDE}`
+  );
 }
 
 export class AssistantChatUseCase {
@@ -229,10 +254,17 @@ export class AssistantChatUseCase {
     private readonly getLocationPlanUseCase: GetLocationPlanUseCase,
   ) {}
 
-  async execute(userId: string, instanceId: string, conversationId: string, message: string, lang = 'fr'): Promise<AssistantChatResult> {
+  async execute(
+    userId: string,
+    instanceId: string,
+    conversationId: string,
+    message: string,
+    lang = 'fr',
+  ): Promise<AssistantChatResult> {
     const conversation = await this.conversationRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('AssistantConversation', conversationId);
-    if (conversation.userId !== userId) throw new ForbiddenError('Cette conversation appartient à un autre utilisateur.');
+    if (conversation.userId !== userId)
+      throw new ForbiddenError('Cette conversation appartient à un autre utilisateur.');
 
     const priorTurns = (conversation.messages as unknown as AssistantMessageRecord[] | null) ?? [];
     const messages: GeminiMessage[] = [
@@ -257,24 +289,41 @@ export class AssistantChatUseCase {
 
         if (CLIENT_ACTION_TOOLS.has(call.name)) {
           clientActions.push({ action: this.toClientActionName(call.name), ...call.args });
-          messages.push({ role: 'user', functionResponse: { name: call.name, response: { success: true } } });
+          messages.push({
+            role: 'user',
+            functionResponse: { name: call.name, response: { success: true } },
+          });
           continue;
         }
 
         try {
-          const { data, clientAction, attachment } = await this.executeDataTool(call.name, call.args, userId, instanceId);
+          const { data, clientAction, attachment } = await this.executeDataTool(
+            call.name,
+            call.args,
+            userId,
+            instanceId,
+          );
           if (clientAction) clientActions.push(clientAction);
           if (attachment) attachments.push(attachment);
-          messages.push({ role: 'user', functionResponse: { name: call.name, response: { data } } });
+          messages.push({
+            role: 'user',
+            functionResponse: { name: call.name, response: { data } },
+          });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          logger.warn('Échec d\'un outil de l\'assistant IA', { tool: call.name, error: errorMessage });
-          messages.push({ role: 'user', functionResponse: { name: call.name, response: { error: errorMessage } } });
+          logger.warn("Échec d'un outil de l'assistant IA", {
+            tool: call.name,
+            error: errorMessage,
+          });
+          messages.push({
+            role: 'user',
+            functionResponse: { name: call.name, response: { error: errorMessage } },
+          });
         }
       }
 
       if (iteration === MAX_ITERATIONS - 1) {
-        reply = 'Désolé, je n\'ai pas réussi à terminer cette demande. Peux-tu la reformuler ?';
+        reply = "Désolé, je n'ai pas réussi à terminer cette demande. Peux-tu la reformuler ?";
       }
     }
 
@@ -299,17 +348,38 @@ export class AssistantChatUseCase {
     return 'zoomTo';
   }
 
-  private async executeDataTool(name: string, args: Record<string, unknown>, userId: string, instanceId: string): Promise<DataToolResult> {
+  private async executeDataTool(
+    name: string,
+    args: Record<string, unknown>,
+    userId: string,
+    instanceId: string,
+  ): Promise<DataToolResult> {
     switch (name) {
       case 'geocode': {
         const results = await this.searchGeocodingUseCase.execute(String(args.query), { limit: 1 });
         if (results.length === 0) return { data: { found: false } };
         const r = results[0];
-        return { data: { found: true, lon: Number(r.lon), lat: Number(r.lat), displayName: r.display_name } };
+        return {
+          data: {
+            found: true,
+            lon: Number(r.lon),
+            lat: Number(r.lat),
+            displayName: r.display_name,
+          },
+        };
       }
       case 'search_layers': {
-        const result = await this.searchLayersUseCase.execute(String(args.query), { instanceId, limit: 5 });
-        return { data: result.hits.map((h) => ({ id: h.id as string, name: h.name as string, description: (h.description as string) ?? null })) };
+        const result = await this.searchLayersUseCase.execute(String(args.query), {
+          instanceId,
+          limit: 5,
+        });
+        return {
+          data: result.hits.map((h) => ({
+            id: h.id as string,
+            name: h.name as string,
+            description: (h.description as string) ?? null,
+          })),
+        };
       }
       case 'get_layer_stats':
         return { data: await this.getLayerStatsUseCase.execute(String(args.layerId)) };
@@ -321,13 +391,20 @@ export class AssistantChatUseCase {
         });
         return {
           data: analysisResult,
-          clientAction: { action: 'displayGeometry', geometry: analysisResult.geometry, label: `Zone tampon (${Number(args.distanceMeters)} m)` },
+          clientAction: {
+            action: 'displayGeometry',
+            geometry: analysisResult.geometry,
+            label: `Zone tampon (${Number(args.distanceMeters)} m)`,
+          },
         };
       }
       case 'find_nearest_feature':
         return {
           data: await this.findNearestFeatureUseCase.execute(
-            String(args.layerId), Number(args.lon), Number(args.lat), args.limit ? Number(args.limit) : undefined,
+            String(args.layerId),
+            Number(args.lon),
+            Number(args.lat),
+            args.limit ? Number(args.limit) : undefined,
           ),
         };
       case 'create_location_plan': {
@@ -347,7 +424,10 @@ export class AssistantChatUseCase {
             id: finalPlan.id,
             title: finalPlan.title,
             status: finalPlan.status,
-            downloadUrl: finalPlan.status === 'COMPLETED' ? `/api/v1/location-plans/${finalPlan.id}/download` : undefined,
+            downloadUrl:
+              finalPlan.status === 'COMPLETED'
+                ? `/api/v1/location-plans/${finalPlan.id}/download`
+                : undefined,
           },
         };
       }
@@ -362,7 +442,11 @@ export class AssistantChatUseCase {
   private async pollLocationPlanCompletion(id: string) {
     let plan = await this.getLocationPlanUseCase.execute(id);
     let tries = 0;
-    while (plan.status !== 'COMPLETED' && plan.status !== 'FAILED' && tries < LOCATION_PLAN_POLL_MAX_TRIES) {
+    while (
+      plan.status !== 'COMPLETED' &&
+      plan.status !== 'FAILED' &&
+      tries < LOCATION_PLAN_POLL_MAX_TRIES
+    ) {
       await new Promise((resolve) => setTimeout(resolve, LOCATION_PLAN_POLL_INTERVAL_MS));
       plan = await this.getLocationPlanUseCase.execute(id);
       tries++;

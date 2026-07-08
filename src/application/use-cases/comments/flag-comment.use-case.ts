@@ -1,4 +1,7 @@
-import { PrismaCommentRepository, CommentRecord } from '../../../infrastructure/database/repositories/prisma-comment.repository.js';
+import {
+  PrismaCommentRepository,
+  CommentRecord,
+} from '../../../infrastructure/database/repositories/prisma-comment.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 

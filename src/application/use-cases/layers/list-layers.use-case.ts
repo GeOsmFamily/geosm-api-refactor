@@ -12,6 +12,12 @@ export class ListLayersUseCase {
     logger.debug('Listing layers', { instanceId });
     const page = dto.page ?? 1;
     const limit = dto.limit ?? 20;
-    return this.layerRepository.findByInstance(instanceId, { page, limit, search: dto.search, geometryType: dto.geometryType, subGroupId: dto.subGroupId });
+    return this.layerRepository.findByInstance(instanceId, {
+      page,
+      limit,
+      search: dto.search,
+      geometryType: dto.geometryType,
+      subGroupId: dto.subGroupId,
+    });
   }
 }

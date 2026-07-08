@@ -21,8 +21,13 @@ export class LinkOsmAccountUseCase {
 
     const existingLink = await this.osmProfileRepository.findByOsmUserId(osmUserId);
     if (existingLink && existingLink.userId !== userId) {
-      logger.warn('Link OSM account rejected: already linked to another GeOSM account', { userId, osmUserId: osmProfile.osmUserId });
-      throw new ConflictError('This OpenStreetMap account is already linked to another GeOSM account');
+      logger.warn('Link OSM account rejected: already linked to another GeOSM account', {
+        userId,
+        osmUserId: osmProfile.osmUserId,
+      });
+      throw new ConflictError(
+        'This OpenStreetMap account is already linked to another GeOSM account',
+      );
     }
 
     await this.osmProfileRepository.upsert(uuidv4(), {

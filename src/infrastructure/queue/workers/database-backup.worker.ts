@@ -15,7 +15,10 @@ export function createDatabaseBackupProcessor(deps: DatabaseBackupWorkerDeps) {
     } catch (error) {
       // Un backup manqué est sérieux (contrairement à un import OSM manqué) - log en error
       // (pas warn) pour que ça remonte comme une alerte distincte en observabilité.
-      logger.error('Job de backup Postgres échoué', { jobId: job.id, error: error instanceof Error ? error.message : error });
+      logger.error('Job de backup Postgres échoué', {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : error,
+      });
       throw error;
     }
   };

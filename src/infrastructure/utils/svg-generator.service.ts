@@ -15,7 +15,15 @@ export interface SvgOptions {
 
 export class SvgGeneratorService {
   generateSvg(options: SvgOptions): string {
-    const { color, shape, size, strokeColor = '#000000', strokeWidth = 1, label, iconKey } = options;
+    const {
+      color,
+      shape,
+      size,
+      strokeColor = '#000000',
+      strokeWidth = 1,
+      label,
+      iconKey,
+    } = options;
     const half = size / 2;
     const pad = Math.max(4, Math.round(size * 0.12));
 
@@ -53,9 +61,10 @@ export class SvgGeneratorService {
 
     // Subtle top highlight for a soft "badge" look (two-tone, not flat).
     const highlightR = half - strokeWidth - 2;
-    const highlightElement = highlightR > 4
-      ? `<ellipse cx="${half}" cy="${half - highlightR * 0.45}" rx="${highlightR * 0.7}" ry="${highlightR * 0.35}" fill="#ffffff" opacity="0.16"/>`
-      : '';
+    const highlightElement =
+      highlightR > 4
+        ? `<ellipse cx="${half}" cy="${half - highlightR * 0.45}" rx="${highlightR * 0.7}" ry="${highlightR * 0.35}" fill="#ffffff" opacity="0.16"/>`
+        : '';
 
     let labelElement = '';
     const innerIcon = getInnerIconPath(iconKey, label);
@@ -71,16 +80,18 @@ export class SvgGeneratorService {
     }
 
     const canvasSize = size + pad * 2;
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasSize}" height="${canvasSize}" viewBox="0 0 ${canvasSize} ${canvasSize}">` +
+    return (
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasSize}" height="${canvasSize}" viewBox="0 0 ${canvasSize} ${canvasSize}">` +
       `<defs><filter id="dropshadow" x="-50%" y="-50%" width="200%" height="200%">` +
       `<feDropShadow dx="0" dy="1.5" stdDeviation="1.4" flood-color="#000000" flood-opacity="0.35"/>` +
       `</filter></defs>` +
       `<g transform="translate(${pad},${pad})" filter="url(#dropshadow)">${shapeElement}${highlightElement}${labelElement}</g>` +
-      `</svg>`;
+      `</svg>`
+    );
   }
 
   generateMultipleSvg(optionsList: SvgOptions[]): string[] {
-    return optionsList.map(opts => this.generateSvg(opts));
+    return optionsList.map((opts) => this.generateSvg(opts));
   }
 
   async saveSvgToFile(svg: string, outputPath: string): Promise<string> {
@@ -203,14 +214,19 @@ export const ICON_CATALOG: { key: string; label: string; category: string; svgPa
   { key: 'bed', label: 'Hébergement', category: 'hebergement', svgPath: BED },
   { key: 'tent', label: 'Camping', category: 'hebergement', svgPath: TENT },
   { key: 'suitcase', label: 'Valise', category: 'hebergement', svgPath: SUITCASE },
-  { key: 'ferris-wheel', label: 'Parc d\'attractions', category: 'loisirs', svgPath: FERRIS_WHEEL },
+  { key: 'ferris-wheel', label: "Parc d'attractions", category: 'loisirs', svgPath: FERRIS_WHEEL },
   { key: 'animal', label: 'Zoo', category: 'loisirs', svgPath: ANIMAL },
   { key: 'wave', label: 'Piscine', category: 'loisirs', svgPath: WAVE },
   { key: 'ball', label: 'Sport', category: 'loisirs', svgPath: BALL },
   { key: 'swing', label: 'Aire de jeux', category: 'loisirs', svgPath: SWING },
   { key: 'museum', label: 'Musée', category: 'loisirs', svgPath: MUSEUM },
   { key: 'camera', label: 'Photo/Tourisme', category: 'loisirs', svgPath: CAMERA },
-  { key: 'gov-building', label: 'Bâtiment public', category: 'administration', svgPath: GOV_BUILDING },
+  {
+    key: 'gov-building',
+    label: 'Bâtiment public',
+    category: 'administration',
+    svgPath: GOV_BUILDING,
+  },
   { key: 'shield', label: 'Police', category: 'administration', svgPath: SHIELD },
   { key: 'scales', label: 'Justice', category: 'administration', svgPath: SCALES },
   { key: 'flag', label: 'Drapeau', category: 'administration', svgPath: FLAG },
@@ -235,8 +251,13 @@ export const ICON_CATALOG: { key: string; label: string; category: string; svgPa
   { key: 'ambulance', label: 'Ambulance', category: 'sante', svgPath: AMBULANCE },
   { key: 'microscope', label: 'Laboratoire', category: 'sante', svgPath: MICROSCOPE },
   { key: 'toy-blocks', label: 'Petite enfance', category: 'education', svgPath: TOY_BLOCKS },
-  { key: 'currency-exchange', label: 'Bureau de change', category: 'finance', svgPath: CURRENCY_EXCHANGE },
-  { key: 'well', label: 'Point d\'eau', category: 'environnement', svgPath: WELL },
+  {
+    key: 'currency-exchange',
+    label: 'Bureau de change',
+    category: 'finance',
+    svgPath: CURRENCY_EXCHANGE,
+  },
+  { key: 'well', label: "Point d'eau", category: 'environnement', svgPath: WELL },
   { key: 'bin', label: 'Poubelle', category: 'environnement', svgPath: BIN },
   { key: 'solar-panel', label: 'Panneau solaire', category: 'environnement', svgPath: SOLAR_PANEL },
   { key: 'scissors', label: 'Coiffeur', category: 'commerce', svgPath: SCISSORS },
@@ -259,12 +280,14 @@ export const ICON_CATALOG: { key: string; label: string; category: string; svgPa
   { key: 'antenna', label: 'Antenne', category: 'autre', svgPath: ANTENNA },
 ];
 
-const ICON_CATALOG_MAP: Record<string, string> = Object.fromEntries(ICON_CATALOG.map((i) => [i.key, i.svgPath]));
+const ICON_CATALOG_MAP: Record<string, string> = Object.fromEntries(
+  ICON_CATALOG.map((i) => [i.key, i.svgPath]),
+);
 
 /** Slug -> glyph, keyed by layer slug so two layers can never collide on a shared 2-letter label. */
 const SLUG_ICON_GLYPHS: Record<string, string> = {
   // Santé
-  'hopitaux': CROSS,
+  hopitaux: CROSS,
   'centres-de-sante-dispensaires': CROSS,
   'imagerie-medicale-radiologie': CROSS,
   'maternite-sage-femme': CROSS,
@@ -277,7 +300,7 @@ const SLUG_ICON_GLYPHS: Record<string, string> = {
   'centre-formation-professionnelle': GRAD_CAP,
   // Finance
   'atm-distributeurs': BANK,
-  'microfinance': BANK,
+  microfinance: BANK,
   'bourse-marche-financier': BANK,
   'cooperative-epargne-credit': BANK,
   'mobile-money': BANK,
@@ -288,10 +311,10 @@ const SLUG_ICON_GLYPHS: Record<string, string> = {
   'reserves-naturelles-aires-protegees': TREE,
   'qualite-air-stations': TREE,
   // Commerce et Shopping
-  'librairie': BOOK,
+  librairie: BOOK,
   'marche-local': BASKET,
-  'animalerie': PAW,
-  'cordonnerie': SHOE,
+  animalerie: PAW,
+  cordonnerie: SHOE,
   'magasin-bio': LEAF,
   // Restauration
   'pub-brasserie': FORK_KNIFE,
@@ -303,8 +326,8 @@ const SLUG_ICON_GLYPHS: Record<string, string> = {
   'residence-meublee-apparthotel': BED,
   'chambre-dhotes': BED,
   'auberge-jeunesse': BED,
-  'camping': TENT,
-  'motel': BED,
+  camping: TENT,
+  motel: BED,
   // Loisirs
   'parc-attractions': FERRIS_WHEEL,
   'zoo-parc-animalier': ANIMAL,
@@ -313,13 +336,13 @@ const SLUG_ICON_GLYPHS: Record<string, string> = {
   'aire-jeux-enfants': SWING,
   // Administration et Institutions Publiques
   'mairies-communes': GOV_BUILDING,
-  'tribunaux': SCALES,
+  tribunaux: SCALES,
   'police-gendarmerie': SHIELD,
-  'prefectures': GOV_BUILDING,
+  prefectures: GOV_BUILDING,
   'services-impots': GOV_BUILDING,
   // Automobile et Transport
   'gare-routiere-bus': BUS,
-  'aeroport': PLANE,
+  aeroport: PLANE,
   'port-embarcadere': ANCHOR,
   'gare-ferroviaire': TRAIN,
   'location-vehicules': CAR,
@@ -339,13 +362,29 @@ function getInnerIconPath(iconKey?: string, label?: string): string | null {
   }
 
   switch (label) {
-    case 'H': case 'CS': case 'IM': case 'MA': case 'NU':
+    case 'H':
+    case 'CS':
+    case 'IM':
+    case 'MA':
+    case 'NU':
       return CROSS;
-    case 'EP': case 'EM': case 'UN': case 'BU': case 'CF':
+    case 'EP':
+    case 'EM':
+    case 'UN':
+    case 'BU':
+    case 'CF':
       return GRAD_CAP;
-    case 'AT': case 'MF': case 'BF': case 'CE': case 'MM':
+    case 'AT':
+    case 'MF':
+    case 'BF':
+    case 'CE':
+    case 'MM':
       return BANK;
-    case 'EV': case 'RN': case 'GD': case 'SE': case 'QA':
+    case 'EV':
+    case 'RN':
+    case 'GD':
+    case 'SE':
+    case 'QA':
       return TREE;
     case 'AE':
       return PLANE;
@@ -361,11 +400,18 @@ function getInnerIconPath(iconKey?: string, label?: string): string | null {
       return SHIELD;
     case 'TR':
       return SCALES;
-    case 'PR': case 'SI':
+    case 'PR':
+    case 'SI':
       return GOV_BUILDING;
-    case 'PB': case 'FT': case 'BC': case 'CV':
+    case 'PB':
+    case 'FT':
+    case 'BC':
+    case 'CV':
       return FORK_KNIFE;
-    case 'RM': case 'CH': case 'AJ': case 'MO':
+    case 'RM':
+    case 'CH':
+    case 'AJ':
+    case 'MO':
       return BED;
     case 'CA':
       return TENT;

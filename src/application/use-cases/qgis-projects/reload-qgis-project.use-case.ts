@@ -6,9 +6,7 @@ import { createChildLogger } from '../../../infrastructure/observability/logger.
 const logger = createChildLogger('ReloadQgisProjectUseCase');
 
 export class ReloadQgisProjectUseCase {
-  constructor(
-    private readonly qgisProjectRepository: IQgisProjectRepository,
-  ) {}
+  constructor(private readonly qgisProjectRepository: IQgisProjectRepository) {}
 
   async execute(instanceId: string): Promise<QgisProject[]> {
     const projects = await this.qgisProjectRepository.findByInstanceId(instanceId);

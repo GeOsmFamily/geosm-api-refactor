@@ -17,7 +17,11 @@ export class DeleteGeosignetUseCase {
     const geosignet = await this.geosignetRepository.findById(id);
     if (!geosignet) throw new NotFoundError('Geosignet', id);
     if (geosignet.userId !== userId) {
-      logger.warn('Delete geosignet rejected: not the owner (possible IDOR attempt)', { requestingUserId: userId, ownerId: geosignet.userId, geosignetId: id });
+      logger.warn('Delete geosignet rejected: not the owner (possible IDOR attempt)', {
+        requestingUserId: userId,
+        ownerId: geosignet.userId,
+        geosignetId: id,
+      });
       throw new ForbiddenError('Ce géosignet appartient à un autre utilisateur.');
     }
     await this.geosignetRepository.delete(id);

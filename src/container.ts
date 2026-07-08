@@ -606,370 +606,985 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     tokenService: asValue(tokenService),
 
     redisService: asFunction(() => new RedisService(), { lifetime: Lifetime.SINGLETON }),
-    passwordService: asFunction(() => new Argon2PasswordService(), { lifetime: Lifetime.SINGLETON }),
+    passwordService: asFunction(() => new Argon2PasswordService(), {
+      lifetime: Lifetime.SINGLETON,
+    }),
     emailService: asFunction(() => new SmtpEmailService(), { lifetime: Lifetime.SINGLETON }),
 
     // Repositories
-    userRepository: asFunction(() => new PrismaUserRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    refreshTokenRepository: asFunction(() => new PrismaRefreshTokenRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    instanceRepository: asFunction(() => new PrismaInstanceRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    groupRepository: asFunction(() => new PrismaGroupRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    subGroupRepository: asFunction(() => new PrismaSubGroupRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    layerRepository: asFunction(() => new PrismaLayerRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    baseMapRepository: asFunction(() => new PrismaBaseMapRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    layerStyleRepository: asFunction(() => new PrismaLayerStyleRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    exportRepository: asFunction(() => new PrismaExportRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    locationPlanRepository: asFunction(() => new PrismaLocationPlanRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    qgisProjectRepository: asFunction(() => new PrismaQgisProjectRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    defaultThemeRepository: asFunction(() => new PrismaDefaultThemeRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    osmProfileRepository: asFunction(() => new PrismaOsmProfileRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    passwordResetTokenRepository: asFunction(() => new PrismaPasswordResetTokenRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    emailVerificationTokenRepository: asFunction(() => new PrismaEmailVerificationTokenRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    userRepository: asFunction(() => new PrismaUserRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    refreshTokenRepository: asFunction(() => new PrismaRefreshTokenRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    instanceRepository: asFunction(() => new PrismaInstanceRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    groupRepository: asFunction(() => new PrismaGroupRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    subGroupRepository: asFunction(() => new PrismaSubGroupRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    layerRepository: asFunction(() => new PrismaLayerRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    baseMapRepository: asFunction(() => new PrismaBaseMapRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    layerStyleRepository: asFunction(() => new PrismaLayerStyleRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    exportRepository: asFunction(() => new PrismaExportRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    locationPlanRepository: asFunction(() => new PrismaLocationPlanRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    qgisProjectRepository: asFunction(() => new PrismaQgisProjectRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    defaultThemeRepository: asFunction(() => new PrismaDefaultThemeRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    osmProfileRepository: asFunction(() => new PrismaOsmProfileRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    passwordResetTokenRepository: asFunction(() => new PrismaPasswordResetTokenRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    emailVerificationTokenRepository: asFunction(
+      () => new PrismaEmailVerificationTokenRepository(prisma),
+      { lifetime: Lifetime.SINGLETON },
+    ),
 
     // External API services
     nominatimService: asFunction(() => new NominatimService(), { lifetime: Lifetime.SINGLETON }),
     osrmService: asFunction(() => new OSRMService(), { lifetime: Lifetime.SINGLETON }),
     geminiService: asFunction(() => new GeminiService(), { lifetime: Lifetime.SINGLETON }),
     osmOAuthService: asFunction(() => new OsmOAuthService(), { lifetime: Lifetime.SINGLETON }),
-    meiliSearchService: asFunction(() => new MeiliSearchService(), { lifetime: Lifetime.SINGLETON }),
+    meiliSearchService: asFunction(() => new MeiliSearchService(), {
+      lifetime: Lifetime.SINGLETON,
+    }),
     qgisServerService: asFunction(() => new QgisServerService(), { lifetime: Lifetime.SINGLETON }),
-    qgisProjectService: asFunction(() => new QGISProjectService(), { lifetime: Lifetime.SINGLETON }),
+    qgisProjectService: asFunction(() => new QGISProjectService(), {
+      lifetime: Lifetime.SINGLETON,
+    }),
 
     // Auth use cases
-    registerUseCase: asFunction((c: Cradle) =>
-      new RegisterUseCase(c.userRepository, c.refreshTokenRepository, c.passwordService, c.tokenService, c.emailService, c.emailVerificationTokenRepository),
-    { lifetime: Lifetime.SCOPED }),
+    registerUseCase: asFunction(
+      (c: Cradle) =>
+        new RegisterUseCase(
+          c.userRepository,
+          c.refreshTokenRepository,
+          c.passwordService,
+          c.tokenService,
+          c.emailService,
+          c.emailVerificationTokenRepository,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
-    loginUseCase: asFunction((c: Cradle) =>
-      new LoginUseCase(c.userRepository, c.refreshTokenRepository, c.passwordService, c.tokenService),
-    { lifetime: Lifetime.SCOPED }),
+    loginUseCase: asFunction(
+      (c: Cradle) =>
+        new LoginUseCase(
+          c.userRepository,
+          c.refreshTokenRepository,
+          c.passwordService,
+          c.tokenService,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
-    refreshTokenUseCase: asFunction((c: Cradle) =>
-      new RefreshTokenUseCase(c.userRepository, c.refreshTokenRepository, c.tokenService),
-    { lifetime: Lifetime.SCOPED }),
+    refreshTokenUseCase: asFunction(
+      (c: Cradle) =>
+        new RefreshTokenUseCase(c.userRepository, c.refreshTokenRepository, c.tokenService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
-    logoutUseCase: asFunction((c: Cradle) =>
-      new LogoutUseCase(c.refreshTokenRepository),
-    { lifetime: Lifetime.SCOPED }),
+    logoutUseCase: asFunction((c: Cradle) => new LogoutUseCase(c.refreshTokenRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
-    verifyEmailUseCase: asFunction((c: Cradle) =>
-      new VerifyEmailUseCase(c.userRepository, c.emailVerificationTokenRepository),
-    { lifetime: Lifetime.SCOPED }),
+    verifyEmailUseCase: asFunction(
+      (c: Cradle) => new VerifyEmailUseCase(c.userRepository, c.emailVerificationTokenRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
-    forgotPasswordUseCase: asFunction((c: Cradle) =>
-      new ForgotPasswordUseCase(c.userRepository, c.emailService, c.passwordResetTokenRepository),
-    { lifetime: Lifetime.SCOPED }),
+    forgotPasswordUseCase: asFunction(
+      (c: Cradle) =>
+        new ForgotPasswordUseCase(c.userRepository, c.emailService, c.passwordResetTokenRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
-    resetPasswordUseCase: asFunction((c: Cradle) =>
-      new ResetPasswordUseCase(c.userRepository, c.passwordService, c.refreshTokenRepository, c.passwordResetTokenRepository),
-    { lifetime: Lifetime.SCOPED }),
+    resetPasswordUseCase: asFunction(
+      (c: Cradle) =>
+        new ResetPasswordUseCase(
+          c.userRepository,
+          c.passwordService,
+          c.refreshTokenRepository,
+          c.passwordResetTokenRepository,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
-    getProfileUseCase: asFunction((c: Cradle) =>
-      new GetProfileUseCase(c.userRepository),
-    { lifetime: Lifetime.SCOPED }),
+    getProfileUseCase: asFunction((c: Cradle) => new GetProfileUseCase(c.userRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
-    updateProfileUseCase: asFunction((c: Cradle) =>
-      new UpdateProfileUseCase(c.userRepository),
-    { lifetime: Lifetime.SCOPED }),
+    updateProfileUseCase: asFunction((c: Cradle) => new UpdateProfileUseCase(c.userRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
-    changePasswordUseCase: asFunction((c: Cradle) =>
-      new ChangePasswordUseCase(c.userRepository, c.passwordService, c.refreshTokenRepository),
-    { lifetime: Lifetime.SCOPED }),
+    changePasswordUseCase: asFunction(
+      (c: Cradle) =>
+        new ChangePasswordUseCase(c.userRepository, c.passwordService, c.refreshTokenRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
-    osmLoginUseCase: asFunction((c: Cradle) =>
-      new OsmLoginUseCase(c.osmOAuthService, c.osmProfileRepository, c.userRepository, c.refreshTokenRepository, c.passwordService, c.tokenService),
-    { lifetime: Lifetime.SCOPED }),
-    linkOsmAccountUseCase: asFunction((c: Cradle) =>
-      new LinkOsmAccountUseCase(c.osmOAuthService, c.osmProfileRepository),
-    { lifetime: Lifetime.SCOPED }),
-    unlinkOsmAccountUseCase: asFunction((c: Cradle) =>
-      new UnlinkOsmAccountUseCase(c.osmProfileRepository),
-    { lifetime: Lifetime.SCOPED }),
-    getOsmProfileUseCase: asFunction((c: Cradle) =>
-      new GetOsmProfileUseCase(c.osmProfileRepository),
-    { lifetime: Lifetime.SCOPED }),
+    osmLoginUseCase: asFunction(
+      (c: Cradle) =>
+        new OsmLoginUseCase(
+          c.osmOAuthService,
+          c.osmProfileRepository,
+          c.userRepository,
+          c.refreshTokenRepository,
+          c.passwordService,
+          c.tokenService,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    linkOsmAccountUseCase: asFunction(
+      (c: Cradle) => new LinkOsmAccountUseCase(c.osmOAuthService, c.osmProfileRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    unlinkOsmAccountUseCase: asFunction(
+      (c: Cradle) => new UnlinkOsmAccountUseCase(c.osmProfileRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getOsmProfileUseCase: asFunction(
+      (c: Cradle) => new GetOsmProfileUseCase(c.osmProfileRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Users use cases
-    listUsersUseCase: asFunction((c: Cradle) => new ListUsersUseCase(c.userRepository), { lifetime: Lifetime.SCOPED }),
-    getUserUseCase: asFunction((c: Cradle) => new GetUserUseCase(c.userRepository), { lifetime: Lifetime.SCOPED }),
-    createUserUseCase: asFunction((c: Cradle) => new CreateUserUseCase(c.userRepository, c.passwordService), { lifetime: Lifetime.SCOPED }),
-    updateUserUseCase: asFunction((c: Cradle) => new UpdateUserUseCase(c.userRepository), { lifetime: Lifetime.SCOPED }),
-    deleteUserUseCase: asFunction((c: Cradle) => new DeleteUserUseCase(c.userRepository), { lifetime: Lifetime.SCOPED }),
-    changeUserRoleUseCase: asFunction((c: Cradle) => new ChangeUserRoleUseCase(c.userRepository), { lifetime: Lifetime.SCOPED }),
-    toggleUserActiveUseCase: asFunction((c: Cradle) => new ToggleUserActiveUseCase(c.userRepository), { lifetime: Lifetime.SCOPED }),
+    listUsersUseCase: asFunction((c: Cradle) => new ListUsersUseCase(c.userRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getUserUseCase: asFunction((c: Cradle) => new GetUserUseCase(c.userRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    createUserUseCase: asFunction(
+      (c: Cradle) => new CreateUserUseCase(c.userRepository, c.passwordService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateUserUseCase: asFunction((c: Cradle) => new UpdateUserUseCase(c.userRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    deleteUserUseCase: asFunction((c: Cradle) => new DeleteUserUseCase(c.userRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    changeUserRoleUseCase: asFunction((c: Cradle) => new ChangeUserRoleUseCase(c.userRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    toggleUserActiveUseCase: asFunction(
+      (c: Cradle) => new ToggleUserActiveUseCase(c.userRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Instances use cases
-    listInstancesUseCase: asFunction((c: Cradle) => new ListInstancesUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    getInstanceUseCase: asFunction((c: Cradle) => new GetInstanceUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    createInstanceUseCase: asFunction((c: Cradle) => new CreateInstanceUseCase(
-      c.instanceRepository,
-      c.groupRepository,
-      c.subGroupRepository,
-      c.layerRepository,
-      c.osmQueryService,
-      c.qgisProjectService,
-      c.svgGeneratorService,
-      c.qgisProjectRepository,
-      c.baseMapRepository,
-    ), { lifetime: Lifetime.SCOPED }),
-    updateInstanceUseCase: asFunction((c: Cradle) => new UpdateInstanceUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    deleteInstanceUseCase: asFunction((c: Cradle) => new DeleteInstanceUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    getInstanceUsersUseCase: asFunction((c: Cradle) => new GetInstanceUsersUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    addInstanceUserUseCase: asFunction((c: Cradle) => new AddInstanceUserUseCase(c.instanceRepository, c.userRepository), { lifetime: Lifetime.SCOPED }),
-    removeInstanceUserUseCase: asFunction((c: Cradle) => new RemoveInstanceUserUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    changeInstanceUserRoleUseCase: asFunction((c: Cradle) => new ChangeInstanceUserRoleUseCase(c.instanceRepository), { lifetime: Lifetime.SCOPED }),
+    listInstancesUseCase: asFunction(
+      (c: Cradle) => new ListInstancesUseCase(c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getInstanceUseCase: asFunction((c: Cradle) => new GetInstanceUseCase(c.instanceRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    createInstanceUseCase: asFunction(
+      (c: Cradle) =>
+        new CreateInstanceUseCase(
+          c.instanceRepository,
+          c.groupRepository,
+          c.subGroupRepository,
+          c.layerRepository,
+          c.osmQueryService,
+          c.qgisProjectService,
+          c.svgGeneratorService,
+          c.qgisProjectRepository,
+          c.baseMapRepository,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateInstanceUseCase: asFunction(
+      (c: Cradle) => new UpdateInstanceUseCase(c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    deleteInstanceUseCase: asFunction(
+      (c: Cradle) => new DeleteInstanceUseCase(c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getInstanceUsersUseCase: asFunction(
+      (c: Cradle) => new GetInstanceUsersUseCase(c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    addInstanceUserUseCase: asFunction(
+      (c: Cradle) => new AddInstanceUserUseCase(c.instanceRepository, c.userRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    removeInstanceUserUseCase: asFunction(
+      (c: Cradle) => new RemoveInstanceUserUseCase(c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    changeInstanceUserRoleUseCase: asFunction(
+      (c: Cradle) => new ChangeInstanceUserRoleUseCase(c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Groups use cases
-    listGroupsUseCase: asFunction((c: Cradle) => new ListGroupsUseCase(c.groupRepository), { lifetime: Lifetime.SCOPED }),
-    getGroupUseCase: asFunction((c: Cradle) => new GetGroupUseCase(c.groupRepository), { lifetime: Lifetime.SCOPED }),
-    createGroupUseCase: asFunction((c: Cradle) => new CreateGroupUseCase(c.groupRepository, c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    updateGroupUseCase: asFunction((c: Cradle) => new UpdateGroupUseCase(c.groupRepository), { lifetime: Lifetime.SCOPED }),
-    deleteGroupUseCase: asFunction((c: Cradle) => new DeleteGroupUseCase(c.groupRepository), { lifetime: Lifetime.SCOPED }),
-    reorderGroupsUseCase: asFunction((c: Cradle) => new ReorderGroupsUseCase(c.groupRepository), { lifetime: Lifetime.SCOPED }),
+    listGroupsUseCase: asFunction((c: Cradle) => new ListGroupsUseCase(c.groupRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getGroupUseCase: asFunction((c: Cradle) => new GetGroupUseCase(c.groupRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    createGroupUseCase: asFunction(
+      (c: Cradle) => new CreateGroupUseCase(c.groupRepository, c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateGroupUseCase: asFunction((c: Cradle) => new UpdateGroupUseCase(c.groupRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    deleteGroupUseCase: asFunction((c: Cradle) => new DeleteGroupUseCase(c.groupRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    reorderGroupsUseCase: asFunction((c: Cradle) => new ReorderGroupsUseCase(c.groupRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // SubGroups use cases
-    listSubGroupsUseCase: asFunction((c: Cradle) => new ListSubGroupsUseCase(c.subGroupRepository), { lifetime: Lifetime.SCOPED }),
-    getSubGroupUseCase: asFunction((c: Cradle) => new GetSubGroupUseCase(c.subGroupRepository), { lifetime: Lifetime.SCOPED }),
-    createSubGroupUseCase: asFunction((c: Cradle) => new CreateSubGroupUseCase(c.subGroupRepository, c.groupRepository), { lifetime: Lifetime.SCOPED }),
-    updateSubGroupUseCase: asFunction((c: Cradle) => new UpdateSubGroupUseCase(c.subGroupRepository), { lifetime: Lifetime.SCOPED }),
-    deleteSubGroupUseCase: asFunction((c: Cradle) => new DeleteSubGroupUseCase(c.subGroupRepository), { lifetime: Lifetime.SCOPED }),
+    listSubGroupsUseCase: asFunction(
+      (c: Cradle) => new ListSubGroupsUseCase(c.subGroupRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getSubGroupUseCase: asFunction((c: Cradle) => new GetSubGroupUseCase(c.subGroupRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    createSubGroupUseCase: asFunction(
+      (c: Cradle) => new CreateSubGroupUseCase(c.subGroupRepository, c.groupRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateSubGroupUseCase: asFunction(
+      (c: Cradle) => new UpdateSubGroupUseCase(c.subGroupRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    deleteSubGroupUseCase: asFunction(
+      (c: Cradle) => new DeleteSubGroupUseCase(c.subGroupRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Layers use cases
-    listLayersUseCase: asFunction((c: Cradle) => new ListLayersUseCase(c.layerRepository), { lifetime: Lifetime.SCOPED }),
-    getLayerUseCase: asFunction((c: Cradle) => new GetLayerUseCase(c.layerRepository), { lifetime: Lifetime.SCOPED }),
-    createLayerUseCase: asFunction((c: Cradle) => new CreateLayerUseCase(c.layerRepository, c.instanceRepository, c.indexLayerUseCase), { lifetime: Lifetime.SCOPED }),
-    updateLayerUseCase: asFunction((c: Cradle) => new UpdateLayerUseCase(c.layerRepository, c.indexLayerUseCase), { lifetime: Lifetime.SCOPED }),
-    deleteLayerUseCase: asFunction((c: Cradle) => new DeleteLayerUseCase(c.layerRepository, c.removeLayerIndexUseCase), { lifetime: Lifetime.SCOPED }),
-    stageFileImportUseCase: asFunction((c: Cradle) => new StageFileImportUseCase(c.ogr2ogrService, c.postGISService, prisma), { lifetime: Lifetime.SCOPED }),
-    createLayerFromStagingUseCase: asFunction((c: Cradle) => new CreateLayerFromStagingUseCase(c.layerRepository, c.instanceRepository, c.postGISService, c.qgisProjectService, prisma), { lifetime: Lifetime.SCOPED }),
-    createLayerFromOsmUseCase: asFunction((c: Cradle) => new CreateLayerFromOsmUseCase(c.layerRepository, c.instanceRepository, c.osmQueryService, c.qgisProjectService), { lifetime: Lifetime.SCOPED }),
-    applyLayerStyleUseCase: asFunction((c: Cradle) => new ApplyLayerStyleUseCase(c.layerRepository, c.instanceRepository, c.qgisProjectRepository, c.qgisProjectService, c.svgGeneratorService), { lifetime: Lifetime.SCOPED }),
-    listOsmTagKeysUseCase: asFunction((c: Cradle) => new ListOsmTagKeysUseCase(c.osmQueryService), { lifetime: Lifetime.SCOPED }),
-    listOsmTagValuesUseCase: asFunction((c: Cradle) => new ListOsmTagValuesUseCase(c.osmQueryService), { lifetime: Lifetime.SCOPED }),
+    listLayersUseCase: asFunction((c: Cradle) => new ListLayersUseCase(c.layerRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getLayerUseCase: asFunction((c: Cradle) => new GetLayerUseCase(c.layerRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    createLayerUseCase: asFunction(
+      (c: Cradle) =>
+        new CreateLayerUseCase(c.layerRepository, c.instanceRepository, c.indexLayerUseCase),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateLayerUseCase: asFunction(
+      (c: Cradle) => new UpdateLayerUseCase(c.layerRepository, c.indexLayerUseCase),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    deleteLayerUseCase: asFunction(
+      (c: Cradle) => new DeleteLayerUseCase(c.layerRepository, c.removeLayerIndexUseCase),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    stageFileImportUseCase: asFunction(
+      (c: Cradle) => new StageFileImportUseCase(c.ogr2ogrService, c.postGISService, prisma),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    createLayerFromStagingUseCase: asFunction(
+      (c: Cradle) =>
+        new CreateLayerFromStagingUseCase(
+          c.layerRepository,
+          c.instanceRepository,
+          c.postGISService,
+          c.qgisProjectService,
+          prisma,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    createLayerFromOsmUseCase: asFunction(
+      (c: Cradle) =>
+        new CreateLayerFromOsmUseCase(
+          c.layerRepository,
+          c.instanceRepository,
+          c.osmQueryService,
+          c.qgisProjectService,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    applyLayerStyleUseCase: asFunction(
+      (c: Cradle) =>
+        new ApplyLayerStyleUseCase(
+          c.layerRepository,
+          c.instanceRepository,
+          c.qgisProjectRepository,
+          c.qgisProjectService,
+          c.svgGeneratorService,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    listOsmTagKeysUseCase: asFunction((c: Cradle) => new ListOsmTagKeysUseCase(c.osmQueryService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    listOsmTagValuesUseCase: asFunction(
+      (c: Cradle) => new ListOsmTagValuesUseCase(c.osmQueryService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // BaseMaps use cases
-    listBaseMapsUseCase: asFunction((c: Cradle) => new ListBaseMapsUseCase(c.baseMapRepository), { lifetime: Lifetime.SCOPED }),
-    createBaseMapUseCase: asFunction((c: Cradle) => new CreateBaseMapUseCase(c.baseMapRepository, c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    updateBaseMapUseCase: asFunction((c: Cradle) => new UpdateBaseMapUseCase(c.baseMapRepository), { lifetime: Lifetime.SCOPED }),
-    deleteBaseMapUseCase: asFunction((c: Cradle) => new DeleteBaseMapUseCase(c.baseMapRepository), { lifetime: Lifetime.SCOPED }),
+    listBaseMapsUseCase: asFunction((c: Cradle) => new ListBaseMapsUseCase(c.baseMapRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    createBaseMapUseCase: asFunction(
+      (c: Cradle) => new CreateBaseMapUseCase(c.baseMapRepository, c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateBaseMapUseCase: asFunction((c: Cradle) => new UpdateBaseMapUseCase(c.baseMapRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    deleteBaseMapUseCase: asFunction((c: Cradle) => new DeleteBaseMapUseCase(c.baseMapRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Styles use cases
-    getLayerStyleUseCase: asFunction((c: Cradle) => new GetLayerStyleUseCase(c.layerStyleRepository), { lifetime: Lifetime.SCOPED }),
-    updateLayerStyleUseCase: asFunction((c: Cradle) => new UpdateLayerStyleUseCase(c.layerStyleRepository), { lifetime: Lifetime.SCOPED }),
-    resetLayerStyleUseCase: asFunction((c: Cradle) => new ResetLayerStyleUseCase(c.layerStyleRepository), { lifetime: Lifetime.SCOPED }),
-    listDefaultStylesUseCase: asFunction((c: Cradle) => new ListDefaultStylesUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+    getLayerStyleUseCase: asFunction(
+      (c: Cradle) => new GetLayerStyleUseCase(c.layerStyleRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateLayerStyleUseCase: asFunction(
+      (c: Cradle) => new UpdateLayerStyleUseCase(c.layerStyleRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    resetLayerStyleUseCase: asFunction(
+      (c: Cradle) => new ResetLayerStyleUseCase(c.layerStyleRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    listDefaultStylesUseCase: asFunction((c: Cradle) => new ListDefaultStylesUseCase(c.prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Exports use cases
-    createExportUseCase: asFunction((c: Cradle) => new CreateExportUseCase(c.exportRepository, c.queueService), { lifetime: Lifetime.SCOPED }),
-    createBulkExportUseCase: asFunction((c: Cradle) => new CreateBulkExportUseCase(c.exportRepository, c.queueService), { lifetime: Lifetime.SCOPED }),
-    listExportsUseCase: asFunction((c: Cradle) => new ListExportsUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
-    getExportUseCase: asFunction((c: Cradle) => new GetExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
-    deleteExportUseCase: asFunction((c: Cradle) => new DeleteExportUseCase(c.exportRepository), { lifetime: Lifetime.SCOPED }),
+    createExportUseCase: asFunction(
+      (c: Cradle) => new CreateExportUseCase(c.exportRepository, c.queueService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    createBulkExportUseCase: asFunction(
+      (c: Cradle) => new CreateBulkExportUseCase(c.exportRepository, c.queueService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    listExportsUseCase: asFunction((c: Cradle) => new ListExportsUseCase(c.exportRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getExportUseCase: asFunction((c: Cradle) => new GetExportUseCase(c.exportRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    deleteExportUseCase: asFunction((c: Cradle) => new DeleteExportUseCase(c.exportRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Location plans use cases
-    createLocationPlanUseCase: asFunction((c: Cradle) => new CreateLocationPlanUseCase(c.locationPlanRepository, c.instanceRepository, c.queueService, c.postGISService, c.geminiService), { lifetime: Lifetime.SCOPED }),
-    getLocationPlanUseCase: asFunction((c: Cradle) => new GetLocationPlanUseCase(c.locationPlanRepository), { lifetime: Lifetime.SCOPED }),
+    createLocationPlanUseCase: asFunction(
+      (c: Cradle) =>
+        new CreateLocationPlanUseCase(
+          c.locationPlanRepository,
+          c.instanceRepository,
+          c.queueService,
+          c.postGISService,
+          c.geminiService,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getLocationPlanUseCase: asFunction(
+      (c: Cradle) => new GetLocationPlanUseCase(c.locationPlanRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Geocoding use cases
-    searchGeocodingUseCase: asFunction((c: Cradle) => new SearchGeocodingUseCase(c.nominatimService), { lifetime: Lifetime.SCOPED }),
-    reverseGeocodingUseCase: asFunction((c: Cradle) => new ReverseGeocodingUseCase(c.nominatimService), { lifetime: Lifetime.SCOPED }),
-    lookupGeocodingUseCase: asFunction((c: Cradle) => new LookupGeocodingUseCase(c.nominatimService), { lifetime: Lifetime.SCOPED }),
+    searchGeocodingUseCase: asFunction(
+      (c: Cradle) => new SearchGeocodingUseCase(c.nominatimService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    reverseGeocodingUseCase: asFunction(
+      (c: Cradle) => new ReverseGeocodingUseCase(c.nominatimService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    lookupGeocodingUseCase: asFunction(
+      (c: Cradle) => new LookupGeocodingUseCase(c.nominatimService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Routing use cases
-    calculateRouteUseCase: asFunction((c: Cradle) => new CalculateRouteUseCase(c.osrmService), { lifetime: Lifetime.SCOPED }),
-    findNearestUseCase: asFunction((c: Cradle) => new FindNearestUseCase(c.osrmService), { lifetime: Lifetime.SCOPED }),
-    findNearestFeatureUseCase: asFunction((c: Cradle) => new FindNearestFeatureUseCase(c.layerRepository, c.postGISService, c.osrmService), { lifetime: Lifetime.SCOPED }),
+    calculateRouteUseCase: asFunction((c: Cradle) => new CalculateRouteUseCase(c.osrmService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    findNearestUseCase: asFunction((c: Cradle) => new FindNearestUseCase(c.osrmService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    findNearestFeatureUseCase: asFunction(
+      (c: Cradle) =>
+        new FindNearestFeatureUseCase(c.layerRepository, c.postGISService, c.osrmService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Search use cases
-    globalSearchUseCase: asFunction((c: Cradle) => new GlobalSearchUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
-    searchLayersUseCase: asFunction((c: Cradle) => new SearchLayersUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
-    assistantConversationRepository: asFunction(() => new PrismaAssistantConversationRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    assistantChatUseCase: asFunction((c: Cradle) => new AssistantChatUseCase(
-      c.geminiService, c.assistantConversationRepository, c.searchGeocodingUseCase, c.searchLayersUseCase, c.getLayerStatsUseCase,
-      c.spatialAnalysisUseCase, c.findNearestFeatureUseCase, c.createLocationPlanUseCase, c.getLocationPlanUseCase,
-    ), { lifetime: Lifetime.SCOPED }),
-    listAssistantConversationsUseCase: asFunction((c: Cradle) => new ListAssistantConversationsUseCase(c.assistantConversationRepository), { lifetime: Lifetime.SCOPED }),
-    createAssistantConversationUseCase: asFunction((c: Cradle) => new CreateAssistantConversationUseCase(c.assistantConversationRepository), { lifetime: Lifetime.SCOPED }),
-    getAssistantConversationUseCase: asFunction((c: Cradle) => new GetAssistantConversationUseCase(c.assistantConversationRepository), { lifetime: Lifetime.SCOPED }),
-    deleteAssistantConversationUseCase: asFunction((c: Cradle) => new DeleteAssistantConversationUseCase(c.assistantConversationRepository), { lifetime: Lifetime.SCOPED }),
-    searchFeaturesUseCase: asFunction((c: Cradle) => new SearchFeaturesUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
+    globalSearchUseCase: asFunction((c: Cradle) => new GlobalSearchUseCase(c.meiliSearchService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    searchLayersUseCase: asFunction((c: Cradle) => new SearchLayersUseCase(c.meiliSearchService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    assistantConversationRepository: asFunction(
+      () => new PrismaAssistantConversationRepository(prisma),
+      { lifetime: Lifetime.SINGLETON },
+    ),
+    assistantChatUseCase: asFunction(
+      (c: Cradle) =>
+        new AssistantChatUseCase(
+          c.geminiService,
+          c.assistantConversationRepository,
+          c.searchGeocodingUseCase,
+          c.searchLayersUseCase,
+          c.getLayerStatsUseCase,
+          c.spatialAnalysisUseCase,
+          c.findNearestFeatureUseCase,
+          c.createLocationPlanUseCase,
+          c.getLocationPlanUseCase,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    listAssistantConversationsUseCase: asFunction(
+      (c: Cradle) => new ListAssistantConversationsUseCase(c.assistantConversationRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    createAssistantConversationUseCase: asFunction(
+      (c: Cradle) => new CreateAssistantConversationUseCase(c.assistantConversationRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getAssistantConversationUseCase: asFunction(
+      (c: Cradle) => new GetAssistantConversationUseCase(c.assistantConversationRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    deleteAssistantConversationUseCase: asFunction(
+      (c: Cradle) => new DeleteAssistantConversationUseCase(c.assistantConversationRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    searchFeaturesUseCase: asFunction(
+      (c: Cradle) => new SearchFeaturesUseCase(c.meiliSearchService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // QGIS Projects use cases
-    getQgisProjectUseCase: asFunction((c: Cradle) => new GetQgisProjectUseCase(c.qgisProjectRepository), { lifetime: Lifetime.SCOPED }),
-    reloadQgisProjectUseCase: asFunction((c: Cradle) => new ReloadQgisProjectUseCase(c.qgisProjectRepository), { lifetime: Lifetime.SCOPED }),
-    uploadQgisProjectUseCase: asFunction((c: Cradle) => new UploadQgisProjectUseCase(c.qgisProjectRepository), { lifetime: Lifetime.SCOPED }),
-    listQgisProjectLayersUseCase: asFunction((c: Cradle) => new ListQgisProjectLayersUseCase(c.qgisProjectRepository, c.qgisServerService), { lifetime: Lifetime.SCOPED }),
-    createLayersFromQgisProjectUseCase: asFunction((c: Cradle) => new CreateLayersFromQgisProjectUseCase(c.layerRepository, c.qgisProjectRepository), { lifetime: Lifetime.SCOPED }),
-    exportQgisProjectBundleUseCase: asFunction((c: Cradle) => new ExportQgisProjectBundleUseCase(c.qgisProjectRepository, c.qgisProjectService, c.storageService), { lifetime: Lifetime.SCOPED }),
+    getQgisProjectUseCase: asFunction(
+      (c: Cradle) => new GetQgisProjectUseCase(c.qgisProjectRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    reloadQgisProjectUseCase: asFunction(
+      (c: Cradle) => new ReloadQgisProjectUseCase(c.qgisProjectRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    uploadQgisProjectUseCase: asFunction(
+      (c: Cradle) => new UploadQgisProjectUseCase(c.qgisProjectRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    listQgisProjectLayersUseCase: asFunction(
+      (c: Cradle) => new ListQgisProjectLayersUseCase(c.qgisProjectRepository, c.qgisServerService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    createLayersFromQgisProjectUseCase: asFunction(
+      (c: Cradle) =>
+        new CreateLayersFromQgisProjectUseCase(c.layerRepository, c.qgisProjectRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    exportQgisProjectBundleUseCase: asFunction(
+      (c: Cradle) =>
+        new ExportQgisProjectBundleUseCase(
+          c.qgisProjectRepository,
+          c.qgisProjectService,
+          c.storageService,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Default Themes use cases
-    listDefaultThemesUseCase: asFunction((c: Cradle) => new ListDefaultThemesUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
-    getDefaultThemeUseCase: asFunction((c: Cradle) => new GetDefaultThemeUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
-    createDefaultThemeUseCase: asFunction((c: Cradle) => new CreateDefaultThemeUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
-    updateDefaultThemeUseCase: asFunction((c: Cradle) => new UpdateDefaultThemeUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
-    deleteDefaultThemeUseCase: asFunction((c: Cradle) => new DeleteDefaultThemeUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
-    getThemeTagsUseCase: asFunction((c: Cradle) => new GetThemeTagsUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
-    createThemeTagUseCase: asFunction((c: Cradle) => new CreateThemeTagUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
-    seedDefaultThemesUseCase: asFunction((c: Cradle) => new SeedDefaultThemesUseCase(c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
+    listDefaultThemesUseCase: asFunction(
+      (c: Cradle) => new ListDefaultThemesUseCase(c.defaultThemeRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getDefaultThemeUseCase: asFunction(
+      (c: Cradle) => new GetDefaultThemeUseCase(c.defaultThemeRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    createDefaultThemeUseCase: asFunction(
+      (c: Cradle) => new CreateDefaultThemeUseCase(c.defaultThemeRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateDefaultThemeUseCase: asFunction(
+      (c: Cradle) => new UpdateDefaultThemeUseCase(c.defaultThemeRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    deleteDefaultThemeUseCase: asFunction(
+      (c: Cradle) => new DeleteDefaultThemeUseCase(c.defaultThemeRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getThemeTagsUseCase: asFunction(
+      (c: Cradle) => new GetThemeTagsUseCase(c.defaultThemeRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    createThemeTagUseCase: asFunction(
+      (c: Cradle) => new CreateThemeTagUseCase(c.defaultThemeRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    seedDefaultThemesUseCase: asFunction(
+      (c: Cradle) => new SeedDefaultThemesUseCase(c.defaultThemeRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Admin use cases
-    getDashboardUseCase: asFunction((c: Cradle) => new GetDashboardUseCase(c.instanceRepository, c.userRepository, c.exportRepository, c.defaultThemeRepository), { lifetime: Lifetime.SCOPED }),
-    listJobsUseCase: asFunction((c: Cradle) => new ListJobsUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
-    getJobDetailsUseCase: asFunction((c: Cradle) => new GetJobDetailsUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
-    retryJobUseCase: asFunction((c: Cradle) => new RetryJobUseCase(c.queueService), { lifetime: Lifetime.SCOPED }),
-    importOsmDataUseCase: asFunction((c: Cradle) => new ImportOsmDataUseCase(c.osm2pgsqlService, c.prisma), { lifetime: Lifetime.SCOPED }),
-    scheduledOsmImportUseCase: asFunction((c: Cradle) => new ScheduledOsmImportUseCase(
-      c.instanceRepository, c.layerRepository, c.importOsmDataUseCase, c.resyncLayerUseCase, config.OSM_IMPORT_PBF_PATH,
-    ), { lifetime: Lifetime.SCOPED }),
-    databaseBackupUseCase: asFunction((c: Cradle) => new DatabaseBackupUseCase(
-      c.storageService, config.DATABASE_URL, config.BACKUP_RETENTION_DAYS,
-    ), { lifetime: Lifetime.SCOPED }),
-    getSystemHealthUseCase: asFunction((c: Cradle) => new GetSystemHealthUseCase(c.prisma, c.redisService), { lifetime: Lifetime.SCOPED }),
+    getDashboardUseCase: asFunction(
+      (c: Cradle) =>
+        new GetDashboardUseCase(
+          c.instanceRepository,
+          c.userRepository,
+          c.exportRepository,
+          c.defaultThemeRepository,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    listJobsUseCase: asFunction((c: Cradle) => new ListJobsUseCase(c.queueService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getJobDetailsUseCase: asFunction((c: Cradle) => new GetJobDetailsUseCase(c.queueService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    retryJobUseCase: asFunction((c: Cradle) => new RetryJobUseCase(c.queueService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    importOsmDataUseCase: asFunction(
+      (c: Cradle) => new ImportOsmDataUseCase(c.osm2pgsqlService, c.prisma),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    scheduledOsmImportUseCase: asFunction(
+      (c: Cradle) =>
+        new ScheduledOsmImportUseCase(
+          c.instanceRepository,
+          c.layerRepository,
+          c.importOsmDataUseCase,
+          c.resyncLayerUseCase,
+          config.OSM_IMPORT_PBF_PATH,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    databaseBackupUseCase: asFunction(
+      (c: Cradle) =>
+        new DatabaseBackupUseCase(
+          c.storageService,
+          config.DATABASE_URL,
+          config.BACKUP_RETENTION_DAYS,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getSystemHealthUseCase: asFunction(
+      (c: Cradle) => new GetSystemHealthUseCase(c.prisma, c.redisService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Phase 4: Layer Import Pipeline
     storageService: asFunction(() => new MinioStorageService(), { lifetime: Lifetime.SINGLETON }),
     queueService: asFunction(() => new QueueService(), { lifetime: Lifetime.SINGLETON }),
-    notificationService: asFunction(() => new NotificationService(), { lifetime: Lifetime.SINGLETON }),
+    notificationService: asFunction(() => new NotificationService(), {
+      lifetime: Lifetime.SINGLETON,
+    }),
 
-    importLayerUseCase: asFunction((c: Cradle) => new ImportLayerUseCase(c.layerRepository, c.exportRepository, c.storageService, c.queueService), { lifetime: Lifetime.SCOPED }),
-    downloadExportUseCase: asFunction((c: Cradle) => new DownloadExportUseCase(c.exportRepository, c.storageService), { lifetime: Lifetime.SCOPED }),
+    importLayerUseCase: asFunction(
+      (c: Cradle) =>
+        new ImportLayerUseCase(
+          c.layerRepository,
+          c.exportRepository,
+          c.storageService,
+          c.queueService,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    downloadExportUseCase: asFunction(
+      (c: Cradle) => new DownloadExportUseCase(c.exportRepository, c.storageService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Geospatial services
     postGISService: asFunction(() => new PostGISService(prisma), { lifetime: Lifetime.SINGLETON }),
     ogr2ogrService: asFunction(() => new Ogr2OgrService(), { lifetime: Lifetime.SINGLETON }),
 
     // OSM services
-    osmQueryService: asFunction(() => new OsmQueryService(prisma), { lifetime: Lifetime.SINGLETON }),
-    resyncLayerUseCase: asFunction((c: Cradle) => new ResyncLayerUseCase(c.layerRepository, c.instanceRepository, c.osmQueryService), { lifetime: Lifetime.SCOPED }),
+    osmQueryService: asFunction(() => new OsmQueryService(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    resyncLayerUseCase: asFunction(
+      (c: Cradle) =>
+        new ResyncLayerUseCase(c.layerRepository, c.instanceRepository, c.osmQueryService),
+      { lifetime: Lifetime.SCOPED },
+    ),
     osm2pgsqlService: asFunction(() => new Osm2pgsqlService(), { lifetime: Lifetime.SINGLETON }),
-    queryOsmUseCase: asFunction((c: Cradle) => new QueryOsmUseCase(c.osmQueryService), { lifetime: Lifetime.SCOPED }),
-    createOsmTableUseCase: asFunction((c: Cradle) => new CreateOsmTableUseCase(c.osmQueryService), { lifetime: Lifetime.SCOPED }),
+    queryOsmUseCase: asFunction((c: Cradle) => new QueryOsmUseCase(c.osmQueryService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    createOsmTableUseCase: asFunction((c: Cradle) => new CreateOsmTableUseCase(c.osmQueryService), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Feature use cases
-    getFeaturesUseCase: asFunction((c: Cradle) => new GetFeaturesUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
-    getFeatureUseCase: asFunction((c: Cradle) => new GetFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
-    addFeatureUseCase: asFunction((c: Cradle) => new AddFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
-    updateFeatureUseCase: asFunction((c: Cradle) => new UpdateFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
-    deleteFeatureUseCase: asFunction((c: Cradle) => new DeleteFeatureUseCase(c.layerRepository, c.postGISService), { lifetime: Lifetime.SCOPED }),
-    getLayerStatsUseCase: asFunction((c: Cradle) => new GetLayerStatsUseCase(c.layerRepository, c.postGISService, c.geminiService), { lifetime: Lifetime.SCOPED }),
-    summarizeViewportUseCase: asFunction((c: Cradle) => new SummarizeViewportUseCase(c.layerRepository, c.postGISService, c.geminiService), { lifetime: Lifetime.SCOPED }),
+    getFeaturesUseCase: asFunction(
+      (c: Cradle) => new GetFeaturesUseCase(c.layerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getFeatureUseCase: asFunction(
+      (c: Cradle) => new GetFeatureUseCase(c.layerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    addFeatureUseCase: asFunction(
+      (c: Cradle) => new AddFeatureUseCase(c.layerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateFeatureUseCase: asFunction(
+      (c: Cradle) => new UpdateFeatureUseCase(c.layerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    deleteFeatureUseCase: asFunction(
+      (c: Cradle) => new DeleteFeatureUseCase(c.layerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getLayerStatsUseCase: asFunction(
+      (c: Cradle) => new GetLayerStatsUseCase(c.layerRepository, c.postGISService, c.geminiService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    summarizeViewportUseCase: asFunction(
+      (c: Cradle) =>
+        new SummarizeViewportUseCase(c.layerRepository, c.postGISService, c.geminiService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Search indexing use cases
-    indexLayerUseCase: asFunction((c: Cradle) => new IndexLayerUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
-    removeLayerIndexUseCase: asFunction((c: Cradle) => new RemoveLayerIndexUseCase(c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
+    indexLayerUseCase: asFunction((c: Cradle) => new IndexLayerUseCase(c.meiliSearchService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    removeLayerIndexUseCase: asFunction(
+      (c: Cradle) => new RemoveLayerIndexUseCase(c.meiliSearchService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Admin Boundary
-    findAdminBoundaryUseCase: asFunction((c: Cradle) => new FindAdminBoundaryUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+    findAdminBoundaryUseCase: asFunction((c: Cradle) => new FindAdminBoundaryUseCase(c.prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Drawing repositories and use cases
-    drawingRepository: asFunction(() => new PrismaDrawingRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    saveDrawingUseCase: asFunction((c: Cradle) => new SaveDrawingUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
-    getDrawingsUseCase: asFunction((c: Cradle) => new GetDrawingsUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
-    getDrawingUseCase: asFunction((c: Cradle) => new GetDrawingUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
-    deleteDrawingUseCase: asFunction((c: Cradle) => new DeleteDrawingUseCase(c.drawingRepository), { lifetime: Lifetime.SCOPED }),
+    drawingRepository: asFunction(() => new PrismaDrawingRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    saveDrawingUseCase: asFunction((c: Cradle) => new SaveDrawingUseCase(c.drawingRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getDrawingsUseCase: asFunction((c: Cradle) => new GetDrawingsUseCase(c.drawingRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getDrawingUseCase: asFunction((c: Cradle) => new GetDrawingUseCase(c.drawingRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    deleteDrawingUseCase: asFunction((c: Cradle) => new DeleteDrawingUseCase(c.drawingRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Geosignet repositories and use cases
-    geosignetRepository: asFunction(() => new PrismaGeosignetRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    saveGeosignetUseCase: asFunction((c: Cradle) => new SaveGeosignetUseCase(c.geosignetRepository), { lifetime: Lifetime.SCOPED }),
-    getGeosignetsUseCase: asFunction((c: Cradle) => new GetGeosignetsUseCase(c.geosignetRepository), { lifetime: Lifetime.SCOPED }),
-    deleteGeosignetUseCase: asFunction((c: Cradle) => new DeleteGeosignetUseCase(c.geosignetRepository), { lifetime: Lifetime.SCOPED }),
+    geosignetRepository: asFunction(() => new PrismaGeosignetRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    saveGeosignetUseCase: asFunction(
+      (c: Cradle) => new SaveGeosignetUseCase(c.geosignetRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getGeosignetsUseCase: asFunction(
+      (c: Cradle) => new GetGeosignetsUseCase(c.geosignetRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    deleteGeosignetUseCase: asFunction(
+      (c: Cradle) => new DeleteGeosignetUseCase(c.geosignetRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Comment repositories and use cases
-    commentRepository: asFunction(() => new PrismaCommentRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    saveCommentUseCase: asFunction((c: Cradle) => new SaveCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
-    getCommentsUseCase: asFunction((c: Cradle) => new GetCommentsUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
-    deleteCommentUseCase: asFunction((c: Cradle) => new DeleteCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
-    replyToCommentUseCase: asFunction((c: Cradle) => new ReplyToCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
-    resolveCommentUseCase: asFunction((c: Cradle) => new ResolveCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
-    adminListCommentsUseCase: asFunction((c: Cradle) => new AdminListCommentsUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
-    flagCommentUseCase: asFunction((c: Cradle) => new FlagCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
-    adminDeleteCommentUseCase: asFunction((c: Cradle) => new AdminDeleteCommentUseCase(c.commentRepository), { lifetime: Lifetime.SCOPED }),
+    commentRepository: asFunction(() => new PrismaCommentRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    saveCommentUseCase: asFunction((c: Cradle) => new SaveCommentUseCase(c.commentRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getCommentsUseCase: asFunction((c: Cradle) => new GetCommentsUseCase(c.commentRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    deleteCommentUseCase: asFunction((c: Cradle) => new DeleteCommentUseCase(c.commentRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    replyToCommentUseCase: asFunction(
+      (c: Cradle) => new ReplyToCommentUseCase(c.commentRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    resolveCommentUseCase: asFunction(
+      (c: Cradle) => new ResolveCommentUseCase(c.commentRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    adminListCommentsUseCase: asFunction(
+      (c: Cradle) => new AdminListCommentsUseCase(c.commentRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    flagCommentUseCase: asFunction((c: Cradle) => new FlagCommentUseCase(c.commentRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    adminDeleteCommentUseCase: asFunction(
+      (c: Cradle) => new AdminDeleteCommentUseCase(c.commentRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Sharing repositories and use cases
-    sharedMapRepository: asFunction(() => new PrismaSharedMapRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    createSharedMapUseCase: asFunction((c: Cradle) => new CreateSharedMapUseCase(c.sharedMapRepository), { lifetime: Lifetime.SCOPED }),
-    getSharedMapUseCase: asFunction((c: Cradle) => new GetSharedMapUseCase(c.sharedMapRepository, c.instanceRepository), { lifetime: Lifetime.SCOPED }),
+    sharedMapRepository: asFunction(() => new PrismaSharedMapRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    createSharedMapUseCase: asFunction(
+      (c: Cradle) => new CreateSharedMapUseCase(c.sharedMapRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getSharedMapUseCase: asFunction(
+      (c: Cradle) => new GetSharedMapUseCase(c.sharedMapRepository, c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Analytics repositories and use cases
-    analyticsRepository: asFunction(() => new PrismaAnalyticsRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    trackEventUseCase: asFunction((c: Cradle) => new TrackEventUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
-    getAnalyticsUseCase: asFunction((c: Cradle) => new GetAnalyticsUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
-    incrementViewUseCase: asFunction((c: Cradle) => new IncrementViewUseCase(c.analyticsRepository), { lifetime: Lifetime.SCOPED }),
-    getSearchSuggestionsUseCase: asFunction((c: Cradle) => new GetSearchSuggestionsUseCase(c.analyticsRepository, c.layerRepository), { lifetime: Lifetime.SCOPED }),
-    getLayerRecommendationsUseCase: asFunction((c: Cradle) => new GetLayerRecommendationsUseCase(c.analyticsRepository, c.layerRepository), { lifetime: Lifetime.SCOPED }),
+    analyticsRepository: asFunction(() => new PrismaAnalyticsRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    trackEventUseCase: asFunction((c: Cradle) => new TrackEventUseCase(c.analyticsRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getAnalyticsUseCase: asFunction((c: Cradle) => new GetAnalyticsUseCase(c.analyticsRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    incrementViewUseCase: asFunction(
+      (c: Cradle) => new IncrementViewUseCase(c.analyticsRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getSearchSuggestionsUseCase: asFunction(
+      (c: Cradle) => new GetSearchSuggestionsUseCase(c.analyticsRepository, c.layerRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getLayerRecommendationsUseCase: asFunction(
+      (c: Cradle) => new GetLayerRecommendationsUseCase(c.analyticsRepository, c.layerRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Catalog
-    getCatalogUseCase: asFunction((c: Cradle) => new GetCatalogUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+    getCatalogUseCase: asFunction((c: Cradle) => new GetCatalogUseCase(c.prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Map Composition repositories and use cases
-    mapCompositionRepository: asFunction(() => new PrismaMapCompositionRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    createMapCompositionUseCase: asFunction((c: Cradle) => new CreateMapCompositionUseCase(c.mapCompositionRepository), { lifetime: Lifetime.SCOPED }),
-    getMapCompositionsUseCase: asFunction((c: Cradle) => new GetMapCompositionsUseCase(c.mapCompositionRepository), { lifetime: Lifetime.SCOPED }),
-    getMapCompositionUseCase: asFunction((c: Cradle) => new GetMapCompositionUseCase(c.mapCompositionRepository), { lifetime: Lifetime.SCOPED }),
-    updateMapCompositionUseCase: asFunction((c: Cradle) => new UpdateMapCompositionUseCase(c.mapCompositionRepository), { lifetime: Lifetime.SCOPED }),
-    deleteMapCompositionUseCase: asFunction((c: Cradle) => new DeleteMapCompositionUseCase(c.mapCompositionRepository), { lifetime: Lifetime.SCOPED }),
+    mapCompositionRepository: asFunction(() => new PrismaMapCompositionRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    createMapCompositionUseCase: asFunction(
+      (c: Cradle) => new CreateMapCompositionUseCase(c.mapCompositionRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getMapCompositionsUseCase: asFunction(
+      (c: Cradle) => new GetMapCompositionsUseCase(c.mapCompositionRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getMapCompositionUseCase: asFunction(
+      (c: Cradle) => new GetMapCompositionUseCase(c.mapCompositionRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateMapCompositionUseCase: asFunction(
+      (c: Cradle) => new UpdateMapCompositionUseCase(c.mapCompositionRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    deleteMapCompositionUseCase: asFunction(
+      (c: Cradle) => new DeleteMapCompositionUseCase(c.mapCompositionRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Document repositories and use cases
-    documentRepository: asFunction(() => new PrismaDocumentRepository(prisma), { lifetime: Lifetime.SINGLETON }),
-    uploadDocumentUseCase: asFunction((c: Cradle) => new UploadDocumentUseCase(c.documentRepository, c.storageService), { lifetime: Lifetime.SCOPED }),
-    listDocumentsUseCase: asFunction((c: Cradle) => new ListDocumentsUseCase(c.documentRepository), { lifetime: Lifetime.SCOPED }),
-    getDocumentUseCase: asFunction((c: Cradle) => new GetDocumentUseCase(c.documentRepository), { lifetime: Lifetime.SCOPED }),
-    deleteDocumentUseCase: asFunction((c: Cradle) => new DeleteDocumentUseCase(c.documentRepository, c.storageService), { lifetime: Lifetime.SCOPED }),
+    documentRepository: asFunction(() => new PrismaDocumentRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    uploadDocumentUseCase: asFunction(
+      (c: Cradle) => new UploadDocumentUseCase(c.documentRepository, c.storageService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    listDocumentsUseCase: asFunction(
+      (c: Cradle) => new ListDocumentsUseCase(c.documentRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getDocumentUseCase: asFunction((c: Cradle) => new GetDocumentUseCase(c.documentRepository), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    deleteDocumentUseCase: asFunction(
+      (c: Cradle) => new DeleteDocumentUseCase(c.documentRepository, c.storageService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // IP Geolocation
     geolocateIpUseCase: asFunction(() => new GeolocateIpUseCase(), { lifetime: Lifetime.SCOPED }),
 
     // SEO
-    getSeoMetadataUseCase: asFunction((c: Cradle) => new GetSeoMetadataUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+    getSeoMetadataUseCase: asFunction((c: Cradle) => new GetSeoMetadataUseCase(c.prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Logs
-    logFrontendErrorUseCase: asFunction(() => new LogFrontendErrorUseCase(), { lifetime: Lifetime.SINGLETON }),
+    logFrontendErrorUseCase: asFunction(() => new LogFrontendErrorUseCase(), {
+      lifetime: Lifetime.SINGLETON,
+    }),
 
     // Feedback
-    feedbackRepository: asFunction(() => new PrismaFeedbackRepository(prisma), { lifetime: Lifetime.SINGLETON }),
+    feedbackRepository: asFunction(() => new PrismaFeedbackRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
     alertingService: asFunction(() => new AlertingService(), { lifetime: Lifetime.SINGLETON }),
-    submitFeedbackUseCase: asFunction((c: Cradle) =>
-      new SubmitFeedbackUseCase(c.feedbackRepository, c.alertingService),
-    { lifetime: Lifetime.SCOPED }),
-    adminListFeedbackUseCase: asFunction((c: Cradle) => new AdminListFeedbackUseCase(c.feedbackRepository), { lifetime: Lifetime.SCOPED }),
-    updateFeedbackStatusUseCase: asFunction((c: Cradle) => new UpdateFeedbackStatusUseCase(c.feedbackRepository), { lifetime: Lifetime.SCOPED }),
+    submitFeedbackUseCase: asFunction(
+      (c: Cradle) => new SubmitFeedbackUseCase(c.feedbackRepository, c.alertingService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    adminListFeedbackUseCase: asFunction(
+      (c: Cradle) => new AdminListFeedbackUseCase(c.feedbackRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    updateFeedbackStatusUseCase: asFunction(
+      (c: Cradle) => new UpdateFeedbackStatusUseCase(c.feedbackRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Adressage
-    adressageService: asFunction(() => new AdressageService(prisma), { lifetime: Lifetime.SINGLETON }),
-    getAdresseUseCase: asFunction((c: Cradle) => new GetAdresseUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
-    getPositionUseCase: asFunction((c: Cradle) => new GetPositionUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
-    getPointsUseCase: asFunction((c: Cradle) => new GetPointsUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
-    searchAdresseUseCase: asFunction((c: Cradle) => new SearchAdresseUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
-    getAdresseByClickUseCase: asFunction((c: Cradle) => new GetAdresseByClickUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
-    codeUsageUseCase: asFunction((c: Cradle) => new CodeUsageUseCase(c.adressageService), { lifetime: Lifetime.SCOPED }),
+    adressageService: asFunction(() => new AdressageService(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    getAdresseUseCase: asFunction((c: Cradle) => new GetAdresseUseCase(c.adressageService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getPositionUseCase: asFunction((c: Cradle) => new GetPositionUseCase(c.adressageService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getPointsUseCase: asFunction((c: Cradle) => new GetPointsUseCase(c.adressageService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    searchAdresseUseCase: asFunction((c: Cradle) => new SearchAdresseUseCase(c.adressageService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getAdresseByClickUseCase: asFunction(
+      (c: Cradle) => new GetAdresseByClickUseCase(c.adressageService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    codeUsageUseCase: asFunction((c: Cradle) => new CodeUsageUseCase(c.adressageService), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Spatial Analysis
-    spatialAnalysisUseCase: asFunction(() => new SpatialAnalysisUseCase(prisma), { lifetime: Lifetime.SCOPED }),
+    spatialAnalysisUseCase: asFunction(() => new SpatialAnalysisUseCase(prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Raster
     rasterService: asFunction(() => new RasterService(), { lifetime: Lifetime.SINGLETON }),
-    uploadRasterUseCase: asFunction((c: Cradle) => new UploadRasterUseCase(c.rasterService, c.storageService, c.qgisProjectService, c.layerRepository, c.instanceRepository), { lifetime: Lifetime.SCOPED }),
-    downloadRasterUseCase: asFunction((c: Cradle) => new DownloadRasterUseCase(c.rasterService), { lifetime: Lifetime.SCOPED }),
+    uploadRasterUseCase: asFunction(
+      (c: Cradle) =>
+        new UploadRasterUseCase(
+          c.rasterService,
+          c.storageService,
+          c.qgisProjectService,
+          c.layerRepository,
+          c.instanceRepository,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    downloadRasterUseCase: asFunction((c: Cradle) => new DownloadRasterUseCase(c.rasterService), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // SVG
-    svgGeneratorService: asFunction(() => new SvgGeneratorService(), { lifetime: Lifetime.SINGLETON }),
-    generateIconUseCase: asFunction((c: Cradle) => new GenerateIconUseCase(c.svgGeneratorService), { lifetime: Lifetime.SCOPED }),
+    svgGeneratorService: asFunction(() => new SvgGeneratorService(), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    generateIconUseCase: asFunction((c: Cradle) => new GenerateIconUseCase(c.svgGeneratorService), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Niche
-    saveCoordPdfUseCase: asFunction(() => new SaveCoordPdfUseCase(prisma), { lifetime: Lifetime.SCOPED }),
+    saveCoordPdfUseCase: asFunction(() => new SaveCoordPdfUseCase(prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
     configDbUseCase: asFunction(() => new ConfigDbUseCase(), { lifetime: Lifetime.SCOPED }),
-    getDatabaseOverviewUseCase: asFunction((c: Cradle) => new GetDatabaseOverviewUseCase(c.prisma), { lifetime: Lifetime.SCOPED }),
+    getDatabaseOverviewUseCase: asFunction(
+      (c: Cradle) => new GetDatabaseOverviewUseCase(c.prisma),
+      { lifetime: Lifetime.SCOPED },
+    ),
     dockerService: asFunction(() => new DockerService(), { lifetime: Lifetime.SINGLETON }),
-    listContainersUseCase: asFunction((c: Cradle) => new ListContainersUseCase(c.dockerService), { lifetime: Lifetime.SCOPED }),
-    getContainerStatsUseCase: asFunction((c: Cradle) => new GetContainerStatsUseCase(c.dockerService), { lifetime: Lifetime.SCOPED }),
-    getContainerLogsUseCase: asFunction((c: Cradle) => new GetContainerLogsUseCase(c.dockerService), { lifetime: Lifetime.SCOPED }),
-    searchLimitInTableUseCase: asFunction(() => new SearchLimitInTableUseCase(prisma), { lifetime: Lifetime.SCOPED }),
-    searchBoundariesUseCase: asFunction(() => new SearchBoundariesUseCase(prisma), { lifetime: Lifetime.SCOPED }),
-    getBoundaryUseCase: asFunction(() => new GetBoundaryUseCase(prisma), { lifetime: Lifetime.SCOPED }),
-    importBoundariesUseCase: asFunction((c: Cradle) => new ImportBoundariesUseCase(c.ogr2ogrService, prisma), { lifetime: Lifetime.SCOPED }),
-    createInstanceTemplateUseCase: asFunction((c: Cradle) => new CreateInstanceTemplateUseCase(c.instanceRepository, prisma), { lifetime: Lifetime.SCOPED }),
-    getSourceFileUseCase: asFunction((c: Cradle) => new GetSourceFileUseCase(c.layerRepository, c.storageService, c.ogr2ogrService), { lifetime: Lifetime.SCOPED }),
-    manageSequenceUseCase: asFunction(() => new ManageSequenceUseCase(prisma), { lifetime: Lifetime.SCOPED }),
-    reindexAllLayersUseCase: asFunction((c: Cradle) => new ReindexAllLayersUseCase(c.instanceRepository, c.layerRepository, c.indexLayerUseCase, c.meiliSearchService), { lifetime: Lifetime.SCOPED }),
+    listContainersUseCase: asFunction((c: Cradle) => new ListContainersUseCase(c.dockerService), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getContainerStatsUseCase: asFunction(
+      (c: Cradle) => new GetContainerStatsUseCase(c.dockerService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getContainerLogsUseCase: asFunction(
+      (c: Cradle) => new GetContainerLogsUseCase(c.dockerService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    searchLimitInTableUseCase: asFunction(() => new SearchLimitInTableUseCase(prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    searchBoundariesUseCase: asFunction(() => new SearchBoundariesUseCase(prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    getBoundaryUseCase: asFunction(() => new GetBoundaryUseCase(prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    importBoundariesUseCase: asFunction(
+      (c: Cradle) => new ImportBoundariesUseCase(c.ogr2ogrService, prisma),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    createInstanceTemplateUseCase: asFunction(
+      (c: Cradle) => new CreateInstanceTemplateUseCase(c.instanceRepository, prisma),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getSourceFileUseCase: asFunction(
+      (c: Cradle) =>
+        new GetSourceFileUseCase(c.layerRepository, c.storageService, c.ogr2ogrService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    manageSequenceUseCase: asFunction(() => new ManageSequenceUseCase(prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    reindexAllLayersUseCase: asFunction(
+      (c: Cradle) =>
+        new ReindexAllLayersUseCase(
+          c.instanceRepository,
+          c.layerRepository,
+          c.indexLayerUseCase,
+          c.meiliSearchService,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
   });
 }

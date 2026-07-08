@@ -23,18 +23,30 @@ export class CreateLocationPlanUseCase {
    * PostGISService.findNearestPlaces) - bonus jamais bloquant : une clé Gemini
    * absente/un échec renvoie simplement null, le plan se crée normalement sans texte généré.
    */
-  private async draftWithAI(lon: number, lat: number, title: string, lang = 'fr'): Promise<{ description: string; landmark: string } | null> {
+  private async draftWithAI(
+    lon: number,
+    lat: number,
+    title: string,
+    lang = 'fr',
+  ): Promise<{ description: string; landmark: string } | null> {
     try {
       const places = await this.postGISService.findNearestPlaces(lon, lat, 5);
 
       if (lang === 'en') {
-        const context = places.length > 0
-          ? places.map((p) => `${p.kind === 'place' ? 'Named place' : 'Landmark'} "${p.name}" about ${Math.round(p.distanceMeters)}m away`).join(', ')
-          : 'No named place found nearby in the OpenStreetMap data.';
-        const prompt = `You are writing the content of a location plan titled "${title}", `
-          + `located at coordinates ${lat.toFixed(6)}, ${lon.toFixed(6)}. Nearby OpenStreetMap context: ${context}. `
-          + `Answer STRICTLY in JSON, no surrounding text, in this format: `
-          + `{"description": "a descriptive sentence about the place", "landmark": "a short landmark, or empty string if none reliable"}`;
+        const context =
+          places.length > 0
+            ? places
+                .map(
+                  (p) =>
+                    `${p.kind === 'place' ? 'Named place' : 'Landmark'} "${p.name}" about ${Math.round(p.distanceMeters)}m away`,
+                )
+                .join(', ')
+            : 'No named place found nearby in the OpenStreetMap data.';
+        const prompt =
+          `You are writing the content of a location plan titled "${title}", ` +
+          `located at coordinates ${lat.toFixed(6)}, ${lon.toFixed(6)}. Nearby OpenStreetMap context: ${context}. ` +
+          `Answer STRICTLY in JSON, no surrounding text, in this format: ` +
+          `{"description": "a descriptive sentence about the place", "landmark": "a short landmark, or empty string if none reliable"}`;
         const raw = await this.geminiService.generateText(prompt);
         const match = /\{[\s\S]*\}/.exec(raw);
         if (!match) return null;
@@ -42,14 +54,21 @@ export class CreateLocationPlanUseCase {
         return { description: parsed.description ?? '', landmark: parsed.landmark ?? '' };
       }
 
-      const context = places.length > 0
-        ? places.map((p) => `${p.kind === 'place' ? 'Lieu-dit' : 'Repère'} "${p.name}" à environ ${Math.round(p.distanceMeters)}m`).join(', ')
-        : 'Aucun lieu nommé trouvé à proximité dans les données OpenStreetMap.';
+      const context =
+        places.length > 0
+          ? places
+              .map(
+                (p) =>
+                  `${p.kind === 'place' ? 'Lieu-dit' : 'Repère'} "${p.name}" à environ ${Math.round(p.distanceMeters)}m`,
+              )
+              .join(', ')
+          : 'Aucun lieu nommé trouvé à proximité dans les données OpenStreetMap.';
 
-      const prompt = `Tu rédiges le contenu d'un plan de localisation cartographique intitulé "${title}", `
-        + `situé aux coordonnées ${lat.toFixed(6)}, ${lon.toFixed(6)}. Contexte OpenStreetMap à proximité : ${context}. `
-        + `Réponds STRICTEMENT en JSON, sans aucun texte autour, au format : `
-        + `{"description": "une phrase descriptive du lieu", "landmark": "un point de repère court ou chaîne vide si aucun repère fiable"}`;
+      const prompt =
+        `Tu rédiges le contenu d'un plan de localisation cartographique intitulé "${title}", ` +
+        `situé aux coordonnées ${lat.toFixed(6)}, ${lon.toFixed(6)}. Contexte OpenStreetMap à proximité : ${context}. ` +
+        `Réponds STRICTEMENT en JSON, sans aucun texte autour, au format : ` +
+        `{"description": "une phrase descriptive du lieu", "landmark": "un point de repère court ou chaîne vide si aucun repère fiable"}`;
 
       const raw = await this.geminiService.generateText(prompt);
       const match = /\{[\s\S]*\}/.exec(raw);
@@ -57,7 +76,9 @@ export class CreateLocationPlanUseCase {
       const parsed = JSON.parse(match[0]) as { description?: string; landmark?: string };
       return { description: parsed.description ?? '', landmark: parsed.landmark ?? '' };
     } catch (error) {
-      logger.warn('Rédaction IA du plan de localisation indisponible', { error: error instanceof Error ? error.message : error });
+      logger.warn('Rédaction IA du plan de localisation indisponible', {
+        error: error instanceof Error ? error.message : error,
+      });
       return null;
     }
   }

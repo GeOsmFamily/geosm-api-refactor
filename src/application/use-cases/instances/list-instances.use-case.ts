@@ -12,6 +12,11 @@ export class ListInstancesUseCase {
     const page = dto.page ?? 1;
     const limit = dto.limit ?? 20;
     logger.debug('Listing instances', { page, limit, search: dto.search, isActive: dto.isActive });
-    return this.instanceRepository.findAll({ page, limit, search: dto.search, isActive: dto.isActive });
+    return this.instanceRepository.findAll({
+      page,
+      limit,
+      search: dto.search,
+      isActive: dto.isActive,
+    });
   }
 }

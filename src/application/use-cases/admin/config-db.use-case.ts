@@ -14,7 +14,10 @@ export interface DbConfigResult {
 export class ConfigDbUseCase {
   async execute(): Promise<DbConfigResult> {
     const url = new URL(config.DATABASE_URL);
-    logger.debug('Database configuration retrieved', { host: url.hostname, database: url.pathname.slice(1).split('?')[0] });
+    logger.debug('Database configuration retrieved', {
+      host: url.hostname,
+      database: url.pathname.slice(1).split('?')[0],
+    });
     return {
       host: url.hostname,
       port: parseInt(url.port || '5432'),

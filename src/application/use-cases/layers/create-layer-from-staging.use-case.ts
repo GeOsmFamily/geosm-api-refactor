@@ -58,7 +58,9 @@ export class CreateLayerFromStagingUseCase {
 
     const stagingExists = await this.postGISService.tableExists('staging', input.stagingTable);
     if (!stagingExists) {
-      throw new ValidationError('Table de staging introuvable ou déjà promue.', { stagingTable: input.stagingTable });
+      throw new ValidationError('Table de staging introuvable ou déjà promue.', {
+        stagingTable: input.stagingTable,
+      });
     }
 
     const slug = Slug.create(input.name);
@@ -76,26 +78,46 @@ export class CreateLayerFromStagingUseCase {
     const pgGeomType = geomTypeRows[0]?.geometrytype;
     const geometryType = pgGeomType ? PG_GEOM_TO_DOMAIN[pgGeomType] : undefined;
     if (!geometryType) {
-      throw new ValidationError('Impossible de déterminer le type de géométrie du fichier importé.', {});
+      throw new ValidationError(
+        'Impossible de déterminer le type de géométrie du fichier importé.',
+        {},
+      );
     }
 
     await this.postGISService.createSchema(finalSchema);
-    await this.prisma.$executeRawUnsafe(`ALTER TABLE "staging"."${input.stagingTable}" SET SCHEMA "${finalSchema}"`);
-    await this.prisma.$executeRawUnsafe(`ALTER TABLE "${finalSchema}"."${input.stagingTable}" RENAME TO "${finalTable}"`);
+    await this.prisma.$executeRawUnsafe(
+      `ALTER TABLE "staging"."${input.stagingTable}" SET SCHEMA "${finalSchema}"`,
+    );
+    await this.prisma.$executeRawUnsafe(
+      `ALTER TABLE "${finalSchema}"."${input.stagingTable}" RENAME TO "${finalTable}"`,
+    );
     await this.prisma.$executeRawUnsafe(
       `CREATE INDEX IF NOT EXISTS "${finalTable}_geom_idx" ON "${finalSchema}"."${finalTable}" USING GIST(geom)`,
     );
 
     const projectPath = this.qgisProjectService.getProjectPath(instance.slug);
-    const pgUri = buildQgisPgUri(finalSchema, finalTable, { keyColumn: 'id', geometryType: pgGeomType! });
+    const pgUri = buildQgisPgUri(finalSchema, finalTable, {
+      keyColumn: 'id',
+      geometryType: pgGeomType!,
+    });
 
     try {
-      const qgisResult = await this.qgisProjectService.addVectorLayer(projectPath, pgUri, finalTable);
+      const qgisResult = await this.qgisProjectService.addVectorLayer(
+        projectPath,
+        pgUri,
+        finalTable,
+      );
       if (!qgisResult.success) {
-        logger.warn('QGIS addVectorLayer a échoué pour la couche importée', { finalTable, error: qgisResult.error });
+        logger.warn('QGIS addVectorLayer a échoué pour la couche importée', {
+          finalTable,
+          error: qgisResult.error,
+        });
       }
     } catch (qErr) {
-      logger.warn('Exception QGIS addVectorLayer pour la couche importée', { finalTable, error: String(qErr) });
+      logger.warn('Exception QGIS addVectorLayer pour la couche importée', {
+        finalTable,
+        error: String(qErr),
+      });
     }
 
     const layer = await this.layerRepository.create({
@@ -121,7 +143,11 @@ export class CreateLayerFromStagingUseCase {
       qgisProjectId: null,
     });
 
-    logger.info('Couche créée depuis un import de fichier', { layerId: layer.id, finalSchema, finalTable });
+    logger.info('Couche créée depuis un import de fichier', {
+      layerId: layer.id,
+      finalSchema,
+      finalTable,
+    });
     return layer;
   }
 }

@@ -24,7 +24,10 @@ export interface LayerExportJobData {
 // SHAPEFILE écrit sur ".shp" mais un shapefile n'est valide/utilisable qu'avec
 // ses fichiers compagnons (.shx, .dbf, .prj...) - ext ci-dessous est le fichier
 // que ogr2ogr écrit réellement, pas nécessairement l'extension finale livrée.
-const FORMAT_TO_OGR: Record<string, { ogrFormat: 'GPKG' | 'GeoJSON' | 'ESRI Shapefile' | 'KML' | 'CSV'; ext: string }> = {
+const FORMAT_TO_OGR: Record<
+  string,
+  { ogrFormat: 'GPKG' | 'GeoJSON' | 'ESRI Shapefile' | 'KML' | 'CSV'; ext: string }
+> = {
   GEOPACKAGE: { ogrFormat: 'GPKG', ext: '.gpkg' },
   GEOJSON: { ogrFormat: 'GeoJSON', ext: '.geojson' },
   SHAPEFILE: { ogrFormat: 'ESRI Shapefile', ext: '.shp' },
@@ -33,8 +36,27 @@ const FORMAT_TO_OGR: Record<string, { ogrFormat: 'GPKG' | 'GeoJSON' | 'ESRI Shap
 };
 
 type ExportWorkerDeps = {
-  exportRepository: { findById: (id: string) => Promise<{ id: string; format: string; layerId: string | null; bbox: number[] | null } | null>; update: (id: string, data: Record<string, unknown>) => Promise<unknown> };
-  layerRepository: { findById: (id: string) => Promise<{ id: string; schemaName: string | null; tableName: string | null; name: string } | null> };
+  exportRepository: {
+    findById: (
+      id: string,
+    ) => Promise<{
+      id: string;
+      format: string;
+      layerId: string | null;
+      bbox: number[] | null;
+    } | null>;
+    update: (id: string, data: Record<string, unknown>) => Promise<unknown>;
+  };
+  layerRepository: {
+    findById: (
+      id: string,
+    ) => Promise<{
+      id: string;
+      schemaName: string | null;
+      tableName: string | null;
+      name: string;
+    } | null>;
+  };
   storageService: { uploadFile: (key: string, data: Buffer) => Promise<string> };
   notificationService: { notifyUser: (userId: string, event: string, data: unknown) => void };
   ogr2ogrService: Ogr2OgrService;
@@ -54,7 +76,10 @@ function extractDisplayName(raw: string | null | undefined): string | null {
   return raw;
 }
 
-async function zipFiles(entries: Array<{ path: string; name: string }>, outputPath: string): Promise<void> {
+async function zipFiles(
+  entries: Array<{ path: string; name: string }>,
+  outputPath: string,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const output = createWriteStream(outputPath);
     const archive = new ZipArchive({ zlib: { level: 9 } });
@@ -87,7 +112,10 @@ export function createExportProcessor(deps: ExportWorkerDeps) {
   };
 }
 
-async function processSingleExport(job: Job<LayerExportJobData>, deps: ExportWorkerDeps): Promise<void> {
+async function processSingleExport(
+  job: Job<LayerExportJobData>,
+  deps: ExportWorkerDeps,
+): Promise<void> {
   const { exportId, layerId, userId, format, featureId } = job.data;
   logger.info('Processing layer export', { exportId, layerId, format });
 
@@ -101,16 +129,27 @@ async function processSingleExport(job: Job<LayerExportJobData>, deps: ExportWor
 
   try {
     await deps.exportRepository.update(exportId, { status: 'PROCESSING', startedAt: new Date() });
-    deps.notificationService.notifyUser(userId, 'export:progress', { exportId, layerId, status: 'PROCESSING', progress: 0 });
+    deps.notificationService.notifyUser(userId, 'export:progress', {
+      exportId,
+      layerId,
+      status: 'PROCESSING',
+      progress: 0,
+    });
 
     const exportRecord = await deps.exportRepository.findById(exportId);
     if (!exportRecord) throw new Error(`Export ${exportId} not found`);
 
     const layer = await deps.layerRepository.findById(layerId);
     if (!layer) throw new Error(`Layer ${layerId} not found`);
-    if (!layer.schemaName || !layer.tableName) throw new Error(`Layer ${layerId} has no spatial table`);
+    if (!layer.schemaName || !layer.tableName)
+      throw new Error(`Layer ${layerId} has no spatial table`);
 
-    deps.notificationService.notifyUser(userId, 'export:progress', { exportId, layerId, status: 'PROCESSING', progress: 20 });
+    deps.notificationService.notifyUser(userId, 'export:progress', {
+      exportId,
+      layerId,
+      status: 'PROCESSING',
+      progress: 20,
+    });
 
     const bbox = exportRecord.bbox as [number, number, number, number] | null;
     const featureIdNum = featureId && /^\d+$/.test(featureId) ? featureId : null;
@@ -128,7 +167,12 @@ async function processSingleExport(job: Job<LayerExportJobData>, deps: ExportWor
       bbox: featureIdNum ? undefined : (bbox ?? undefined),
     });
 
-    deps.notificationService.notifyUser(userId, 'export:progress', { exportId, layerId, status: 'PROCESSING', progress: 60 });
+    deps.notificationService.notifyUser(userId, 'export:progress', {
+      exportId,
+      layerId,
+      status: 'PROCESSING',
+      progress: 60,
+    });
 
     // Un shapefile n'est valide qu'accompagné de ses fichiers .shx/.dbf/.prj -
     // on livre systématiquement un zip contenant l'ensemble, pas le .shp seul.
@@ -138,20 +182,33 @@ async function processSingleExport(job: Job<LayerExportJobData>, deps: ExportWor
       const siblings = await findSiblingFiles(outputPath);
       cleanupPaths.push(...siblings);
       const zipPath = path.join(tmpDir, `export_${exportId}.zip`);
-      await zipFiles(siblings.map((p) => ({ path: p, name: path.basename(p) })), zipPath);
+      await zipFiles(
+        siblings.map((p) => ({ path: p, name: path.basename(p) })),
+        zipPath,
+      );
       cleanupPaths.push(zipPath);
       finalPath = zipPath;
       finalFileName = `export_${exportId}.zip`;
     }
 
-    deps.notificationService.notifyUser(userId, 'export:progress', { exportId, layerId, status: 'PROCESSING', progress: 70 });
+    deps.notificationService.notifyUser(userId, 'export:progress', {
+      exportId,
+      layerId,
+      status: 'PROCESSING',
+      progress: 70,
+    });
 
     const fileBuffer = await readFile(finalPath);
     const fileStats = await stat(finalPath);
     const minioKey = `exports/${exportId}/${finalFileName}`;
     await deps.storageService.uploadFile(minioKey, fileBuffer);
 
-    deps.notificationService.notifyUser(userId, 'export:progress', { exportId, layerId, status: 'PROCESSING', progress: 90 });
+    deps.notificationService.notifyUser(userId, 'export:progress', {
+      exportId,
+      layerId,
+      status: 'PROCESSING',
+      progress: 90,
+    });
 
     await deps.exportRepository.update(exportId, {
       status: 'COMPLETED',
@@ -161,7 +218,11 @@ async function processSingleExport(job: Job<LayerExportJobData>, deps: ExportWor
     });
 
     deps.notificationService.notifyUser(userId, 'export:completed', {
-      exportId, layerId, status: 'COMPLETED', filePath: minioKey, fileSize: fileStats.size,
+      exportId,
+      layerId,
+      status: 'COMPLETED',
+      filePath: minioKey,
+      fileSize: fileStats.size,
     });
 
     exportCompletedTotal.inc();
@@ -170,18 +231,34 @@ async function processSingleExport(job: Job<LayerExportJobData>, deps: ExportWor
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Layer export failed', { exportId, layerId, error: errorMessage });
 
-    await deps.exportRepository.update(exportId, { status: 'FAILED', errorMessage, completedAt: new Date() });
-    deps.notificationService.notifyUser(userId, 'export:failed', { exportId, layerId, status: 'FAILED', error: errorMessage });
+    await deps.exportRepository.update(exportId, {
+      status: 'FAILED',
+      errorMessage,
+      completedAt: new Date(),
+    });
+    deps.notificationService.notifyUser(userId, 'export:failed', {
+      exportId,
+      layerId,
+      status: 'FAILED',
+      error: errorMessage,
+    });
 
     throw error;
   } finally {
     for (const p of cleanupPaths) {
-      try { await unlink(p); } catch { /* ignore */ }
+      try {
+        await unlink(p);
+      } catch {
+        /* ignore */
+      }
     }
   }
 }
 
-async function processBulkExport(job: Job<LayerExportJobData>, deps: ExportWorkerDeps): Promise<void> {
+async function processBulkExport(
+  job: Job<LayerExportJobData>,
+  deps: ExportWorkerDeps,
+): Promise<void> {
   const { exportId, layerIds, userId, format } = job.data;
   logger.info('Processing bulk layer export', { exportId, layerIds, format });
 
@@ -195,7 +272,11 @@ async function processBulkExport(job: Job<LayerExportJobData>, deps: ExportWorke
 
   try {
     await deps.exportRepository.update(exportId, { status: 'PROCESSING', startedAt: new Date() });
-    deps.notificationService.notifyUser(userId, 'export:progress', { exportId, status: 'PROCESSING', progress: 0 });
+    deps.notificationService.notifyUser(userId, 'export:progress', {
+      exportId,
+      status: 'PROCESSING',
+      progress: 0,
+    });
 
     if (!layerIds || layerIds.length === 0) throw new Error('No layers provided for bulk export');
 
@@ -232,20 +313,32 @@ async function processBulkExport(job: Job<LayerExportJobData>, deps: ExportWorke
       }
 
       const progress = 10 + Math.round(((i + 1) / layerIds.length) * 60);
-      deps.notificationService.notifyUser(userId, 'export:progress', { exportId, status: 'PROCESSING', progress });
+      deps.notificationService.notifyUser(userId, 'export:progress', {
+        exportId,
+        status: 'PROCESSING',
+        progress,
+      });
     }
 
     if (entries.length === 0) throw new Error('No exportable layers found for bulk export');
 
     await zipFiles(entries, zipPath);
-    deps.notificationService.notifyUser(userId, 'export:progress', { exportId, status: 'PROCESSING', progress: 80 });
+    deps.notificationService.notifyUser(userId, 'export:progress', {
+      exportId,
+      status: 'PROCESSING',
+      progress: 80,
+    });
 
     const fileBuffer = await readFile(zipPath);
     const fileStats = await stat(zipPath);
     const minioKey = `exports/${exportId}/${zipFileName}`;
     await deps.storageService.uploadFile(minioKey, fileBuffer);
 
-    deps.notificationService.notifyUser(userId, 'export:progress', { exportId, status: 'PROCESSING', progress: 95 });
+    deps.notificationService.notifyUser(userId, 'export:progress', {
+      exportId,
+      status: 'PROCESSING',
+      progress: 95,
+    });
 
     await deps.exportRepository.update(exportId, {
       status: 'COMPLETED',
@@ -255,23 +348,46 @@ async function processBulkExport(job: Job<LayerExportJobData>, deps: ExportWorke
     });
 
     deps.notificationService.notifyUser(userId, 'export:completed', {
-      exportId, status: 'COMPLETED', filePath: minioKey, fileSize: fileStats.size,
+      exportId,
+      status: 'COMPLETED',
+      filePath: minioKey,
+      fileSize: fileStats.size,
     });
 
     exportCompletedTotal.inc();
-    logger.info('Bulk layer export completed', { exportId, layerCount: entries.length, fileSize: fileStats.size });
+    logger.info('Bulk layer export completed', {
+      exportId,
+      layerCount: entries.length,
+      fileSize: fileStats.size,
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Bulk layer export failed', { exportId, error: errorMessage });
 
-    await deps.exportRepository.update(exportId, { status: 'FAILED', errorMessage, completedAt: new Date() });
-    deps.notificationService.notifyUser(userId, 'export:failed', { exportId, status: 'FAILED', error: errorMessage });
+    await deps.exportRepository.update(exportId, {
+      status: 'FAILED',
+      errorMessage,
+      completedAt: new Date(),
+    });
+    deps.notificationService.notifyUser(userId, 'export:failed', {
+      exportId,
+      status: 'FAILED',
+      error: errorMessage,
+    });
 
     throw error;
   } finally {
     for (const p of layerOutputPaths) {
-      try { await unlink(p); } catch { /* ignore */ }
+      try {
+        await unlink(p);
+      } catch {
+        /* ignore */
+      }
     }
-    try { await unlink(zipPath); } catch { /* ignore */ }
+    try {
+      await unlink(zipPath);
+    } catch {
+      /* ignore */
+    }
   }
 }

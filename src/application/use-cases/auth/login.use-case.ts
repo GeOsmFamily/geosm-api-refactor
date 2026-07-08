@@ -7,7 +7,10 @@ import { ITokenService } from '../../services/token.service.js';
 import { UnauthorizedError } from '../../../domain/errors/unauthorized.error.js';
 import { Email } from '../../../domain/value-objects/email.vo.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
-import { authLoginTotal, authLoginFailedTotal } from '../../../infrastructure/observability/metrics.js';
+import {
+  authLoginTotal,
+  authLoginFailedTotal,
+} from '../../../infrastructure/observability/metrics.js';
 
 const logger = createChildLogger('LoginUseCase');
 

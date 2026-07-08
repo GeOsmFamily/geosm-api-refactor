@@ -20,7 +20,11 @@ export class DeleteDocumentUseCase {
     try {
       await this.storageService.deleteFile(doc.filePath);
     } catch (error) {
-      logger.error('Failed to delete document file from storage', { documentId: id, filePath: doc.filePath, error: (error as Error).message });
+      logger.error('Failed to delete document file from storage', {
+        documentId: id,
+        filePath: doc.filePath,
+        error: (error as Error).message,
+      });
       throw error;
     }
     await this.documentRepository.delete(id);

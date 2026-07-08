@@ -1,5 +1,9 @@
 import { PrismaClient, User as PrismaUser, Prisma } from '@prisma/client';
-import { IUserRepository, CreateUserData, UpdateUserData } from '../../../domain/repositories/user.repository.js';
+import {
+  IUserRepository,
+  CreateUserData,
+  UpdateUserData,
+} from '../../../domain/repositories/user.repository.js';
 import { User } from '../../../domain/entities/user.entity.js';
 import { Role } from '../../../domain/enums.js';
 
@@ -16,7 +20,13 @@ export class PrismaUserRepository implements IUserRepository {
     return record ? this.toDomain(record) : null;
   }
 
-  async findAll(options?: { page?: number; limit?: number; search?: string; role?: Role; isActive?: boolean }): Promise<{ data: User[]; total: number }> {
+  async findAll(options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: Role;
+    isActive?: boolean;
+  }): Promise<{ data: User[]; total: number }> {
     const page = options?.page ?? 1;
     const limit = options?.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -37,7 +47,7 @@ export class PrismaUserRepository implements IUserRepository {
       this.prisma.user.count({ where }),
     ]);
 
-    return { data: records.map(r => this.toDomain(r)), total };
+    return { data: records.map((r) => this.toDomain(r)), total };
   }
 
   async create(data: CreateUserData): Promise<User> {

@@ -23,7 +23,11 @@ export class VerifyEmailUseCase {
 
   async execute(dto: VerifyEmailDTO): Promise<void> {
     const verificationToken = await this.emailVerificationTokenRepository.findByToken(dto.token);
-    if (!verificationToken || verificationToken.usedAt || verificationToken.expiresAt < new Date()) {
+    if (
+      !verificationToken ||
+      verificationToken.usedAt ||
+      verificationToken.expiresAt < new Date()
+    ) {
       logger.warn('Verify-email rejected: invalid, used, or expired token');
       throw new UnauthorizedError('Invalid or expired verification token');
     }

@@ -37,9 +37,17 @@ export class StageFileImportUseCase {
     await this.postGISService.createSchema('staging');
 
     try {
-      const importResult = await this.ogr2ogrService.importFile(filePath, 'staging', stagingTable, 4326);
+      const importResult = await this.ogr2ogrService.importFile(
+        filePath,
+        'staging',
+        stagingTable,
+        4326,
+      );
       if (importResult.featureCount === 0) {
-        throw new ValidationError('Le fichier importé ne contient aucune entité géométrique exploitable.', {});
+        throw new ValidationError(
+          'Le fichier importé ne contient aucune entité géométrique exploitable.',
+          {},
+        );
       }
 
       const columns = await this.postGISService.getTableColumns('staging', stagingTable);
@@ -51,7 +59,10 @@ export class StageFileImportUseCase {
         limit: 100,
       });
 
-      logger.info('Fichier importé en staging', { stagingTable, featureCount: importResult.featureCount });
+      logger.info('Fichier importé en staging', {
+        stagingTable,
+        featureCount: importResult.featureCount,
+      });
       return {
         stagingTable,
         featureCount: importResult.featureCount,

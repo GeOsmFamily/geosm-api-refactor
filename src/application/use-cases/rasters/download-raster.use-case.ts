@@ -9,14 +9,22 @@ export class DownloadRasterUseCase {
 
   async execute(tableName: string, format: string = 'GTiff') {
     const ext = format === 'GTiff' ? '.tif' : '.img';
-    const outputPath = path.join(process.env.DATA_DIR || '/tmp/geosm-data', 'exports', `${tableName}${ext}`);
+    const outputPath = path.join(
+      process.env.DATA_DIR || '/tmp/geosm-data',
+      'exports',
+      `${tableName}${ext}`,
+    );
     logger.info('Downloading raster', { tableName, format });
     try {
       const result = await this.rasterService.downloadRaster(tableName, outputPath, format);
       logger.info('Raster downloaded', { tableName, format });
       return { path: result, tableName };
     } catch (err) {
-      logger.error('Raster download failed', { tableName, format, error: err instanceof Error ? err.message : String(err) });
+      logger.error('Raster download failed', {
+        tableName,
+        format,
+        error: err instanceof Error ? err.message : String(err),
+      });
       throw err;
     }
   }

@@ -2,7 +2,10 @@ import { ILayerRepository } from '../../../domain/repositories/layer.repository.
 import { IInstanceRepository } from '../../../domain/repositories/instance.repository.js';
 import { IQgisProjectRepository } from '../../../domain/repositories/qgis-project.repository.js';
 import { QGISProjectService } from '../../../infrastructure/qgis/qgis-project.service.js';
-import { SvgGeneratorService, SvgOptions } from '../../../infrastructure/utils/svg-generator.service.js';
+import {
+  SvgGeneratorService,
+  SvgOptions,
+} from '../../../infrastructure/utils/svg-generator.service.js';
 import { Layer } from '../../../domain/entities/layer.entity.js';
 import { GeometryType } from '../../../domain/enums.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
@@ -47,39 +50,75 @@ export class ApplyLayerStyleUseCase {
     const projectPath = await this.resolveProjectPath(layer);
     const wmsLayerName = layer.sourceLayer || layer.tableName;
     if (!wmsLayerName) {
-      throw new ValidationError('Cette couche n\'a pas de couche QGIS associée (source sans table ni sourceLayer).', {});
+      throw new ValidationError(
+        "Cette couche n'a pas de couche QGIS associée (source sans table ni sourceLayer).",
+        {},
+      );
     }
 
     if (input.mode === 'kml') {
       if (!input.kmlFilePath) throw new ValidationError('Fichier KML manquant.', {});
-      const result = await this.qgisProjectService.importKmlStyle(projectPath, wmsLayerName, input.kmlFilePath);
+      const result = await this.qgisProjectService.importKmlStyle(
+        projectPath,
+        wmsLayerName,
+        input.kmlFilePath,
+      );
       if (!result.success) {
         throw new ValidationError(`Échec de l'application du style KML: ${result.error}`, {});
       }
       return this.layerRepository.update(layer.id, {
-        metadata: { ...(layer.metadata ?? {}), styleSource: 'kml', styledAt: new Date().toISOString() },
+        metadata: {
+          ...(layer.metadata ?? {}),
+          styleSource: 'kml',
+          styledAt: new Date().toISOString(),
+        },
       });
     }
 
     if (!input.color) throw new ValidationError('Couleur manquante.', {});
-    const metadataUpdate: Record<string, unknown> = { ...(layer.metadata ?? {}), color: input.color, styleSource: 'color-icon', styledAt: new Date().toISOString() };
+    const metadataUpdate: Record<string, unknown> = {
+      ...(layer.metadata ?? {}),
+      color: input.color,
+      styleSource: 'color-icon',
+      styledAt: new Date().toISOString(),
+    };
 
     if (POINT_TYPES.has(layer.geometryType)) {
       const iconKey = input.iconKey ?? 'default';
       const shape = input.shape ?? 'circle';
-      const svg = this.svgGeneratorService.generateSvg({ color: input.color, shape, size: 32, strokeColor: '#ffffff', strokeWidth: 2, iconKey });
+      const svg = this.svgGeneratorService.generateSvg({
+        color: input.color,
+        shape,
+        size: 32,
+        strokeColor: '#ffffff',
+        strokeWidth: 2,
+        iconKey,
+      });
       const iconFilePath = `${config.QGIS_PROJECTS_DIR}/icons/${layer.slug}.svg`;
       await this.svgGeneratorService.saveSvgToFile(svg, iconFilePath);
 
-      const result = await this.qgisProjectService.setIconOnLayer(projectPath, wmsLayerName, iconFilePath, 8, input.color);
+      const result = await this.qgisProjectService.setIconOnLayer(
+        projectPath,
+        wmsLayerName,
+        iconFilePath,
+        8,
+        input.color,
+      );
       if (!result.success) {
-        logger.warn('setIconOnLayer a échoué (le style client-rendu reste appliqué)', { layerId: layer.id, error: result.error });
+        logger.warn('setIconOnLayer a échoué (le style client-rendu reste appliqué)', {
+          layerId: layer.id,
+          error: result.error,
+        });
       }
       metadataUpdate.icon = `api/v1/layers/icons/${layer.slug}.svg`;
       metadataUpdate.iconKey = iconKey;
       metadataUpdate.shape = shape;
     } else {
-      const result = await this.qgisProjectService.setFillStyle(projectPath, wmsLayerName, input.color);
+      const result = await this.qgisProjectService.setFillStyle(
+        projectPath,
+        wmsLayerName,
+        input.color,
+      );
       if (!result.success) {
         throw new ValidationError(`Échec de l'application du style: ${result.error}`, {});
       }

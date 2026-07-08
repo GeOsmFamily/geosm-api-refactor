@@ -17,7 +17,11 @@ export interface BoundaryDetail {
 export class GetBoundaryUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async execute(tableName: string, id: number, geomColumn = 'geom'): Promise<BoundaryDetail | null> {
+  async execute(
+    tableName: string,
+    id: number,
+    geomColumn = 'geom',
+  ): Promise<BoundaryDetail | null> {
     const parts = tableName.split('.');
     const schema = (parts.length > 1 ? parts[0] : 'public').replace(/[^a-zA-Z0-9_]/g, '');
     const table = (parts.length > 1 ? parts[1] : parts[0]).replace(/[^a-zA-Z0-9_]/g, '');

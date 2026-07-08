@@ -6,9 +6,7 @@ import { createChildLogger } from '../../../infrastructure/observability/logger.
 const logger = createChildLogger('UpdateProfileUseCase');
 
 export class UpdateProfileUseCase {
-  constructor(
-    private readonly userRepository: IUserRepository,
-  ) {}
+  constructor(private readonly userRepository: IUserRepository) {}
 
   async execute(userId: string, dto: UpdateProfileDTO): Promise<UserProfileDTO> {
     const user = await this.userRepository.findById(userId);

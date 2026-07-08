@@ -18,16 +18,89 @@ export interface DefaultLayerConfig {
 }
 
 export const defaultCategories: DefaultCategoryConfig[] = [
-  { id: 1, name: { fr: 'Santé', en: 'Health' }, slug: 'sante', icon: 'local_hospital', color: '#e74c3c', order: 1 },
-  { id: 2, name: { fr: 'Éducation', en: 'Education' }, slug: 'education', icon: 'school', color: '#3498db', order: 2 },
-  { id: 3, name: { fr: 'Finance', en: 'Finance' }, slug: 'finance', icon: 'payments', color: '#2ecc71', order: 3 },
-  { id: 4, name: { fr: 'Environnement', en: 'Environment' }, slug: 'environnement', icon: 'eco', color: '#27ae60', order: 4 },
-  { id: 5, name: { fr: 'Commerce et Shopping', en: 'Commerce & Shopping' }, slug: 'commerce-shopping', icon: 'storefront', color: '#9b59b6', order: 5 },
-  { id: 6, name: { fr: 'Restauration', en: 'Restauration' }, slug: 'restauration', icon: 'restaurant', color: '#e67e22', order: 6 },
-  { id: 7, name: { fr: 'Hébergement', en: 'Accommodation' }, slug: 'hebergement', icon: 'hotel', color: '#f1c40f', order: 7 },
-  { id: 8, name: { fr: 'Loisirs', en: 'Leisure' }, slug: 'loisirs', icon: 'sports_soccer', color: '#1abc9c', order: 8 },
-  { id: 9, name: { fr: 'Administration et Institutions Publiques', en: 'Administration & Public Institutions' }, slug: 'administration-institutions-publiques', icon: 'account_balance', color: '#34495e', order: 9 },
-  { id: 10, name: { fr: 'Automobile et Transport', en: 'Automobile & Transport' }, slug: 'automobile-transport', icon: 'directions_car', color: '#7f8c8d', order: 10 },
+  {
+    id: 1,
+    name: { fr: 'Santé', en: 'Health' },
+    slug: 'sante',
+    icon: 'local_hospital',
+    color: '#e74c3c',
+    order: 1,
+  },
+  {
+    id: 2,
+    name: { fr: 'Éducation', en: 'Education' },
+    slug: 'education',
+    icon: 'school',
+    color: '#3498db',
+    order: 2,
+  },
+  {
+    id: 3,
+    name: { fr: 'Finance', en: 'Finance' },
+    slug: 'finance',
+    icon: 'payments',
+    color: '#2ecc71',
+    order: 3,
+  },
+  {
+    id: 4,
+    name: { fr: 'Environnement', en: 'Environment' },
+    slug: 'environnement',
+    icon: 'eco',
+    color: '#27ae60',
+    order: 4,
+  },
+  {
+    id: 5,
+    name: { fr: 'Commerce et Shopping', en: 'Commerce & Shopping' },
+    slug: 'commerce-shopping',
+    icon: 'storefront',
+    color: '#9b59b6',
+    order: 5,
+  },
+  {
+    id: 6,
+    name: { fr: 'Restauration', en: 'Restauration' },
+    slug: 'restauration',
+    icon: 'restaurant',
+    color: '#e67e22',
+    order: 6,
+  },
+  {
+    id: 7,
+    name: { fr: 'Hébergement', en: 'Accommodation' },
+    slug: 'hebergement',
+    icon: 'hotel',
+    color: '#f1c40f',
+    order: 7,
+  },
+  {
+    id: 8,
+    name: { fr: 'Loisirs', en: 'Leisure' },
+    slug: 'loisirs',
+    icon: 'sports_soccer',
+    color: '#1abc9c',
+    order: 8,
+  },
+  {
+    id: 9,
+    name: {
+      fr: 'Administration et Institutions Publiques',
+      en: 'Administration & Public Institutions',
+    },
+    slug: 'administration-institutions-publiques',
+    icon: 'account_balance',
+    color: '#34495e',
+    order: 9,
+  },
+  {
+    id: 10,
+    name: { fr: 'Automobile et Transport', en: 'Automobile & Transport' },
+    slug: 'automobile-transport',
+    icon: 'directions_car',
+    color: '#7f8c8d',
+    order: 10,
+  },
 ];
 
 export const defaultLayers: DefaultLayerConfig[] = [
@@ -128,14 +201,14 @@ export const defaultLayers: DefaultLayerConfig[] = [
     geometryType: GeometryType.POINT,
   },
   {
-    name: { fr: 'Coopérative d\'Épargne et de Crédit', en: 'Savings and Credit Cooperative' },
+    name: { fr: "Coopérative d'Épargne et de Crédit", en: 'Savings and Credit Cooperative' },
     slug: 'cooperative-epargne-credit',
     categoryId: 3,
     tagsOsm: 'office=financial;finance=credit_union',
     geometryType: GeometryType.POINT,
   },
   {
-    name: { fr: 'Mobile Money / Transfert d\'Argent Mobile', en: 'Mobile Money Transfer' },
+    name: { fr: "Mobile Money / Transfert d'Argent Mobile", en: 'Mobile Money Transfer' },
     slug: 'mobile-money',
     categoryId: 3,
     tagsOsm: 'office=financial;service=mobile_money',
@@ -158,7 +231,7 @@ export const defaultLayers: DefaultLayerConfig[] = [
     geometryType: GeometryType.POINT,
   },
   {
-    name: { fr: 'Stations d\'Épuration / Traitement des Eaux', en: 'Wastewater Treatment Plants' },
+    name: { fr: "Stations d'Épuration / Traitement des Eaux", en: 'Wastewater Treatment Plants' },
     slug: 'stations-epuration',
     categoryId: 4,
     tagsOsm: 'man_made=wastewater_plant',
@@ -172,7 +245,10 @@ export const defaultLayers: DefaultLayerConfig[] = [
     geometryType: GeometryType.POLYGON,
   },
   {
-    name: { fr: 'Stations de Mesure de la Qualité de l\'Air', en: 'Air Quality Monitoring Stations' },
+    name: {
+      fr: "Stations de Mesure de la Qualité de l'Air",
+      en: 'Air Quality Monitoring Stations',
+    },
     slug: 'qualite-air-stations',
     categoryId: 4,
     tagsOsm: 'man_made=monitoring_station',
@@ -232,7 +308,10 @@ export const defaultLayers: DefaultLayerConfig[] = [
     geometryType: GeometryType.POINT,
   },
   {
-    name: { fr: 'Traiteur Événementiel / Salle de Réception', en: 'Event Catering / Reception Hall' },
+    name: {
+      fr: 'Traiteur Événementiel / Salle de Réception',
+      en: 'Event Catering / Reception Hall',
+    },
     slug: 'traiteur-evenementiel',
     categoryId: 6,
     tagsOsm: 'amenity=events_venue',
@@ -255,14 +334,14 @@ export const defaultLayers: DefaultLayerConfig[] = [
 
   // 7. Hébergement
   {
-    name: { fr: 'Résidence Meublée / Appart\'Hôtel', en: 'Furnished Apartment / Aparthotel' },
+    name: { fr: "Résidence Meublée / Appart'Hôtel", en: 'Furnished Apartment / Aparthotel' },
     slug: 'residence-meublee-apparthotel',
     categoryId: 7,
     tagsOsm: 'tourism=apartment',
     geometryType: GeometryType.POINT,
   },
   {
-    name: { fr: 'Chambre d\'Hôtes', en: 'Guest House' },
+    name: { fr: "Chambre d'Hôtes", en: 'Guest House' },
     slug: 'chambre-dhotes',
     categoryId: 7,
     tagsOsm: 'tourism=guest_house',
@@ -292,7 +371,7 @@ export const defaultLayers: DefaultLayerConfig[] = [
 
   // 8. Loisirs
   {
-    name: { fr: 'Parc d\'Attractions', en: 'Theme Park' },
+    name: { fr: "Parc d'Attractions", en: 'Theme Park' },
     slug: 'parc-attractions',
     categoryId: 8,
     tagsOsm: 'tourism=theme_park',
@@ -306,7 +385,10 @@ export const defaultLayers: DefaultLayerConfig[] = [
     geometryType: GeometryType.POLYGON,
   },
   {
-    name: { fr: 'Piscine Publique / Complexe Aquatique', en: 'Public Swimming Pool / Aquatics Center' },
+    name: {
+      fr: 'Piscine Publique / Complexe Aquatique',
+      en: 'Public Swimming Pool / Aquatics Center',
+    },
     slug: 'piscine-publique',
     categoryId: 8,
     tagsOsm: 'leisure=swimming_pool',
@@ -320,7 +402,7 @@ export const defaultLayers: DefaultLayerConfig[] = [
     geometryType: GeometryType.POLYGON,
   },
   {
-    name: { fr: 'Aire de Jeux pour Enfants', en: 'Children\'s Playground' },
+    name: { fr: 'Aire de Jeux pour Enfants', en: "Children's Playground" },
     slug: 'aire-jeux-enfants',
     categoryId: 8,
     tagsOsm: 'leisure=playground',

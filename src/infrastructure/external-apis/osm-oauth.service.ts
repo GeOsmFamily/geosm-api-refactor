@@ -54,7 +54,9 @@ export class OsmOAuthService {
 
   private ensureConfigured(): void {
     if (!this.isConfigured()) {
-      throw new Error('OSM_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI non configurés : connexion OpenStreetMap indisponible.');
+      throw new Error(
+        'OSM_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI non configurés : connexion OpenStreetMap indisponible.',
+      );
     }
   }
 
@@ -85,7 +87,9 @@ export class OsmOAuthService {
       body: params.toString(),
     });
     if (!response.ok) {
-      throw new Error(`Échange du code OAuth OSM échoué (${response.status}): ${await response.text()}`);
+      throw new Error(
+        `Échange du code OAuth OSM échoué (${response.status}): ${await response.text()}`,
+      );
     }
     const data = (await response.json()) as { access_token: string };
     return data.access_token;
@@ -96,7 +100,9 @@ export class OsmOAuthService {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!response.ok) {
-      throw new Error(`Récupération du profil OSM échouée (${response.status}): ${await response.text()}`);
+      throw new Error(
+        `Récupération du profil OSM échouée (${response.status}): ${await response.text()}`,
+      );
     }
     const { user } = (await response.json()) as OsmUserDetailsResponse;
     return {

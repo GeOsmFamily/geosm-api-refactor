@@ -1,4 +1,7 @@
-import { NominatimService, NominatimResult } from '../../../infrastructure/external-apis/nominatim.service.js';
+import {
+  NominatimService,
+  NominatimResult,
+} from '../../../infrastructure/external-apis/nominatim.service.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
 const logger = createChildLogger('LookupGeocodingUseCase');

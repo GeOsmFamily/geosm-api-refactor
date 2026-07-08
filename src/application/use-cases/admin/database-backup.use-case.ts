@@ -49,7 +49,12 @@ export class DatabaseBackupUseCase {
     try {
       await this.dumpToFile(tmpFile);
       const stats = await stat(tmpFile);
-      await this.storageService.uploadFile(key, createReadStream(tmpFile), 'application/octet-stream', stats.size);
+      await this.storageService.uploadFile(
+        key,
+        createReadStream(tmpFile),
+        'application/octet-stream',
+        stats.size,
+      );
       logger.info('Backup Postgres terminé', { key, sizeBytes: stats.size });
 
       const deletedOldBackups = await this.applyRetention();
@@ -72,7 +77,9 @@ export class DatabaseBackupUseCase {
       proc.stdout.pipe(fileStream);
 
       let stderr = '';
-      proc.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+      proc.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
 
       proc.on('error', reject);
       proc.on('close', (code) => {
@@ -92,7 +99,10 @@ export class DatabaseBackupUseCase {
 
     for (const file of expired) {
       await this.storageService.deleteFile(file.key);
-      logger.info('Backup Postgres expiré supprimé', { key: file.key, lastModified: file.lastModified });
+      logger.info('Backup Postgres expiré supprimé', {
+        key: file.key,
+        lastModified: file.lastModified,
+      });
     }
 
     return expired.length;

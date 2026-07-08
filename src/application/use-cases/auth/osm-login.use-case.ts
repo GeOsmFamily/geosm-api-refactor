@@ -43,10 +43,16 @@ export class OsmLoginUseCase {
 
     if (existingLink) {
       const user = await this.userRepository.findById(existingLink.userId);
-      if (!user) throw new Error(`OsmProfile ${existingLink.id} references a missing user ${existingLink.userId}`);
+      if (!user)
+        throw new Error(
+          `OsmProfile ${existingLink.id} references a missing user ${existingLink.userId}`,
+        );
       userId = user.id;
       role = user.role;
-      logger.info('OSM login: existing linked account', { userId, osmUserId: osmProfile.osmUserId });
+      logger.info('OSM login: existing linked account', {
+        userId,
+        osmUserId: osmProfile.osmUserId,
+      });
     } else {
       const email = osmProfile.email ?? `osm-${osmProfile.osmUserId}@users.geosm.local`;
       const randomPassword = randomBytes(32).toString('hex');
@@ -67,7 +73,10 @@ export class OsmLoginUseCase {
       });
       userId = user.id;
       role = user.role;
-      logger.info('OSM login: new local account auto-created', { userId, osmUserId: osmProfile.osmUserId });
+      logger.info('OSM login: new local account auto-created', {
+        userId,
+        osmUserId: osmProfile.osmUserId,
+      });
     }
 
     await this.osmProfileRepository.upsert(uuidv4(), {

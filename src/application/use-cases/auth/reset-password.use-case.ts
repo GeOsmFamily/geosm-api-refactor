@@ -34,7 +34,9 @@ export class ResetPasswordUseCase {
 
     const user = await this.userRepository.findById(resetToken.userId);
     if (!user) {
-      logger.error('Reset token references a user that no longer exists', { userId: resetToken.userId });
+      logger.error('Reset token references a user that no longer exists', {
+        userId: resetToken.userId,
+      });
       throw new UnauthorizedError('Invalid or expired reset token');
     }
 

@@ -1,5 +1,8 @@
 import type { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
-import type { PostGISService, GeoJSONFeature } from '../../../infrastructure/database/postgis.service.js';
+import type {
+  PostGISService,
+  GeoJSONFeature,
+} from '../../../infrastructure/database/postgis.service.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
@@ -19,7 +22,11 @@ export class GetFeatureUseCase {
       throw new NotFoundError('Spatial table for layer', layerId);
     }
 
-    const feature = await this.postGISService.getFeatureById(layer.schemaName, layer.tableName, featureId);
+    const feature = await this.postGISService.getFeatureById(
+      layer.schemaName,
+      layer.tableName,
+      featureId,
+    );
     if (!feature) throw new NotFoundError('Feature', String(featureId));
     return feature;
   }

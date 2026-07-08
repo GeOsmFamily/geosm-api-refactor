@@ -30,7 +30,7 @@ export class QGISProjectService {
 
   private async runPythonScript(scriptName: string, args: string[]): Promise<PyQGISResult> {
     const scriptPath = path.join(this.scriptsDir, scriptName);
-    const escapedArgs = args.map(a => `"${a.replace(/"/g, '\\"')}"`).join(' ');
+    const escapedArgs = args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' ');
     const cmd = `python3 "${scriptPath}" ${escapedArgs}`;
 
     const end = qgisScriptDurationSeconds.startTimer({ script: scriptName });
@@ -91,11 +91,19 @@ export class QGISProjectService {
     return this.runPythonScript('reload_project.py', [projectPath]);
   }
 
-  async setLayerStyle(projectPath: string, layerName: string, qmlPath: string): Promise<PyQGISResult> {
+  async setLayerStyle(
+    projectPath: string,
+    layerName: string,
+    qmlPath: string,
+  ): Promise<PyQGISResult> {
     return this.runPythonScript('set_style.py', [projectPath, layerName, qmlPath]);
   }
 
-  async saveLayerStyle(projectPath: string, layerName: string, outputPath: string): Promise<PyQGISResult> {
+  async saveLayerStyle(
+    projectPath: string,
+    layerName: string,
+    outputPath: string,
+  ): Promise<PyQGISResult> {
     const dir = path.dirname(outputPath);
     if (!existsSync(dir)) await mkdir(dir, { recursive: true });
     return this.runPythonScript('save_style.py', [projectPath, layerName, outputPath]);
@@ -105,15 +113,21 @@ export class QGISProjectService {
     return this.runPythonScript('remove_layer.py', [projectPath, layerName]);
   }
 
-  async setupWMSCapabilities(projectPath: string, wmsConfig: {
-    title?: string;
-    abstract?: string;
-    contactEmail?: string;
-    organization?: string;
-    crsList?: string[];
-    extent?: [number, number, number, number];
-  }): Promise<PyQGISResult> {
-    return this.runPythonScript('setup_wms_capabilities.py', [projectPath, JSON.stringify(wmsConfig)]);
+  async setupWMSCapabilities(
+    projectPath: string,
+    wmsConfig: {
+      title?: string;
+      abstract?: string;
+      contactEmail?: string;
+      organization?: string;
+      crsList?: string[];
+      extent?: [number, number, number, number];
+    },
+  ): Promise<PyQGISResult> {
+    return this.runPythonScript('setup_wms_capabilities.py', [
+      projectPath,
+      JSON.stringify(wmsConfig),
+    ]);
   }
 
   /**
@@ -152,23 +166,56 @@ export class QGISProjectService {
     ]);
   }
 
-  async clipExport(projectPath: string, layerName: string, boundaryPath: string, outputPath: string): Promise<PyQGISResult> {
+  async clipExport(
+    projectPath: string,
+    layerName: string,
+    boundaryPath: string,
+    outputPath: string,
+  ): Promise<PyQGISResult> {
     const dir = path.dirname(outputPath);
     if (!existsSync(dir)) await mkdir(dir, { recursive: true });
-    return this.runPythonScript('clip_export.py', [projectPath, layerName, boundaryPath, outputPath]);
+    return this.runPythonScript('clip_export.py', [
+      projectPath,
+      layerName,
+      boundaryPath,
+      outputPath,
+    ]);
   }
 
-  async addRasterLayer(projectPath: string, rasterPath: string, layerName: string, stylePath?: string): Promise<PyQGISResult> {
+  async addRasterLayer(
+    projectPath: string,
+    rasterPath: string,
+    layerName: string,
+    stylePath?: string,
+  ): Promise<PyQGISResult> {
     const dir = path.dirname(projectPath);
     if (!existsSync(dir)) await mkdir(dir, { recursive: true });
-    return this.runPythonScript('add_raster_layer.py', [projectPath, rasterPath, layerName, stylePath || 'none']);
+    return this.runPythonScript('add_raster_layer.py', [
+      projectPath,
+      rasterPath,
+      layerName,
+      stylePath || 'none',
+    ]);
   }
 
-  async editLayerProperties(projectPath: string, layerName: string, properties: Record<string, unknown>): Promise<PyQGISResult> {
-    return this.runPythonScript('edit_layer_properties.py', [projectPath, layerName, JSON.stringify(properties)]);
+  async editLayerProperties(
+    projectPath: string,
+    layerName: string,
+    properties: Record<string, unknown>,
+  ): Promise<PyQGISResult> {
+    return this.runPythonScript('edit_layer_properties.py', [
+      projectPath,
+      layerName,
+      JSON.stringify(properties),
+    ]);
   }
 
-  async exportLayer(projectPath: string, layerName: string, outputPath: string, format: string): Promise<PyQGISResult> {
+  async exportLayer(
+    projectPath: string,
+    layerName: string,
+    outputPath: string,
+    format: string,
+  ): Promise<PyQGISResult> {
     const dir = path.dirname(outputPath);
     if (!existsSync(dir)) await mkdir(dir, { recursive: true });
     return this.runPythonScript('export_layer.py', [projectPath, layerName, outputPath, format]);
@@ -178,19 +225,45 @@ export class QGISProjectService {
     return this.runPythonScript('get_layer_info.py', [projectPath, layerName]);
   }
 
-  async setIconOnLayer(projectPath: string, layerName: string, iconPath: string, iconSize?: number, iconColor?: string): Promise<PyQGISResult> {
-    return this.runPythonScript('set_icon_on_layer.py', [projectPath, layerName, iconPath, String(iconSize ?? 8), iconColor ?? '#2196F3']);
+  async setIconOnLayer(
+    projectPath: string,
+    layerName: string,
+    iconPath: string,
+    iconSize?: number,
+    iconColor?: string,
+  ): Promise<PyQGISResult> {
+    return this.runPythonScript('set_icon_on_layer.py', [
+      projectPath,
+      layerName,
+      iconPath,
+      String(iconSize ?? 8),
+      iconColor ?? '#2196F3',
+    ]);
   }
 
   /** Couleur pleine (remplissage polygone ou trait ligne) - pendant de setIconOnLayer() pour
    * les géométries non ponctuelles, qui n'ont pas de concept d'icône. */
-  async setFillStyle(projectPath: string, layerName: string, color: string, strokeColor?: string): Promise<PyQGISResult> {
-    return this.runPythonScript('set_fill_style.py', [projectPath, layerName, color, strokeColor ?? '#ffffff']);
+  async setFillStyle(
+    projectPath: string,
+    layerName: string,
+    color: string,
+    strokeColor?: string,
+  ): Promise<PyQGISResult> {
+    return this.runPythonScript('set_fill_style.py', [
+      projectPath,
+      layerName,
+      color,
+      strokeColor ?? '#ffffff',
+    ]);
   }
 
   /** Applique le style OGR natif d'un KML (IconStyle/LineStyle/PolyStyle) à une couche
    * existante - alternative au choix couleur+icône pour un admin qui a déjà un KML stylé. */
-  async importKmlStyle(projectPath: string, layerName: string, kmlPath: string): Promise<PyQGISResult> {
+  async importKmlStyle(
+    projectPath: string,
+    layerName: string,
+    kmlPath: string,
+  ): Promise<PyQGISResult> {
     return this.runPythonScript('import_kml_style.py', [projectPath, layerName, kmlPath]);
   }
 
@@ -202,10 +275,20 @@ export class QGISProjectService {
     return this.runPythonScript('export_offline_bundle.py', [projectPath, outputDir]);
   }
 
-  async downloadData(projectPath: string, layerName: string, clipLayerPath: string, outputPath: string): Promise<PyQGISResult> {
+  async downloadData(
+    projectPath: string,
+    layerName: string,
+    clipLayerPath: string,
+    outputPath: string,
+  ): Promise<PyQGISResult> {
     const dir = path.dirname(outputPath);
     if (!existsSync(dir)) await mkdir(dir, { recursive: true });
-    return this.runPythonScript('download_data.py', [projectPath, layerName, clipLayerPath, outputPath]);
+    return this.runPythonScript('download_data.py', [
+      projectPath,
+      layerName,
+      clipLayerPath,
+      outputPath,
+    ]);
   }
 
   async configureWFS(projectPath: string, layerNames: string[]): Promise<PyQGISResult> {

@@ -1,4 +1,7 @@
-import { OSRMService, OSRMNearestResult } from '../../../infrastructure/external-apis/osrm.service.js';
+import {
+  OSRMService,
+  OSRMNearestResult,
+} from '../../../infrastructure/external-apis/osrm.service.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
 const logger = createChildLogger('FindNearestUseCase');

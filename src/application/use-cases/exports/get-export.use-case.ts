@@ -6,9 +6,7 @@ import { createChildLogger } from '../../../infrastructure/observability/logger.
 const logger = createChildLogger('GetExportUseCase');
 
 export class GetExportUseCase {
-  constructor(
-    private readonly exportRepository: IExportRepository,
-  ) {}
+  constructor(private readonly exportRepository: IExportRepository) {}
 
   async execute(id: string): Promise<Export> {
     logger.debug('Getting export', { exportId: id });

@@ -1,7 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
 import { IInstanceRepository } from '../../../domain/repositories/instance.repository.js';
-import { OsmQueryService, OsmKeyValue, CreateOsmTableOptions } from '../../../infrastructure/database/osm-query.service.js';
+import {
+  OsmQueryService,
+  OsmKeyValue,
+  CreateOsmTableOptions,
+} from '../../../infrastructure/database/osm-query.service.js';
 import { QGISProjectService } from '../../../infrastructure/qgis/qgis-project.service.js';
 import { buildQgisPgUri } from '../../../infrastructure/qgis/pg-uri.util.js';
 import { Layer } from '../../../domain/entities/layer.entity.js';
@@ -96,12 +100,22 @@ export class CreateLayerFromOsmUseCase {
     });
 
     try {
-      const qgisResult = await this.qgisProjectService.addVectorLayer(projectPath, pgUri, finalTable);
+      const qgisResult = await this.qgisProjectService.addVectorLayer(
+        projectPath,
+        pgUri,
+        finalTable,
+      );
       if (!qgisResult.success) {
-        logger.warn('QGIS addVectorLayer a échoué pour la couche OSM', { finalTable, error: qgisResult.error });
+        logger.warn('QGIS addVectorLayer a échoué pour la couche OSM', {
+          finalTable,
+          error: qgisResult.error,
+        });
       }
     } catch (qErr) {
-      logger.warn('Exception QGIS addVectorLayer pour la couche OSM', { finalTable, error: String(qErr) });
+      logger.warn('Exception QGIS addVectorLayer pour la couche OSM', {
+        finalTable,
+        error: String(qErr),
+      });
     }
 
     const layer = await this.layerRepository.create({

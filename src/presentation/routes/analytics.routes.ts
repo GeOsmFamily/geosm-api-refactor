@@ -6,13 +6,25 @@ import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
 
-import { TrackEventUseCase, TrackEventDTO } from '../../application/use-cases/analytics/track-event.use-case.js';
+import {
+  TrackEventUseCase,
+  TrackEventDTO,
+} from '../../application/use-cases/analytics/track-event.use-case.js';
 import { GetAnalyticsUseCase } from '../../application/use-cases/analytics/get-analytics.use-case.js';
 import { IncrementViewUseCase } from '../../application/use-cases/analytics/increment-view.use-case.js';
 
-function parseBody<T>(schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } } }, body: unknown): T {
+function parseBody<T>(
+  schema: {
+    safeParse: (data: unknown) => { success: boolean; data?: T; error?: { format: () => unknown } };
+  },
+  body: unknown,
+): T {
   const result = schema.safeParse(body);
-  if (!result.success) throw new ValidationError('Validation failed', result.error?.format() as Record<string, unknown>);
+  if (!result.success)
+    throw new ValidationError(
+      'Validation failed',
+      result.error?.format() as Record<string, unknown>,
+    );
   return result.data as T;
 }
 
@@ -37,7 +49,8 @@ const getAnalyticsQuerySchema = z.object({
 export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   const trackEventUseCase = app.diContainer.resolve<TrackEventUseCase>('trackEventUseCase');
   const getAnalyticsUseCase = app.diContainer.resolve<GetAnalyticsUseCase>('getAnalyticsUseCase');
-  const incrementViewUseCase = app.diContainer.resolve<IncrementViewUseCase>('incrementViewUseCase');
+  const incrementViewUseCase =
+    app.diContainer.resolve<IncrementViewUseCase>('incrementViewUseCase');
 
   // POST /api/v1/analytics/track
   // authenticateOptional (et non authenticate) : la route reste utilisable sans être connecté
@@ -45,40 +58,65 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   // à un utilisateur - sans ça, request.user restait toujours undefined ici (aucune route
   // sans preHandler ne décode le JWT), et tous les événements atterrissaient avec userId=null,
   // rendant les suggestions/recommandations personnalisées incapables de fonctionner.
-  app.post('/track', {
-    schema: { description: 'Enregistrer un evenement analytique', tags: ['Analytiques'], body: zodToSwagger(trackEventSchema) },
-    preHandler: [app.authenticateOptional],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const dto = parseBody(trackEventSchema, request.body);
-    const userId = (request.user as { sub: string } | undefined)?.sub;
-    const ipAddress = request.ip;
-    const event = await trackEventUseCase.execute(dto.instanceId, {
-      ...dto,
-      metadata: dto.metadata as TrackEventDTO['metadata'],
-      userId,
-      ipAddress,
-    });
-    return reply.status(201).send(successResponse(event));
-  });
+  app.post(
+    '/track',
+    {
+      schema: {
+        description: 'Enregistrer un evenement analytique',
+        tags: ['Analytiques'],
+        body: zodToSwagger(trackEventSchema),
+      },
+      preHandler: [app.authenticateOptional],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const dto = parseBody(trackEventSchema, request.body);
+      const userId = (request.user as { sub: string } | undefined)?.sub;
+      const ipAddress = request.ip;
+      const event = await trackEventUseCase.execute(dto.instanceId, {
+        ...dto,
+        metadata: dto.metadata as TrackEventDTO['metadata'],
+        userId,
+        ipAddress,
+      });
+      return reply.status(201).send(successResponse(event));
+    },
+  );
 
   // POST /api/v1/analytics/view
-  app.post('/view', {
-    schema: { description: 'Incrementer une vue', tags: ['Analytiques'], body: zodToSwagger(incrementViewSchema) },
-    preHandler: [app.authenticateOptional],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { type, id } = parseBody(incrementViewSchema, request.body);
-    const userId = (request.user as { sub: string } | undefined)?.sub;
-    const event = await incrementViewUseCase.execute(type, id, request.ip, userId);
-    return reply.status(201).send(successResponse(event));
-  });
+  app.post(
+    '/view',
+    {
+      schema: {
+        description: 'Incrementer une vue',
+        tags: ['Analytiques'],
+        body: zodToSwagger(incrementViewSchema),
+      },
+      preHandler: [app.authenticateOptional],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { type, id } = parseBody(incrementViewSchema, request.body);
+      const userId = (request.user as { sub: string } | undefined)?.sub;
+      const event = await incrementViewUseCase.execute(type, id, request.ip, userId);
+      return reply.status(201).send(successResponse(event));
+    },
+  );
 
   // GET /api/v1/analytics (admin only)
-  app.get('/', {
-    schema: { description: 'Obtenir les statistiques analytiques (admin)', tags: ['Analytiques'], security: [{ bearerAuth: [] }], querystring: zodToSwagger(getAnalyticsQuerySchema) },
-    preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { instanceId, startDate, endDate } = parseBody(getAnalyticsQuerySchema, request.query);
-    const stats = await getAnalyticsUseCase.execute(instanceId, startDate, endDate);
-    return reply.send(successResponse(stats));
-  });
+  app.get(
+    '/',
+    {
+      schema: {
+        description: 'Obtenir les statistiques analytiques (admin)',
+        tags: ['Analytiques'],
+        security: [{ bearerAuth: [] }],
+        querystring: zodToSwagger(getAnalyticsQuerySchema),
+      },
+      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { instanceId, startDate, endDate } = parseBody(getAnalyticsQuerySchema, request.query);
+      const stats = await getAnalyticsUseCase.execute(instanceId, startDate, endDate);
+      return reply.send(successResponse(stats));
+    },
+  );
 }

@@ -11,9 +11,11 @@ export async function initTracing(): Promise<void> {
 
   try {
     const { NodeSDK } = await import('@opentelemetry/sdk-node');
-    const { getNodeAutoInstrumentations } = await import('@opentelemetry/auto-instrumentations-node');
+    const { getNodeAutoInstrumentations } =
+      await import('@opentelemetry/auto-instrumentations-node');
     const { OTLPTraceExporter } = await import('@opentelemetry/exporter-trace-otlp-http');
-    const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = await import('@opentelemetry/semantic-conventions');
+    const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } =
+      await import('@opentelemetry/semantic-conventions');
     const { resourceFromAttributes } = await import('@opentelemetry/resources');
 
     const traceExporter = new OTLPTraceExporter({ url: `${endpoint}/v1/traces` });
@@ -42,7 +44,9 @@ export async function initTracing(): Promise<void> {
         await sdk.shutdown();
         logger.info('OpenTelemetry SDK shut down');
       } catch (err) {
-        logger.error('Error shutting down OpenTelemetry SDK', { error: err instanceof Error ? err.message : String(err) });
+        logger.error('Error shutting down OpenTelemetry SDK', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     };
 
@@ -51,6 +55,8 @@ export async function initTracing(): Promise<void> {
 
     logger.info('OpenTelemetry tracing initialized', { endpoint, serviceName });
   } catch (err) {
-    logger.warn('Failed to initialize OpenTelemetry tracing', { error: err instanceof Error ? err.message : String(err) });
+    logger.warn('Failed to initialize OpenTelemetry tracing', {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }

@@ -1,6 +1,9 @@
 import type { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
 import type { PrismaInstanceRepository } from '../../../infrastructure/database/repositories/prisma-instance.repository.js';
-import { OsmQueryService, CreateOsmTableOptions } from '../../../infrastructure/database/osm-query.service.js';
+import {
+  OsmQueryService,
+  CreateOsmTableOptions,
+} from '../../../infrastructure/database/osm-query.service.js';
 import { defaultLayers } from '../../../domain/constants/default-layers.constants.js';
 import { GeometryType } from '../../../domain/enums.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
@@ -32,16 +35,22 @@ export class ResyncLayerUseCase {
     // Une couche par défaut a un slug "{instanceSlug}-{layerConfig.slug}" (voir
     // CreateInstanceUseCase) - on retrouve sa définition (tags OSM, type de géométrie) dans
     // la même config statique que celle utilisée à la création de l'instance.
-    const slugSuffix = layer.slug.startsWith(`${instance.slug}-`) ? layer.slug.slice(instance.slug.length + 1) : null;
+    const slugSuffix = layer.slug.startsWith(`${instance.slug}-`)
+      ? layer.slug.slice(instance.slug.length + 1)
+      : null;
     const layerConfig = slugSuffix ? defaultLayers.find((l) => l.slug === slugSuffix) : undefined;
     if (!layerConfig) {
-      throw new ValidationError('Cette couche n\'est pas une couche par défaut dérivée d\'OSM : resynchronisation impossible.', { layerId });
+      throw new ValidationError(
+        "Cette couche n'est pas une couche par défaut dérivée d'OSM : resynchronisation impossible.",
+        { layerId },
+      );
     }
     if (!layer.tableName || !layer.schemaName) {
       throw new ValidationError('Couche sans table spatiale associée.', { layerId });
     }
 
-    let sourceTable: 'planet_osm_point' | 'planet_osm_line' | 'planet_osm_polygon' = 'planet_osm_point';
+    let sourceTable: 'planet_osm_point' | 'planet_osm_line' | 'planet_osm_polygon' =
+      'planet_osm_point';
     if (layerConfig.geometryType === GeometryType.POLYGON) {
       sourceTable = 'planet_osm_polygon';
     } else if (layerConfig.geometryType === GeometryType.LINESTRING) {
@@ -69,7 +78,11 @@ export class ResyncLayerUseCase {
     }
 
     const stats = await this.osmQueryService.createTable(osmOptions);
-    logger.info('Couche resynchronisée depuis les données OSM déjà importées', { layerId, tableName: layer.tableName, stats });
+    logger.info('Couche resynchronisée depuis les données OSM déjà importées', {
+      layerId,
+      tableName: layer.tableName,
+      stats,
+    });
 
     const existingMetadata = (layer.metadata as Record<string, unknown> | null) ?? {};
     return this.layerRepository.update(layerId, {

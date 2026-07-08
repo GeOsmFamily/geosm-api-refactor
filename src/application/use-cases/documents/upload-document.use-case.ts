@@ -1,5 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
-import { PrismaDocumentRepository, DocumentRecord } from '../../../infrastructure/database/repositories/prisma-document.repository.js';
+import {
+  PrismaDocumentRepository,
+  DocumentRecord,
+} from '../../../infrastructure/database/repositories/prisma-document.repository.js';
 import { MinioStorageService } from '../../../infrastructure/storage/minio.service.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
@@ -29,7 +32,12 @@ export class UploadDocumentUseCase {
     try {
       await this.storageService.uploadFile(key, dto.fileBuffer, dto.mimeType);
     } catch (error) {
-      logger.error('Failed to upload document file to storage', { documentId: id, instanceId: dto.instanceId, fileSize: dto.fileSize, error: (error as Error).message });
+      logger.error('Failed to upload document file to storage', {
+        documentId: id,
+        instanceId: dto.instanceId,
+        fileSize: dto.fileSize,
+        error: (error as Error).message,
+      });
       throw error;
     }
 
@@ -44,7 +52,11 @@ export class UploadDocumentUseCase {
       instanceId: dto.instanceId,
       userId,
     });
-    logger.info('Document uploaded', { documentId: id, instanceId: dto.instanceId, fileSize: dto.fileSize });
+    logger.info('Document uploaded', {
+      documentId: id,
+      instanceId: dto.instanceId,
+      fileSize: dto.fileSize,
+    });
     return document;
   }
 }

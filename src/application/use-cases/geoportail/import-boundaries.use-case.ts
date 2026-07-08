@@ -61,7 +61,11 @@ export class ImportBoundariesUseCase {
         `SELECT COUNT(*)::bigint AS count FROM "public"."${stagingTable}"`,
       );
 
-      logger.info('Boundaries imported', { adminLevel: input.adminLevel, mode: input.mode, count: Number(count) });
+      logger.info('Boundaries imported', {
+        adminLevel: input.adminLevel,
+        mode: input.mode,
+        count: Number(count),
+      });
       return { importedCount: Number(count) };
     } finally {
       await this.prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "public"."${stagingTable}"`);

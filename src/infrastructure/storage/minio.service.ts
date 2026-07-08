@@ -45,7 +45,12 @@ export class MinioStorageService {
   // sans taille explicite pour un stream, le client MinIO bufferise en interne au lieu de faire
   // un vrai PUT/multipart en flux - confirmé par un OOM kill en conditions réelles (dump de
   // plusieurs centaines de Mo) avant que ce paramètre n'existe.
-  async uploadFile(key: string, data: Buffer | Readable, contentType?: string, size?: number): Promise<string> {
+  async uploadFile(
+    key: string,
+    data: Buffer | Readable,
+    contentType?: string,
+    size?: number,
+  ): Promise<string> {
     const metadata = contentType ? { 'Content-Type': contentType } : {};
     await this.client.putObject(this.bucket, key, data, size, metadata);
     return key;
@@ -72,7 +77,9 @@ export class MinioStorageService {
     }
   }
 
-  async getFileInfo(key: string): Promise<{ size: number; contentType: string; lastModified: Date }> {
+  async getFileInfo(
+    key: string,
+  ): Promise<{ size: number; contentType: string; lastModified: Date }> {
     const stat = await this.client.statObject(this.bucket, key);
     return {
       size: stat.size,
@@ -87,7 +94,8 @@ export class MinioStorageService {
       const objects: { key: string; lastModified: Date; size: number }[] = [];
       const stream = this.client.listObjectsV2(this.bucket, prefix, true);
       stream.on('data', (obj) => {
-        if (obj.name && obj.lastModified) objects.push({ key: obj.name, lastModified: obj.lastModified, size: obj.size ?? 0 });
+        if (obj.name && obj.lastModified)
+          objects.push({ key: obj.name, lastModified: obj.lastModified, size: obj.size ?? 0 });
       });
       stream.on('end', () => resolve(objects));
       stream.on('error', reject);

@@ -1,4 +1,7 @@
-import { IInstanceRepository, InstanceUserRecord } from '../../../domain/repositories/instance.repository.js';
+import {
+  IInstanceRepository,
+  InstanceUserRecord,
+} from '../../../domain/repositories/instance.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 

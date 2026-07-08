@@ -5,6 +5,9 @@ export interface IBaseMapRepository {
   findByInstance(instanceId: string): Promise<BaseMap[]>;
   findDefaults(): Promise<BaseMap[]>;
   create(data: Omit<BaseMap, 'createdAt' | 'updatedAt'>): Promise<BaseMap>;
-  update(id: string, data: Partial<Omit<BaseMap, 'id' | 'createdAt' | 'updatedAt'>>): Promise<BaseMap>;
+  update(
+    id: string,
+    data: Partial<Omit<BaseMap, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<BaseMap>;
   delete(id: string): Promise<void>;
 }

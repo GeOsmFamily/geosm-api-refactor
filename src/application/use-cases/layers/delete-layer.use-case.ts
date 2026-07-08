@@ -20,7 +20,10 @@ export class DeleteLayerUseCase {
     try {
       await this.removeLayerIndexUseCase?.execute(id);
     } catch (error) {
-      logger.warn('Failed to remove search index for deleted layer', { layerId: id, error: error instanceof Error ? error.message : String(error) });
+      logger.warn('Failed to remove search index for deleted layer', {
+        layerId: id,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }

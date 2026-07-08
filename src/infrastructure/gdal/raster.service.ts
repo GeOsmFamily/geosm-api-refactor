@@ -40,7 +40,11 @@ export class RasterService {
     return `PG:host=${url.hostname} port=${url.port || 5432} user=${url.username} password=${url.password} dbname=${url.pathname.slice(1).split('?')[0]}`;
   }
 
-  async importRaster(filePath: string, tableName: string, options: { srid?: number; tileSize?: number } = {}): Promise<ImportRasterResult> {
+  async importRaster(
+    filePath: string,
+    tableName: string,
+    options: { srid?: number; tileSize?: number } = {},
+  ): Promise<ImportRasterResult> {
     const srid = options.srid ?? 4326;
     const tileSize = options.tileSize ?? 256;
     const safeTable = tableName.replace(/[^a-zA-Z0-9_]/g, '');
@@ -53,16 +57,12 @@ export class RasterService {
     const warpedPath = path.join(outputDir, `${safeTable}_warped.tif`);
 
     // Reproject with gdalwarp
-    await execAsync(
-      `gdalwarp -t_srs EPSG:${srid} -r bilinear "${filePath}" "${warpedPath}"`,
-      { timeout: 600000 }
-    );
+    await execAsync(`gdalwarp -t_srs EPSG:${srid} -r bilinear "${filePath}" "${warpedPath}"`, {
+      timeout: 600000,
+    });
 
     // Generate overviews
-    await execAsync(
-      `gdaladdo -r average "${warpedPath}" 2 4 8 16`,
-      { timeout: 300000 }
-    );
+    await execAsync(`gdaladdo -r average "${warpedPath}" 2 4 8 16`, { timeout: 300000 });
 
     // Import to PostGIS raster using raster2pgsql - best-effort : le rendu WMS du raster
     // (voir add_raster_layer.py) se fait directement depuis le fichier GeoTIFF reprojeté, pas
@@ -75,7 +75,7 @@ export class RasterService {
       const psqlUrl = this.dbUrl.split('?')[0];
       await execAsync(
         `raster2pgsql -s ${srid} -t ${tileSize}x${tileSize} -I -C -M "${warpedPath}" public."${safeTable}" | psql "${psqlUrl}"`,
-        { timeout: 600000 }
+        { timeout: 600000 },
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -88,7 +88,11 @@ export class RasterService {
     return { tableName: safeTable, outputPath: warpedPath, info, postgisWarning };
   }
 
-  async downloadRaster(tableName: string, outputPath: string, format: string = 'GTiff'): Promise<string> {
+  async downloadRaster(
+    tableName: string,
+    outputPath: string,
+    format: string = 'GTiff',
+  ): Promise<string> {
     const safeTable = tableName.replace(/[^a-zA-Z0-9_]/g, '');
     const pgConn = this.getPgConnectionString();
 
@@ -99,7 +103,7 @@ export class RasterService {
 
     await execAsync(
       `gdal_translate -of ${format} "${pgConn}" -sql "SELECT rast FROM public.\\"${safeTable}\\"" "${outputPath}"`,
-      { timeout: 300000 }
+      { timeout: 300000 },
     );
 
     return outputPath;
@@ -124,6 +128,8 @@ export class RasterService {
   async cleanup(filePath: string): Promise<void> {
     try {
       if (existsSync(filePath)) await unlink(filePath);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }

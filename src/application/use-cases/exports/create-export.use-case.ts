@@ -44,7 +44,12 @@ export class CreateExportUseCase {
       });
     }
 
-    logger.info('Export created', { userId, exportId: id, format: dto.format, queued: !!this.queueService });
+    logger.info('Export created', {
+      userId,
+      exportId: id,
+      format: dto.format,
+      queued: !!this.queueService,
+    });
     return exportRecord;
   }
 }

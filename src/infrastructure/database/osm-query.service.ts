@@ -41,7 +41,10 @@ export class OsmQueryService {
    * Build a WHERE clause from key/value conditions for planet_osm tables.
    * OSM columns in osm2pgsql use column names matching OSM keys.
    */
-  private buildWhereClause(conditions: OsmKeyValue[], tableAlias = ''): { clause: string; params: unknown[] } {
+  private buildWhereClause(
+    conditions: OsmKeyValue[],
+    tableAlias = '',
+  ): { clause: string; params: unknown[] } {
     if (conditions.length === 0) {
       return { clause: 'TRUE', params: [] };
     }
@@ -70,9 +73,9 @@ export class OsmQueryService {
   private async getTableColumns(tableName: string): Promise<Set<string>> {
     try {
       const rows = await this.prisma.$queryRawUnsafe<{ column_name: string }[]>(
-        `SELECT column_name FROM information_schema.columns WHERE table_name = '${this.sanitizeIdentifier(tableName)}' AND table_schema = 'osm'`
+        `SELECT column_name FROM information_schema.columns WHERE table_name = '${this.sanitizeIdentifier(tableName)}' AND table_schema = 'osm'`,
       );
-      return new Set(rows.map(r => r.column_name));
+      return new Set(rows.map((r) => r.column_name));
     } catch {
       return new Set();
     }
@@ -84,7 +87,7 @@ export class OsmQueryService {
   async queryFeatures(options: OsmQueryOptions): Promise<GeoJSONFeatureCollection> {
     const tables = options.tables ?? ['point', 'polygon'];
     const selectColumns = options.columns?.length
-      ? options.columns.map(c => `"${this.sanitizeIdentifier(c)}"`).join(', ') + ', '
+      ? options.columns.map((c) => `"${this.sanitizeIdentifier(c)}"`).join(', ') + ', '
       : '"name", ';
 
     const unions: string[] = [];
@@ -92,9 +95,8 @@ export class OsmQueryService {
       const tableName = `planet_osm_${t}`;
       const existingColumns = await this.getTableColumns(tableName);
       const whereInline = this.buildWhereInline(options.conditions, existingColumns);
-      const geomExpr = t === 'polygon'
-        ? 'ST_Centroid(ST_Transform(way, 4326))'
-        : 'ST_Transform(way, 4326)';
+      const geomExpr =
+        t === 'polygon' ? 'ST_Centroid(ST_Transform(way, 4326))' : 'ST_Transform(way, 4326)';
       const tagsExpr = existingColumns.has('tags') ? 'hstore_to_json(tags) AS tags, ' : '';
 
       // osm_id::text - un bigint Postgres devient un BigInt JS non sérialisable en JSON tel quel.
@@ -116,12 +118,12 @@ export class OsmQueryService {
 
     const rows = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(fullSql);
 
-    const features: GeoJSONFeature[] = rows.map(row => {
+    const features: GeoJSONFeature[] = rows.map((row) => {
       const { osm_id, geometry, ...rest } = row;
       return {
         type: 'Feature',
         geometry: geometry as Record<string, unknown>,
-        properties: { osm_id, ...rest as Record<string, unknown> },
+        properties: { osm_id, ...(rest as Record<string, unknown>) },
       };
     });
 
@@ -134,7 +136,7 @@ export class OsmQueryService {
   async createTable(options: CreateOsmTableOptions): Promise<OsmTableStats> {
     const schema = this.sanitizeIdentifier(options.schema);
     const table = this.sanitizeIdentifier(options.table);
-    
+
     // Get existing columns of source table to prevent querying missing columns
     const existingColumns = await this.getTableColumns(options.sourceTable);
     const whereInline = this.buildWhereInline(options.conditions, existingColumns);
@@ -149,8 +151,16 @@ export class OsmQueryService {
     // scripts d'import) - sélectionnées seulement si présentes sur la source,
     // pour rester compatible avec des tables important via le style par défaut.
     const enrichmentColumns = [
-      'opening_hours', 'phone', 'contact:phone', 'website', 'contact:website',
-      'email', 'contact:email', 'addr:housenumber', 'addr:street', 'addr:city',
+      'opening_hours',
+      'phone',
+      'contact:phone',
+      'website',
+      'contact:website',
+      'email',
+      'contact:email',
+      'addr:housenumber',
+      'addr:street',
+      'addr:city',
     ].filter((c) => sourceColumns.has(c));
     const enrichmentCols = enrichmentColumns.length
       ? enrichmentColumns.map((c) => `A."${c}"`).join(', ') + ', '
@@ -190,14 +200,16 @@ export class OsmQueryService {
 
     // Rename geometry column to geom
     try {
-      await this.prisma.$executeRawUnsafe(`ALTER TABLE "${schema}"."${table}" RENAME COLUMN geometry TO geom`);
+      await this.prisma.$executeRawUnsafe(
+        `ALTER TABLE "${schema}"."${table}" RENAME COLUMN geometry TO geom`,
+      );
     } catch {
       // Column might already be named geom
     }
 
     // Create spatial index
     await this.prisma.$executeRawUnsafe(
-      `CREATE INDEX IF NOT EXISTS "${table}_geom_idx" ON "${schema}"."${table}" USING GIST(geom)`
+      `CREATE INDEX IF NOT EXISTS "${table}_geom_idx" ON "${schema}"."${table}" USING GIST(geom)`,
     );
 
     // Compute stats
@@ -234,7 +246,17 @@ export class OsmQueryService {
   // Colonnes techniques osm2pgsql à exclure des clés de tag proposées à l'admin (pas des
   // attributs métier exploitables comme filtre de couche).
   private static readonly NON_TAG_COLUMNS = new Set([
-    'osm_id', 'way', 'z_order', 'way_area', 'tags', 'access', 'ref', 'layer', 'bridge', 'tunnel', 'oneway',
+    'osm_id',
+    'way',
+    'z_order',
+    'way_area',
+    'tags',
+    'access',
+    'ref',
+    'layer',
+    'bridge',
+    'tunnel',
+    'oneway',
   ]);
 
   /**
@@ -246,7 +268,9 @@ export class OsmQueryService {
    */
   async listTagKeys(geometryType: 'point' | 'line' | 'polygon'): Promise<string[]> {
     const columns = await this.getTableColumns(`planet_osm_${geometryType}`);
-    return [...columns].filter((c) => !OsmQueryService.NON_TAG_COLUMNS.has(c) && !c.startsWith('addr:')).sort((a, b) => a.localeCompare(b));
+    return [...columns]
+      .filter((c) => !OsmQueryService.NON_TAG_COLUMNS.has(c) && !c.startsWith('addr:'))
+      .sort((a, b) => a.localeCompare(b));
   }
 
   /**
@@ -270,18 +294,22 @@ export class OsmQueryService {
   private buildWhereInline(conditions: OsmKeyValue[], existingColumns?: Set<string>): string {
     if (conditions.length === 0) return 'TRUE';
 
-    return conditions.map(cond => {
-      const col = this.sanitizeIdentifier(cond.key);
-      if (existingColumns && !existingColumns.has(col)) {
-        logger.warn(`Column "${col}" does not exist in the source OSM table. Treating condition as FALSE.`);
-        return 'FALSE';
-      }
-      if (cond.value === '*') {
-        return `"${col}" IS NOT NULL`;
-      }
-      const safeValue = cond.value.replace(/'/g, "''");
-      return `"${col}" = '${safeValue}'`;
-    }).join(' AND ');
+    return conditions
+      .map((cond) => {
+        const col = this.sanitizeIdentifier(cond.key);
+        if (existingColumns && !existingColumns.has(col)) {
+          logger.warn(
+            `Column "${col}" does not exist in the source OSM table. Treating condition as FALSE.`,
+          );
+          return 'FALSE';
+        }
+        if (cond.value === '*') {
+          return `"${col}" IS NOT NULL`;
+        }
+        const safeValue = cond.value.replace(/'/g, "''");
+        return `"${col}" = '${safeValue}'`;
+      })
+      .join(' AND ');
   }
 
   private sanitizeIdentifier(name: string): string {

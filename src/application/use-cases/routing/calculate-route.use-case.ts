@@ -6,20 +6,31 @@ const logger = createChildLogger('CalculateRouteUseCase');
 export class CalculateRouteUseCase {
   constructor(private readonly osrmService: OSRMService) {}
 
-  async execute(coordinates: [number, number][], profile?: string, options?: { alternatives?: boolean; steps?: boolean; geometries?: string }): Promise<Record<string, unknown>> {
+  async execute(
+    coordinates: [number, number][],
+    profile?: string,
+    options?: { alternatives?: boolean; steps?: boolean; geometries?: string },
+  ): Promise<Record<string, unknown>> {
     const result = await this.osrmService.route(coordinates, profile, options);
     if (!result.routes || result.routes.length === 0) {
-      logger.warn('OSRM route calculation returned no routes', { profile, waypointCount: coordinates.length });
+      logger.warn('OSRM route calculation returned no routes', {
+        profile,
+        waypointCount: coordinates.length,
+      });
       throw new Error('No route found');
     }
     const route = result.routes[0];
-    logger.info('Route calculated', { profile, distance: route.distance, duration: route.duration });
+    logger.info('Route calculated', {
+      profile,
+      distance: route.distance,
+      duration: route.duration,
+    });
     return {
       distance: route.distance,
       duration: route.duration,
       geometry: route.geometry,
       legs: route.legs,
-      waypoints: result.waypoints
+      waypoints: result.waypoints,
     };
   }
 }

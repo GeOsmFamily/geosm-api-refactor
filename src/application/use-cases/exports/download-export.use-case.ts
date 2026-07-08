@@ -7,7 +7,11 @@ const logger = createChildLogger('DownloadExportUseCase');
 
 export class DownloadExportUseCase {
   constructor(
-    private exportRepository: { findById: (id: string) => Promise<{ id: string; status: string; filePath: string | null; userId: string } | null> },
+    private exportRepository: {
+      findById: (
+        id: string,
+      ) => Promise<{ id: string; status: string; filePath: string | null; userId: string } | null>;
+    },
     private storageService: { getPresignedUrl: (key: string, expiry?: number) => Promise<string> },
   ) {}
 
@@ -15,7 +19,11 @@ export class DownloadExportUseCase {
     const exportRecord = await this.exportRepository.findById(exportId);
     if (!exportRecord) throw new NotFoundError('Export', exportId);
     if (exportRecord.userId !== userId) {
-      logger.warn('Download export rejected: not the owner', { requestingUserId: userId, ownerId: exportRecord.userId, exportId });
+      logger.warn('Download export rejected: not the owner', {
+        requestingUserId: userId,
+        ownerId: exportRecord.userId,
+        exportId,
+      });
       throw new ForbiddenError('You do not have access to this export');
     }
     if (exportRecord.status !== 'COMPLETED' || !exportRecord.filePath) {

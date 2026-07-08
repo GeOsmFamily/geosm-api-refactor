@@ -60,23 +60,42 @@ export class UploadRasterUseCase {
     }
 
     logger.info('Importing raster', { tableName: input.tableName, srid: input.srid });
-    const importResult = await this.rasterService.importRaster(input.filePath, input.tableName, { srid: input.srid });
-    logger.info('Raster imported', { tableName: importResult.tableName, postgisWarning: importResult.postgisWarning });
+    const importResult = await this.rasterService.importRaster(input.filePath, input.tableName, {
+      srid: input.srid,
+    });
+    logger.info('Raster imported', {
+      tableName: importResult.tableName,
+      postgisWarning: importResult.postgisWarning,
+    });
 
     // Archivage MinIO best-effort, indépendant du reste du flux (une panne de stockage
     // d'archive ne doit pas empêcher le raster de devenir visible sur le portail).
     try {
       const stream = createReadStream(importResult.outputPath);
-      await this.storageService.uploadFile(`rasters/${importResult.tableName}.tif`, stream, 'image/tiff');
+      await this.storageService.uploadFile(
+        `rasters/${importResult.tableName}.tif`,
+        stream,
+        'image/tiff',
+      );
     } catch (err) {
-      logger.error('Raster archival to storage failed', { tableName: importResult.tableName, error: err instanceof Error ? err.message : String(err) });
+      logger.error('Raster archival to storage failed', {
+        tableName: importResult.tableName,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     const finalTable = `${instance.slug}_${slug.value}`.replace(/\W/g, '');
     const projectPath = this.qgisProjectService.getProjectPath(instance.slug);
-    const qgisResult = await this.qgisProjectService.addRasterLayer(projectPath, importResult.outputPath, finalTable);
+    const qgisResult = await this.qgisProjectService.addRasterLayer(
+      projectPath,
+      importResult.outputPath,
+      finalTable,
+    );
     if (!qgisResult.success) {
-      logger.warn('addRasterLayer a échoué - le raster reste importé mais non servi en WMS', { finalTable, error: qgisResult.error });
+      logger.warn('addRasterLayer a échoué - le raster reste importé mais non servi en WMS', {
+        finalTable,
+        error: qgisResult.error,
+      });
     }
 
     const layer = await this.layerRepository.create({
@@ -106,6 +125,10 @@ export class UploadRasterUseCase {
       qgisProjectId: null,
     });
 
-    return { layer, tableName: importResult.tableName, postgisImportWarning: importResult.postgisWarning };
+    return {
+      layer,
+      tableName: importResult.tableName,
+      postgisImportWarning: importResult.postgisWarning,
+    };
   }
 }

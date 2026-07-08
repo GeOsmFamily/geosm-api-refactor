@@ -107,15 +107,21 @@ export class GeminiService {
     return { role: message.role, parts: [{ text: message.text ?? '' }] };
   }
 
-  private async callGenerateContent(method: string, body: Record<string, unknown>): Promise<GeminiApiResponse> {
+  private async callGenerateContent(
+    method: string,
+    body: Record<string, unknown>,
+  ): Promise<GeminiApiResponse> {
     return tracer.startActiveSpan(`gemini.${method}`, async (span) => {
       const end = geminiCallDurationSeconds.startTimer({ method });
       try {
-        const response = await fetch(`${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
+        const response = await fetch(
+          `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          },
+        );
         if (!response.ok) {
           const errText = await response.text();
           geminiCallsTotal.inc({ method, status: 'error' });
@@ -142,7 +148,8 @@ export class GeminiService {
 
   private extractFunctionCalls(result: GeminiApiResponse): GeminiFunctionCall[] {
     const parts = result.candidates?.[0]?.content?.parts ?? [];
-    return parts.filter((p): p is GeminiPart & { functionCall: GeminiFunctionCall } => !!p.functionCall)
+    return parts
+      .filter((p): p is GeminiPart & { functionCall: GeminiFunctionCall } => !!p.functionCall)
       .map((p) => p.functionCall);
   }
 }

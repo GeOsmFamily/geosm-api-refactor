@@ -18,19 +18,30 @@ export class MeiliSearchService {
     this.apiKey = config.MEILISEARCH_API_KEY;
   }
 
-  async search(indexName: string, query: string, options?: { filter?: string; limit?: number; offset?: number }): Promise<MeiliSearchResult> {
+  async search(
+    indexName: string,
+    query: string,
+    options?: { filter?: string; limit?: number; offset?: number },
+  ): Promise<MeiliSearchResult> {
     const body: Record<string, unknown> = { q: query };
     if (options?.filter) body.filter = options.filter;
     if (options?.limit) body.limit = options.limit;
     if (options?.offset) body.offset = options.offset;
     const response = await fetch(`${this.baseUrl}/indexes/${indexName}/search`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify(body),
     });
     if (!response.ok) {
       if (response.status === 404) {
-        return { hits: [], estimatedTotalHits: 0, offset: 0, limit: 10, processingTimeMs: 0, query };
+        return {
+          hits: [],
+          estimatedTotalHits: 0,
+          offset: 0,
+          limit: 10,
+          processingTimeMs: 0,
+          query,
+        };
       }
       throw new Error(`MeiliSearch search failed: ${response.statusText}`);
     }
@@ -45,12 +56,16 @@ export class MeiliSearchService {
    * attribut filtrable configuré.
    */
   async updateFilterableAttributes(indexName: string, attributes: string[]): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/indexes/${indexName}/settings/filterable-attributes`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
-      body: JSON.stringify(attributes),
-    });
-    if (!response.ok) throw new Error(`MeiliSearch updateFilterableAttributes failed: ${response.statusText}`);
+    const response = await fetch(
+      `${this.baseUrl}/indexes/${indexName}/settings/filterable-attributes`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
+        body: JSON.stringify(attributes),
+      },
+    );
+    if (!response.ok)
+      throw new Error(`MeiliSearch updateFilterableAttributes failed: ${response.statusText}`);
   }
 
   /**
@@ -60,11 +75,15 @@ export class MeiliSearchService {
    * silencieuse (l'appel HTTP répond quand même 202 "tâche acceptée" - l'échec ne se voit que
    * dans /tasks, jamais dans la réponse de cet appel).
    */
-  async addDocuments(indexName: string, documents: Record<string, unknown>[], primaryKey?: string): Promise<void> {
+  async addDocuments(
+    indexName: string,
+    documents: Record<string, unknown>[],
+    primaryKey?: string,
+  ): Promise<void> {
     const qs = primaryKey ? `?primaryKey=${encodeURIComponent(primaryKey)}` : '';
     const response = await fetch(`${this.baseUrl}/indexes/${indexName}/documents${qs}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify(documents),
     });
     if (!response.ok) throw new Error(`MeiliSearch addDocuments failed: ${response.statusText}`);
@@ -73,7 +92,7 @@ export class MeiliSearchService {
   async deleteDocuments(indexName: string, ids: string[]): Promise<void> {
     const response = await fetch(`${this.baseUrl}/indexes/${indexName}/documents/delete-batch`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify(ids),
     });
     if (!response.ok) throw new Error(`MeiliSearch deleteDocuments failed: ${response.statusText}`);

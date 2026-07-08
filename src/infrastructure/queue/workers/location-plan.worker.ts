@@ -24,7 +24,9 @@ export interface LocationPlanJobData {
 }
 
 type LocationPlanWorkerDeps = {
-  locationPlanRepository: { update: (id: string, data: Record<string, unknown>) => Promise<unknown> };
+  locationPlanRepository: {
+    update: (id: string, data: Record<string, unknown>) => Promise<unknown>;
+  };
   storageService: { uploadFile: (key: string, data: Buffer) => Promise<string> };
   notificationService: { notifyUser: (userId: string, event: string, data: unknown) => void };
   qgisProjectService: QGISProjectService;
@@ -32,7 +34,23 @@ type LocationPlanWorkerDeps = {
 
 export function createLocationPlanProcessor(deps: LocationPlanWorkerDeps) {
   return async function processLocationPlan(job: Job<LocationPlanJobData>): Promise<void> {
-    const { locationPlanId, userId, lon, lat, title, description, landmark, scale, paperSize, orientation, includeLegend, includeScale, includeGrid, includeNorthArrow, instanceBbox } = job.data;
+    const {
+      locationPlanId,
+      userId,
+      lon,
+      lat,
+      title,
+      description,
+      landmark,
+      scale,
+      paperSize,
+      orientation,
+      includeLegend,
+      includeScale,
+      includeGrid,
+      includeNorthArrow,
+      instanceBbox,
+    } = job.data;
     logger.info('Processing location plan', { locationPlanId, lon, lat });
 
     const tmpDir = process.env.DATA_DIR || '/tmp/geosm-data';
@@ -41,8 +59,15 @@ export function createLocationPlanProcessor(deps: LocationPlanWorkerDeps) {
     const outputPath = path.join(tmpDir, outputFileName);
 
     try {
-      await deps.locationPlanRepository.update(locationPlanId, { status: 'PROCESSING', startedAt: new Date() });
-      deps.notificationService.notifyUser(userId, 'location-plan:progress', { locationPlanId, status: 'PROCESSING', progress: 10 });
+      await deps.locationPlanRepository.update(locationPlanId, {
+        status: 'PROCESSING',
+        startedAt: new Date(),
+      });
+      deps.notificationService.notifyUser(userId, 'location-plan:progress', {
+        locationPlanId,
+        status: 'PROCESSING',
+        progress: 10,
+      });
 
       const result = await deps.qgisProjectService.generateLocationPlan(lon, lat, outputPath, {
         title,
@@ -55,14 +80,21 @@ export function createLocationPlanProcessor(deps: LocationPlanWorkerDeps) {
         includeScale,
         includeGrid,
         includeNorthArrow,
-        instanceBbox: instanceBbox && instanceBbox.length === 4 ? (instanceBbox as [number, number, number, number]) : undefined,
+        instanceBbox:
+          instanceBbox && instanceBbox.length === 4
+            ? (instanceBbox as [number, number, number, number])
+            : undefined,
       });
 
       if (!result.success) {
         throw new Error(result.error || 'La génération PyQGIS a échoué sans message d’erreur');
       }
 
-      deps.notificationService.notifyUser(userId, 'location-plan:progress', { locationPlanId, status: 'PROCESSING', progress: 80 });
+      deps.notificationService.notifyUser(userId, 'location-plan:progress', {
+        locationPlanId,
+        status: 'PROCESSING',
+        progress: 80,
+      });
 
       const fileBuffer = await readFile(outputPath);
       const fileStats = await stat(outputPath);
@@ -77,7 +109,10 @@ export function createLocationPlanProcessor(deps: LocationPlanWorkerDeps) {
       });
 
       deps.notificationService.notifyUser(userId, 'location-plan:completed', {
-        locationPlanId, status: 'COMPLETED', filePath: minioKey, fileSize: fileStats.size,
+        locationPlanId,
+        status: 'COMPLETED',
+        filePath: minioKey,
+        fileSize: fileStats.size,
       });
 
       logger.info('Location plan completed', { locationPlanId, fileSize: fileStats.size });
@@ -85,12 +120,24 @@ export function createLocationPlanProcessor(deps: LocationPlanWorkerDeps) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error('Location plan generation failed', { locationPlanId, error: errorMessage });
 
-      await deps.locationPlanRepository.update(locationPlanId, { status: 'FAILED', errorMessage, completedAt: new Date() });
-      deps.notificationService.notifyUser(userId, 'location-plan:failed', { locationPlanId, status: 'FAILED', error: errorMessage });
+      await deps.locationPlanRepository.update(locationPlanId, {
+        status: 'FAILED',
+        errorMessage,
+        completedAt: new Date(),
+      });
+      deps.notificationService.notifyUser(userId, 'location-plan:failed', {
+        locationPlanId,
+        status: 'FAILED',
+        error: errorMessage,
+      });
 
       throw error;
     } finally {
-      try { await unlink(outputPath); } catch { /* ignore */ }
+      try {
+        await unlink(outputPath);
+      } catch {
+        /* ignore */
+      }
     }
   };
 }
