@@ -674,3 +674,65 @@ model admin_boundaries {
 
   @@ignore
 }
+
+// Tables créées et peuplées par osm2pgsql (voir Osm2pgsqlService / scripts d'import OSM), en
+// dehors de Prisma - MEME probleme et MEME correctif que Srtm/admin_boundaries ci-dessus :
+// sans ces déclarations "@@ignore", "prisma db push" (executé à chaque démarrage du conteneur,
+// voir docker/entrypoint.sh) les voit comme non gérées et refuse de démarrer dès qu'elles
+// contiennent des lignes ("You are about to drop the planet_osm_* table, which is not empty").
+// Un import OSM réussi (des millions de lignes dans planet_osm_nodes/ways) ferait donc planter
+// l'API en boucle au redémarrage suivant sans cette déclaration - constaté réellement en
+// production le 2026-07-08, prisma refusant (correctement) le DROP grâce à sa protection contre
+// la perte de données, mais bloquant l'API tant que ce n'était pas corrigé.
+model planet_osm_point {
+  osm_id BigInt                                   @id
+  tags   Unsupported("hstore")?
+  way    Unsupported("geometry(Point, 3857)")?
+
+  @@ignore
+}
+
+model planet_osm_line {
+  osm_id BigInt                                   @id
+  tags   Unsupported("hstore")?
+  way    Unsupported("geometry(LineString, 3857)")?
+
+  @@ignore
+}
+
+model planet_osm_polygon {
+  osm_id BigInt                                @id
+  tags   Unsupported("hstore")?
+  way    Unsupported("geometry(Geometry, 3857)")?
+
+  @@ignore
+}
+
+model planet_osm_roads {
+  osm_id BigInt                                   @id
+  tags   Unsupported("hstore")?
+  way    Unsupported("geometry(LineString, 3857)")?
+
+  @@ignore
+}
+
+// Tables internes de osm2pgsql en mode --slim (bookkeeping pour les mises à jour
+// différentielles futures) - jamais interrogées directement par cette application, mais
+// toujours présentes en base et donc soumises au même risque de DROP par "db push".
+model planet_osm_nodes {
+  id BigInt @id
+
+  @@ignore
+}
+
+model planet_osm_ways {
+  id BigInt @id
+
+  @@ignore
+}
+
+model planet_osm_rels {
+  id BigInt @id
+
+  @@ignore
+}
