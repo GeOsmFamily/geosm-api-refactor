@@ -1,4 +1,5 @@
 import winston from 'winston';
+import Transport from 'winston-transport';
 import os from 'os';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -70,11 +71,14 @@ if (graylogHost) {
       },
     });
 
-    // Custom GELF transport
-    const TransportBase = winston.transports.Console.constructor as new (
-      opts?: Record<string, unknown>,
-    ) => winston.transport;
-    class GelfTransport extends TransportBase {
+    // Custom GELF transport. "winston.transports.Console.constructor" (l'ancienne approche
+    // ici) ne renvoie PAS la classe Transport de winston-transport comme on pourrait le
+    // croire - .constructor sur une classe pointe vers Function (le meta-constructeur JS
+    // générique), pas vers sa classe parente. GelfTransport héritait donc de Function, sans
+    // aucune des méthodes d'EventEmitter (.on(), .emit()...) que winston attend de tout
+    // transport - d'où le crash "this.transport.on is not a function" au démarrage dès que
+    // GRAYLOG_HOST est défini (jamais exécuté avant en dev/tests, seulement en prod).
+    class GelfTransport extends Transport {
       log(info: Record<string, unknown>, callback: () => void): void {
         const { level, message, ...meta } = info;
         const gelfLevel = level === 'error' ? 3 : level === 'warn' ? 4 : level === 'info' ? 6 : 7;
