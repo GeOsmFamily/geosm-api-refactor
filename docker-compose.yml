@@ -310,11 +310,15 @@ services:
     deploy:
       resources:
         limits:
+          # 512M etait insuffisant : la distribution complete d'OpenSearch (tous les plugins,
+          # pas juste le tas Java -Xmx256m) depasse ce plafond cgroup au demarrage et se fait
+          # tuer par le noyau (OOM), independamment de la memoire libre sur le reste de l'hote -
+          # symptome observe : "Killed" dans les logs, Graylog ne pouvant jamais le joindre.
           cpus: '1.0'
-          memory: 512M
+          memory: 1536M
         reservations:
           cpus: '0.25'
-          memory: 256M
+          memory: 512M
     restart: unless-stopped
 
   # Lot A8 admin (infra en lecture seule) : expose une API Docker restreinte au réseau interne
