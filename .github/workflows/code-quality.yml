@@ -87,6 +87,7 @@ jobs:
       REDIS_PORT: 6379
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
+      ENCRYPTION_KEY: 1fd4dd4e826c626c3490401b0a8e6a164c09be5e6eb18d2d274164048f452fea
       NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
@@ -98,7 +99,10 @@ jobs:
       - run: npx --no prisma generate --schema=src/infrastructure/database/prisma/schema.prisma
       - run: npx --no prisma db push --schema=src/infrastructure/database/prisma/schema.prisma --skip-generate
       - name: Tests avec couverture
-        run: npx vitest run --coverage --reporter=json --outputFile=test-results.json
+        # --reporter=default en plus de json : le json seul écrit uniquement dans
+        # test-results.json (non exporté en artefact), rendant les échecs de tests invisibles
+        # dans les logs du job - vécu lors du diagnostic de ce workflow.
+        run: npx vitest run --coverage --reporter=default --reporter=json --outputFile=test-results.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
