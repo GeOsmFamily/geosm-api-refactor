@@ -114,8 +114,13 @@ services:
         reservations:
           cpus: '0.5'
           memory: 1024M
+    # wget absent de cette image (mediagis/nominatim:4.5) - "CMD wget --spider ..." échouait
+    # systématiquement avec "wget: not found", marquant le conteneur unhealthy en boucle même
+    # quand Nominatim répondait parfaitement (vérifié via curl direct sur le port publié).
+    # /dev/tcp est une fonctionnalité intégrée à bash (pas un binaire externe), donc fiable
+    # quelle que soit l'image - se contente de vérifier que le port accepte une connexion.
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/status.php"]
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/localhost/8080' 2>/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 30m
@@ -140,8 +145,10 @@ services:
         reservations:
           cpus: '0.25'
           memory: 512M
+    # wget absent de cette image (osrm/osrm-backend) - meme correctif que Nominatim ci-dessus :
+    # simple test de port TCP via /dev/tcp (bash) plutot qu'un binaire HTTP externe.
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 -O- 'http://localhost:5000/route/v1/driving/11.5,3.8;11.6,3.9' | grep -q '\"code\":\"Ok\"'"]
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/localhost/5000' 2>/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 30s
