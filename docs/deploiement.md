@@ -79,7 +79,7 @@ exceptions volontaires pres** :
 - **40 Go d'espace disque** minimum (extract OSM regional + import Nominatim + volumes Postgres/MinIO)
 - Docker 24+ et Docker Compose v2+ installes
 - Un nom de domaine pointant vers l'IP du VPS (enregistrement DNS `A`)
-- Acces SSH avec une cle dediee au deploiement (voir [CI/CD](#4-cicd-et-deploiement-continu))
+- Acces SSH avec une cle dediee au deploiement (voir [CI/CD](#10-cicd-et-deploiement-continu-a-faire-sur-github-avant-ou-apres-le-premier-lancement-manuel))
 - Firewall du VPS autorisant en entree : `80`/`443` (reverse proxy systeme) et le port MinIO
   public (`MINIO_PUBLIC_PORT`, defaut `9000`, voir [Architecture des
   services](#architecture-des-services)) - tous les autres ports de la stack restent internes,
@@ -210,7 +210,7 @@ MEILI_ENV=production
 
 > **Rappel** : `MAPBOX_ACCESS_TOKEN` (backend) et le token Mapillary (`mapillaryToken` dans
 > `src/environments/environment.prod.ts` du depot frontend, injecte au build via le secret
-> GitHub Actions `MAPILLARY_TOKEN` - voir [CI/CD](#4-cicd-et-deploiement-continu)) doivent etre
+> GitHub Actions `MAPILLARY_TOKEN` - voir [CI/CD](#10-cicd-et-deploiement-continu-a-faire-sur-github-avant-ou-apres-le-premier-lancement-manuel)) doivent etre
 > des tokens **que vous generez vous-meme**, distincts de ceux ayant pu circuler dans
 > d'anciennes versions du code source pendant le developpement. Si un token a deja ete commite
 > par erreur dans l'historique Git a un moment donne, considerez-le compromis : revoquez-le sur
@@ -636,7 +636,7 @@ docker run --rm -v geosm_qgis-projects:/data -v $(pwd):/backup \
 
 ---
 
-## 4. CI/CD et deploiement continu
+## 10. CI/CD et deploiement continu (a faire sur GitHub, avant OU apres le premier lancement manuel)
 
 Le deploiement automatique est gere par GitHub Actions (`deploy.yml`, sur les deux depots -
 backend et frontend, meme structure) :
