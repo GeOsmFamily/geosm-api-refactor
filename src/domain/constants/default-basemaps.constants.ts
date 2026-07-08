@@ -17,7 +17,7 @@ export interface DefaultBaseMapConfig {
  * Le token Mapbox (MAPBOX_ACCESS_TOKEN) est piloté par le backend et baké dans
  * l'URL en base — pas de configuration supplémentaire nécessaire côté client.
  */
-export const defaultBaseMaps: DefaultBaseMapConfig[] = [
+const baseMaps: DefaultBaseMapConfig[] = [
   {
     name: 'OSM Dark',
     slug: 'osm-dark',
@@ -60,3 +60,10 @@ export const defaultBaseMaps: DefaultBaseMapConfig[] = [
     order: 3,
   },
 ];
+
+// MAPBOX_ACCESS_TOKEN est optionnel (voir env.config.ts) : sans token, l'URL Mapbox serait
+// invalide ("...access_token=undefined") et échouerait sur chaque tuile - on retire l'entrée
+// plutôt que de proposer un fond de carte garanti cassé.
+export const defaultBaseMaps: DefaultBaseMapConfig[] = config.MAPBOX_ACCESS_TOKEN
+  ? baseMaps
+  : baseMaps.filter((b) => b.slug !== 'mapbox-streets');

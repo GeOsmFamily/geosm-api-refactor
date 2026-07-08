@@ -94,11 +94,11 @@ const envSchema = z.object({
   // Clé de chiffrement au repos du token OSM (AES-256-GCM, voir encryption.util.ts) - distincte
   // des secrets JWT car un usage différent (chiffrement réversible vs signature).
   ENCRYPTION_KEY: z.string().optional(),
-  MAPBOX_ACCESS_TOKEN: z
-    .string()
-    .default(
-      '__ROTATED_MAPBOX_TOKEN_REMOVED__',
-    ),
+  // Token public Mapbox utilisé pour le fond de carte satellite par défaut (voir
+  // default-basemaps.constants.ts) - aucune valeur par défaut en dur ici : générer le vôtre sur
+  // https://account.mapbox.com/access-tokens/ et le placer dans .env. Si absent, le fond de
+  // carte Mapbox est simplement omis de la liste (pas de crash au démarrage).
+  MAPBOX_ACCESS_TOKEN: z.string().optional(),
 
   LOG_LEVEL: z.string().default('info'),
   PROMETHEUS_ENABLED: booleanEnv(true),

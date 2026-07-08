@@ -12,27 +12,27 @@ Le deploiement complet comprend **15 services** (2 applicatifs + 13 d'infrastruc
 
 ### Services applicatifs
 
-| Service | Image | Port (prod, localhost uniquement sauf frontend) | Role |
-|---|---|---|---|
-| **frontend** | `ghcr.io/geosmfamily/geosm-frontend-refactor:<tag>` | 80 (public) | Angular + nginx, reverse proxy public de toute la stack |
-| **api** | `ghcr.io/geosmfamily/geosm-api-refactor:<tag>` | 3005 | API GeOSM (Fastify 5) |
+| Service | Image | Variable de port (hote) | Defaut | Role |
+|---|---|---|---|---|
+| **frontend** | `ghcr.io/geosmfamily/geosm-frontend-refactor:<tag>` | `FRONTEND_PORT` | 80 (**8080 recommande en prod**, voir section 6) | Angular + nginx, reverse proxy applicatif de toute la stack (relaie vers `api`/`qgis-server`) ; un reverse proxy systeme (Apache/Nginx/Caddy) prend ensuite ce port en charge pour le TLS public |
+| **api** | `ghcr.io/geosmfamily/geosm-api-refactor:<tag>` | `APP_PORT` | 3005 | API GeOSM (Fastify 5) |
 
 ### Donnees et recherche
 
-| Service | Image | Port | Role |
-|---|---|---|---|
-| **postgres** | `postgis/postgis:16-3.4` | 5432 | Base de donnees PostgreSQL + PostGIS |
-| **redis** | `redis:7-alpine` | 6379 | Cache + backend BullMQ |
-| **minio** | `minio/minio:RELEASE.2024-01-16` | 9000, 9001 | Stockage objet (S3) - exports, documents, sauvegardes |
-| **meilisearch** | `getmeili/meilisearch:v1.6` | 7700 | Moteur de recherche full-text |
-| **qgis-server** | `camptocamp/qgis-server:3.28` | 8380 | Serveur cartographique WMS/WFS |
+| Service | Image | Variable de port (hote) | Defaut | Role |
+|---|---|---|---|---|
+| **postgres** | `postgis/postgis:16-3.4` | `POSTGRES_PORT` | 5432 | Base de donnees PostgreSQL + PostGIS |
+| **redis** | `redis:7-alpine` | `REDIS_HOST_PORT` | 6379 | Cache + backend BullMQ |
+| **minio** | `minio/minio:RELEASE.2024-01-16` | `MINIO_PUBLIC_PORT`, `MINIO_CONSOLE_PORT` | 9000, 9001 | Stockage objet (S3) - exports, documents, sauvegardes |
+| **meilisearch** | `getmeili/meilisearch:v1.6` | `MEILISEARCH_PORT` | 7700 | Moteur de recherche full-text |
+| **qgis-server** | `camptocamp/qgis-server:3.28` | `QGIS_SERVER_PORT` | 8380 | Serveur cartographique WMS/WFS |
 
 ### Geocodage et itineraires (auto-heberges, Lot P9)
 
-| Service | Image | Port | Role |
-|---|---|---|---|
-| **nominatim** | `mediagis/nominatim:4.5` | 8081 | Geocodage direct/inverse - remplace le serveur public de demo |
-| **osrm** | `osrm/osrm-backend` | 5000 | Calcul d'itineraires routiers - remplace le serveur public de demo |
+| Service | Image | Variable de port (hote) | Defaut | Role |
+|---|---|---|---|---|
+| **nominatim** | `mediagis/nominatim:4.5` | `NOMINATIM_PORT` | 8081 | Geocodage direct/inverse - remplace le serveur public de demo |
+| **osrm** | `osrm/osrm-backend` | `OSRM_PORT` | 5000 | Calcul d'itineraires routiers - remplace le serveur public de demo |
 
 > En developpement, `NOMINATIM_URL`/`OSRM_URL` pointent encore sur les serveurs publics
 > (`nominatim.openstreetmap.org`, `router.project-osrm.org`). Leurs politiques d'usage ("light
@@ -41,19 +41,34 @@ Le deploiement complet comprend **15 services** (2 applicatifs + 13 d'infrastruc
 
 ### Stack d'observabilite
 
-| Service | Image | Port | Role |
-|---|---|---|---|
-| **grafana** | `grafana/grafana:10.2.0` | 3001 | Tableaux de bord et visualisation |
-| **prometheus** | `prom/prometheus:v2.48.0` | 9090 | Collecte de metriques |
-| **jaeger** | `jaegertracing/all-in-one:1.52` | 16686, 4318 | Tracing distribue (OpenTelemetry) |
-| **graylog** | `graylog/graylog:5.2` | 9009, 12201/udp | Gestion centralisee des logs (GELF) |
-| **mongodb** | `mongo:6.0` | -- | Backend Graylog |
-| **opensearch** | `opensearchproject/opensearch:2.11.0` | -- | Indexation des logs (Graylog) |
+| Service | Image | Variable de port (hote) | Defaut | Role |
+|---|---|---|---|---|
+| **grafana** | `grafana/grafana:10.2.0` | `GRAFANA_PORT` | 3001 | Tableaux de bord et visualisation |
+| **prometheus** | `prom/prometheus:v2.48.0` | `PROMETHEUS_PORT` | 9090 | Collecte de metriques |
+| **jaeger** | `jaegertracing/all-in-one:1.52` | `JAEGER_UI_PORT`, `JAEGER_OTLP_PORT` | 16686, 4318 | Tracing distribue (OpenTelemetry) |
+| **graylog** | `graylog/graylog:5.2` | `GRAYLOG_WEB_PORT`, `GRAYLOG_GELF_PORT` | 9009, 12201/udp | Gestion centralisee des logs (GELF) |
+| **mongodb** | `mongo:6.0` | -- | -- | Backend Graylog (pas de port publie sur l'hote) |
+| **opensearch** | `opensearchproject/opensearch:2.11.0` | -- | -- | Indexation des logs (Graylog, pas de port publie sur l'hote) |
 
-Tous les ports de la colonne "Port" sont lies a `127.0.0.1` en production
-(`docker-compose.prod.yml`) - seul `frontend` (80) est joignable depuis l'exterieur. Le
-frontend sert de reverse proxy public vers l'API (`/api/` -> `api:3000`) et QGIS Server
-(`/ows` -> `qgis-server:8080`) sur le reseau Docker interne.
+**Tous ces ports sont surchargeables depuis `.env`** (voir le bloc "Ports publies sur l'hote"
+en tete de `.env.example`) - utile si un autre service tourne deja sur l'un de ces ports sur le
+meme VPS. Changer le NUMERO de port n'a aucun impact sur le reste de la stack (les services se
+parlent toujours entre eux par nom Docker sur leur port interne fixe, ex. `postgres:5432`) ni
+sur leur niveau d'exposition (tous restes lies a `127.0.0.1` en production, sauf `frontend`).
+
+Tous les services sont lies a `127.0.0.1` en production (`docker-compose.prod.yml`), **a deux
+exceptions volontaires pres** :
+- `frontend` (port `FRONTEND_PORT`) - relaye par le reverse proxy systeme (Apache/Nginx/Caddy,
+  hors Docker, voir [section 6](#6-reverse-proxy-et-ssl)) qui ecoute sur 80/443. Le conteneur
+  `frontend` (nginx) fait ensuite office de reverse proxy applicatif interne vers l'API
+  (`/api/` -> `api:3000`) et QGIS Server (`/ows` -> `qgis-server:8080`) sur le reseau Docker.
+- `minio`, uniquement son port S3 (`MINIO_PUBLIC_PORT`, **pas** `MINIO_CONSOLE_PORT` qui reste
+  prive) - les URLs presignees de telechargement (exports, documents, imports QGIS, raster)
+  pointent directement sur ce port et doivent etre atteignables par le navigateur des
+  visiteurs. Ce port doit etre ouvert explicitement dans le firewall du VPS (voir
+  [Prerequis](#1-prerequis) et l'etape [Demarrer la stack complete](#7-demarrer-la-stack-complete)).
+  Trafic HTTP brut sur ce port precis (pas de TLS) - accepte car les URLs sont presignees a
+  duree de vie limitee (voir `getPresignedUrl`, expiration par defaut 1h).
 
 ---
 
@@ -65,6 +80,15 @@ frontend sert de reverse proxy public vers l'API (`/api/` -> `api:3000`) et QGIS
 - Docker 24+ et Docker Compose v2+ installes
 - Un nom de domaine pointant vers l'IP du VPS (enregistrement DNS `A`)
 - Acces SSH avec une cle dediee au deploiement (voir [CI/CD](#4-cicd-et-deploiement-continu))
+- Firewall du VPS autorisant en entree : `80`/`443` (reverse proxy systeme) et le port MinIO
+  public (`MINIO_PUBLIC_PORT`, defaut `9000`, voir [Architecture des
+  services](#architecture-des-services)) - tous les autres ports de la stack restent internes,
+  aucune autre ouverture necessaire. Exemple avec `ufw` :
+  ```bash
+  sudo ufw allow 80/tcp
+  sudo ufw allow 443/tcp
+  sudo ufw allow 9000/tcp
+  ```
 
 ## 2. Provisionner le VPS
 
@@ -106,8 +130,16 @@ a renseigner avant le premier demarrage :
 ```bash
 # Application
 NODE_ENV=production
-APP_URL=https://api.votre-domaine.org
+# Une seule origine publique pour toute la stack (voir Architecture des services plus haut) :
+# le frontend (nginx) est le seul service expose publiquement et relaie deja /api/ -> api et
+# /ows -> qgis-server en interne. Il n'y a donc PAS de sous-domaine api.votre-domaine.org a
+# creer - APP_URL et CORS_ORIGIN pointent sur le meme domaine que le frontend.
+APP_URL=https://votre-domaine.org
 CORS_ORIGIN=https://votre-domaine.org
+# Port interne (localhost du VPS) sur lequel le conteneur frontend publie nginx - c'est CE
+# port que le reverse proxy du systeme (Apache/Nginx/Caddy, section 6) doit cibler. Ne jamais
+# mettre 80 ou 443 ici si un reverse proxy systeme tourne deja sur ces ports.
+FRONTEND_PORT=8080
 
 # Base de donnees
 DATABASE_URL=postgresql://geosm:<MOT_DE_PASSE_GENERE>@postgres:5432/geosm?schema=public
@@ -139,10 +171,11 @@ SMTP_FROM=noreply@votre-domaine.org
 
 # Authentification OpenStreetMap (Lot P1) - app OAuth2 a enregistrer sur www.openstreetmap.org
 # (Parametres du compte -> OAuth 2 applications -> Enregistrer une nouvelle application),
-# scope read_prefs, redirect URI exacte : https://api.votre-domaine.org/api/v1/auth/osm/callback
+# scope read_prefs, redirect URI exacte : https://votre-domaine.org/api/v1/auth/osm/callback
+# (meme domaine que APP_URL/CORS_ORIGIN ci-dessus, PAS de sous-domaine api.)
 OSM_OAUTH_CLIENT_ID=<fourni par osm.org>
 OSM_OAUTH_CLIENT_SECRET=<fourni par osm.org>
-OSM_OAUTH_REDIRECT_URI=https://api.votre-domaine.org/api/v1/auth/osm/callback
+OSM_OAUTH_REDIRECT_URI=https://votre-domaine.org/api/v1/auth/osm/callback
 OSM_OAUTH_BASE_URL=https://www.openstreetmap.org
 
 # Nominatim/OSRM auto-heberges (Lot P9) - voir section dediee plus bas
@@ -156,7 +189,33 @@ ALERT_EMAIL_TO=oncall@votre-domaine.org
 
 # Cle Gemini (assistant IA) - a generer sur https://aistudio.google.com
 GEMINI_API_KEY=<votre cle>
+
+# Fond de carte Mapbox par defaut (optionnel - omis de la liste des fonds de carte si absent) -
+# generer le votre sur https://account.mapbox.com/access-tokens/
+MAPBOX_ACCESS_TOKEN=<votre cle>
+
+# Backup PostgreSQL programme - valeurs par defaut deja adaptees a la prod, a ajuster si besoin
+BACKUP_CRON=0 3 * * *
+BACKUP_RETENTION_DAYS=30
+
+# Secrets internes au conteneur Graylog (voir docker-compose.yml) - generation :
+# GRAYLOG_PASSWORD_SECRET : openssl rand -hex 32
+# GRAYLOG_ROOT_PASSWORD_SHA2 : echo -n 'VotreMotDePasseAdminGraylog' | sha256sum
+GRAYLOG_PASSWORD_SECRET=<genere>
+GRAYLOG_ROOT_PASSWORD_SHA2=<genere>
+
+# "production" en prod (desactive les logs verbeux / l'UI d'analytics de Meilisearch)
+MEILI_ENV=production
 ```
+
+> **Rappel** : `MAPBOX_ACCESS_TOKEN` (backend) et le token Mapillary (`mapillaryToken` dans
+> `src/environments/environment.prod.ts` du depot frontend, injecte au build via le secret
+> GitHub Actions `MAPILLARY_TOKEN` - voir [CI/CD](#4-cicd-et-deploiement-continu)) doivent etre
+> des tokens **que vous generez vous-meme**, distincts de ceux ayant pu circuler dans
+> d'anciennes versions du code source pendant le developpement. Si un token a deja ete commite
+> par erreur dans l'historique Git a un moment donne, considerez-le compromis : revoquez-le sur
+> le tableau de bord du fournisseur (mapbox.com / mapillary.com) avant de mettre l'app en ligne,
+> meme si le fichier actuel ne le contient plus.
 
 ## 5. Auto-hebergement Nominatim et OSRM
 
@@ -245,18 +304,125 @@ Deux facons de la peupler :
 ## 6. Reverse proxy et SSL
 
 Le service `frontend` (nginx) est deja le reverse proxy applicatif (relaie `/api/` vers `api`,
-`/ows` vers `qgis-server`). Il manque uniquement la couche TLS publique. Deux options :
+`/ows` vers `qgis-server`). Il manque uniquement la couche TLS publique, assuree par un reverse
+proxy **systeme** (installe directement sur le VPS, en dehors de Docker) qui ecoute sur les
+ports 80/443 et relaie vers le port interne publie par le conteneur `frontend`
+(`FRONTEND_PORT`, voir section 4 - a definir sur un port libre type `8080`, jamais 80/443).
+Trois options equivalentes :
 
-### Option A - Caddy devant le port 80 du frontend (le plus simple, TLS automatique)
+### Option A - Apache + Certbot (deployement reel GeOSM - domaine `geosm.app`)
+
+C'est la configuration utilisee pour le deploiement officiel de GeOSM. Apache et Certbot sont
+supposes deja installes sur le VPS (`apt install apache2 certbot python3-certbot-apache`).
+
+**1. Activer les modules Apache necessaires au reverse proxy :**
+
+```bash
+sudo a2enmod proxy proxy_http proxy_wstunnel headers rewrite ssl
+sudo systemctl restart apache2
+```
+
+`proxy_wstunnel` n'est pas strictement necessaire aujourd'hui (aucune fonctionnalite front-end
+n'utilise le canal WebSocket cote client actuellement), mais l'activer par defaut evite une
+etape de configuration oubliee le jour ou ce sera le cas.
+
+**2. Definir `FRONTEND_PORT` dans `.env`** (le port interne que nginx, dans le conteneur
+`frontend`, va publier sur le VPS - Apache doit cibler ce meme port) :
+
+```bash
+# Dans /opt/geosm/.env
+FRONTEND_PORT=8080
+```
+
+**3. Creer le virtual host Apache** (`/etc/apache2/sites-available/geosm.app.conf`) :
+
+```apacheconf
+<VirtualHost *:80>
+    ServerName geosm.app
+    ServerAlias www.geosm.app
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    # Tout le trafic (SPA Angular, /api/, /ows) passe par le port publie par le conteneur
+    # frontend - c'est nginx (dans ce conteneur) qui route ensuite en interne vers api/
+    # qgis-server (voir nginx.conf du depot frontend). Apache n'a besoin de connaitre
+    # qu'un seul port cote Docker.
+    ProxyPass / http://127.0.0.1:8080/
+    ProxyPassReverse / http://127.0.0.1:8080/
+
+    # Support WebSocket (voir note proxy_wstunnel plus haut) - inoffensif si non utilise
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} =websocket [NC]
+    RewriteRule /(.*) ws://127.0.0.1:8080/$1 [P,L]
+
+    ErrorLog ${APACHE_LOG_DIR}/geosm-error.log
+    CustomLog ${APACHE_LOG_DIR}/geosm-access.log combined
+</VirtualHost>
+```
+
+```bash
+sudo a2ensite geosm.app.conf
+sudo apache2ctl configtest   # doit afficher "Syntax OK"
+sudo systemctl reload apache2
+```
+
+**4. Verifier que le DNS pointe deja vers le VPS** (obligatoire avant Certbot - Let's Encrypt
+valide le domaine en interrogeant le DNS public) :
+
+```bash
+dig +short geosm.app        # doit renvoyer l'IP du VPS
+dig +short www.geosm.app    # idem
+```
+
+**5. Emettre le certificat TLS avec Certbot** (plugin Apache : modifie automatiquement le vhost
+ci-dessus pour ajouter un bloc `<VirtualHost *:443>` avec les directives SSL et la redirection
+80 -> 443, aucune edition manuelle necessaire) :
+
+```bash
+sudo certbot --apache -d geosm.app -d www.geosm.app
+# Choisir l'option de redirection automatique HTTP -> HTTPS quand Certbot la propose
+```
+
+Certbot installe egalement un timer systemd (`certbot.timer`) qui renouvelle le certificat
+automatiquement avant son expiration (tous les 90 jours). Verifier que le renouvellement
+automatique fonctionne bien sans intervention :
+
+```bash
+sudo certbot renew --dry-run
+```
+
+**6. (Recommande) Ajouter les en-tetes de securite et `X-Forwarded-Proto`** dans le bloc
+`<VirtualHost *:443>` genere par Certbot (`/etc/apache2/sites-available/geosm.app-le-ssl.conf`) :
+
+```apacheconf
+RequestHeader set X-Forwarded-Proto "https"
+Header always set Strict-Transport-Security "max-age=63072000"
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-Frame-Options "DENY"
+```
+
+```bash
+sudo systemctl reload apache2
+```
+
+> A ce jour, aucune logique cote API ne depend de `X-Forwarded-Proto` (pas de cookie
+> `secure`/redirection conditionnelle au protocole) - cette etape est une bonne pratique pour
+> des logs/futures fonctionnalites exactes, pas un correctif d'un bug existant.
+
+### Option B - Caddy devant le port 80 du frontend (alternative la plus simple, TLS automatique)
+
+Pertinent uniquement si Apache n'est pas deja impose sur le VPS (ce qui n'est pas le cas du
+deploiement GeOSM actuel, voir Option A ci-dessus).
 
 ```
 # Caddyfile
 votre-domaine.org {
-    reverse_proxy localhost:80
+    reverse_proxy localhost:8080
 }
 ```
 
-### Option B - Nginx + Certbot
+### Option C - Nginx + Certbot (alternative)
 
 ```nginx
 server {
@@ -279,7 +445,7 @@ server {
     client_max_body_size 100M;
 
     location / {
-        proxy_pass http://localhost:80;
+        proxy_pass http://localhost:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -340,8 +506,9 @@ Puis, via l'API (voir `docs/reference-api.md`) :
 - [ ] Une recherche geographique (barre de recherche) renvoie un resultat via Nominatim auto-heberge
 - [ ] Un calcul d'itineraire renvoie un trace via OSRM auto-heberge
 - [ ] `POST /api/v1/admin/backup` declenche bien un backup visible dans MinIO (bucket `geosm`, prefixe `backups/`)
-- [ ] Grafana (`:3001`, via tunnel SSH - non expose publiquement) affiche des metriques recentes
-- [ ] Jaeger (`:16686`) affiche des traces recentes pour une requete Gemini/OSRM/Nominatim
+- [ ] Un export (ou tout autre telechargement genere via URL presignee) s'ouvre bien depuis un navigateur **externe au VPS** (pas juste `curl` depuis le serveur) - confirme que le port `MINIO_PUBLIC_PORT` est bien ouvert dans le firewall
+- [ ] Grafana (port `GRAFANA_PORT`, defaut `:3001`, via tunnel SSH - non expose publiquement) affiche des metriques recentes
+- [ ] Jaeger (port `JAEGER_UI_PORT`, defaut `:16686`) affiche des traces recentes pour une requete Gemini/OSRM/Nominatim
 - [ ] Un email de test (verification ou reinitialisation de mot de passe) arrive bien
 - [ ] Le certificat TLS est valide (`https://` sans avertissement navigateur) et se renouvelle automatiquement
 
@@ -368,7 +535,9 @@ fuite) :
 | `GRAFANA_PASSWORD` | `openssl rand -base64 24` | Changer aussi dans l'UI Grafana si deja modifie manuellement |
 | `OSM_OAUTH_CLIENT_SECRET` | Regenere depuis les parametres de l'app OAuth sur osm.org | Invalide les connexions OSM en cours (rare, sessions courtes) |
 | `GEMINI_API_KEY` | Regeneree depuis Google AI Studio | Aucun impact utilisateur, coupure de l'assistant IA le temps de la bascule |
-| `DEPLOY_SSH_KEY` (secret GitHub Actions) | Nouvelle paire de cles dediee au deploiement | Mettre a jour `authorized_keys` sur le VPS avant de revoquer l'ancienne |
+| `MAPBOX_ACCESS_TOKEN` | Regenere depuis account.mapbox.com/access-tokens | Le fond de carte "Mapbox Streets" cesse de charger jusqu'a mise a jour + redemarrage `api` (les autres fonds de carte ne sont pas affectes) |
+| `MAPILLARY_TOKEN` (secret GitHub Actions, depot **frontend**) | Regenere depuis mapillary.com/dashboard/developers | Ne prend effet qu'au prochain build/deploiement frontend (le token est bake dans le bundle au build, pas lu au runtime) |
+| `DEPLOY_SSH_KEY` (secret GitHub Actions, **les deux depots**) | Nouvelle paire de cles dediee au deploiement, generee **hors** du VPS (poste local) :<br>`ssh-keygen -t ed25519 -C "geosm-deploy" -f ./geosm_deploy_key -N ""`<br>Copier la cle **publique** sur le VPS : `ssh-copy-id -i geosm_deploy_key.pub deploy@<IP_VPS>` (ou coller son contenu dans `~deploy/.ssh/authorized_keys`).<br>Coller le contenu de la cle **privee** (`cat geosm_deploy_key`) dans le secret GitHub `DEPLOY_SSH_KEY` | Mettre a jour `authorized_keys` sur le VPS avant de revoquer l'ancienne |
 
 **Note importante sur `ENCRYPTION_KEY`** : contrairement aux autres secrets, ce n'est **pas**
 une simple valeur de verification (comme un mot de passe hache) mais une cle de chiffrement
@@ -484,24 +653,52 @@ backend et frontend, meme structure) :
 
 ### Activer le deploiement continu
 
-Sur **chacun des deux depots** (backend et frontend), dans Settings -> Secrets and variables ->
-Actions :
+**Etape 1 - generer la cle SSH dediee** (une seule fois, sur votre poste local, PAS sur le VPS
+ni dans GitHub) :
 
-**Secrets** :
-- `DEPLOY_SSH_HOST` : IP ou domaine du VPS
-- `DEPLOY_SSH_USER` : `deploy` (utilisateur cree a l'etape 2)
-- `DEPLOY_SSH_KEY` : cle privee SSH dediee (voir [Rotation des secrets](#rotation-des-secrets))
-- `DEPLOY_PATH` : `/opt/geosm` (chemin du depot backend clone sur le VPS - les deux workflows
-  s'y referent, meme le workflow frontend, puisque c'est la que vivent les fichiers
-  `docker-compose*.yml`)
+```bash
+ssh-keygen -t ed25519 -C "geosm-deploy" -f ./geosm_deploy_key -N ""
+# -N "" : pas de passphrase (necessaire car la cle est utilisee de facon non interactive par
+# GitHub Actions - une cle protegee par passphrase bloquerait le pipeline)
+```
 
-**Variable de repository** :
-- `DEPLOY_ENABLED` : `true` (tant que non definie, le job de deploiement reste un no-op - permet
-  de merger le pipeline avant que le VPS soit pret)
+Deux fichiers sont crees : `geosm_deploy_key` (privee - va dans le secret GitHub) et
+`geosm_deploy_key.pub` (publique - va sur le VPS).
 
-Sans ces secrets, `build-and-push` et la creation de release continuent de fonctionner
-normalement (image publiee sur GHCR a chaque merge sur `main`) - seul le deploiement SSH est
-conditionnel.
+**Etape 2 - autoriser la cle publique sur le VPS** (utilisateur `deploy` cree en section 2) :
+
+```bash
+ssh-copy-id -i geosm_deploy_key.pub deploy@<IP_DU_VPS>
+# Verification : la commande suivante doit reussir sans demander de mot de passe
+ssh -i geosm_deploy_key deploy@<IP_DU_VPS> "echo OK"
+```
+
+**Etape 3 - creer les secrets et variables GitHub.** Sur **chacun des deux depots** (backend et
+frontend), aller dans **Settings -> Secrets and variables -> Actions**, onglet **Secrets**,
+bouton **New repository secret** pour chacune des lignes suivantes :
+
+| Nom du secret | Ou creer ce secret | Valeur |
+|---|---|---|
+| `DEPLOY_SSH_HOST` | Backend **et** frontend | IP publique ou nom de domaine du VPS (ex. `geosm.app` une fois le DNS en place, ou l'IP brute avant) |
+| `DEPLOY_SSH_USER` | Backend **et** frontend | `deploy` |
+| `DEPLOY_SSH_KEY` | Backend **et** frontend | Contenu complet de `geosm_deploy_key` (la cle **privee**, `cat geosm_deploy_key`) - coller tel quel, en-tetes `-----BEGIN OPENSSH PRIVATE KEY-----`/`-----END...` compris |
+| `DEPLOY_PATH` | Backend **et** frontend | `/opt/geosm` (chemin du depot **backend** clone sur le VPS - les deux workflows s'y referent, meme celui du frontend, car c'est la que vivent `docker-compose*.yml` et `.env`) |
+| `MAPILLARY_TOKEN` | **Frontend uniquement** | Votre token Mapillary de production (genere sur mapillary.com/dashboard/developers) - injecte dans l'image au build, jamais lu au runtime |
+
+Puis, onglet **Variables** (a cote de "Secrets" dans le meme ecran), bouton **New repository
+variable**, sur **chacun des deux depots** :
+
+| Nom de la variable | Valeur |
+|---|---|
+| `DEPLOY_ENABLED` | `true` |
+
+Tant que `DEPLOY_ENABLED` n'est pas definie (ou vaut autre chose que `true`), le job de
+deploiement reste un no-op silencieux - cela permet de merger et tester le reste du pipeline
+(tests, build, push GHCR) avant que le VPS soit pret, sans risquer un deploiement accidentel.
+
+`build-and-push` et la creation de release fonctionnent independamment de tout ceci (image
+publiee sur GHCR a chaque merge sur `main` des la premiere activation du repo) - seul le
+deploiement SSH est conditionnel a `DEPLOY_ENABLED` + aux 4 secrets SSH.
 
 ---
 

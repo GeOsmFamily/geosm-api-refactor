@@ -16,52 +16,65 @@ services:
       osrm:
         condition: service_healthy
 
-  # Seul service exposé publiquement (0.0.0.0) - c'est le reverse proxy public de toute la
-  # stack (voir son nginx.conf). HTTPS/TLS n'est pas encore géré ici (voir docs/deploiement.md,
-  # à faire via un reverse proxy supplémentaire type Caddy/Traefik ou certbot devant ce port).
+  # Lié à 127.0.0.1 comme les autres services : ce n'est PAS le port public final. Un reverse
+  # proxy système (Apache/Nginx/Caddy, hors Docker, voir docs/deploiement.md section 6) écoute
+  # sur 80/443 et relaie vers ce port. Sans le préfixe 127.0.0.1, ce port serait aussi
+  # joignable directement depuis Internet (ex. http://<IP>:8080), contournant TLS/HSTS/headers
+  # de sécurité posés par le reverse proxy système - d'où cette restriction.
   frontend:
     image: *frontend-image
     ports:
-      - "${FRONTEND_PORT:-80}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-80}:80"
 
   postgres:
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
 
   redis:
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
 
   minio:
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+      # Volontairement PUBLIC (0.0.0.0), à la différence de tous les autres services : les URLs
+      # présignées renvoyées au navigateur (voir minio.service.ts) pointent directement sur ce
+      # port (MINIO_PUBLIC_PORT) - un navigateur externe doit pouvoir l'atteindre pour que les
+      # téléchargements (exports, documents, imports QGIS, raster) fonctionnent. Trafic HTTP
+      # brut (pas de TLS sur ce port précis) - acceptable ici car les URLs sont présignées à
+      # durée de vie limitée (voir docs/deploiement.md). Penser à ouvrir ce port dans le
+      # firewall du VPS (ex. `ufw allow 9000/tcp`).
+      - "${MINIO_PUBLIC_PORT:-9000}:9000"
+      # Console d'admin MinIO - reste privée (127.0.0.1), jamais utilisée par le navigateur des
+      # visiteurs, seulement pour de l'administration ponctuelle via tunnel SSH.
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
 
   meilisearch:
     ports:
-      - "127.0.0.1:7700:7700"
+      - "127.0.0.1:${MEILISEARCH_PORT:-7700}:7700"
 
   qgis-server:
     ports:
-      - "127.0.0.1:8380:8080"
+      - "127.0.0.1:${QGIS_SERVER_PORT:-8380}:8080"
 
   grafana:
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
 
   prometheus:
     ports:
-      - "127.0.0.1:9090:9090"
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
 
   jaeger:
     ports:
-      - "127.0.0.1:16686:16686"
-      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:${JAEGER_UI_PORT:-16686}:16686"
+      - "127.0.0.1:${JAEGER_OTLP_PORT:-4318}:4318"
 
   graylog:
     ports:
-      - "127.0.0.1:9009:9000"
-      - "127.0.0.1:12201:12201/udp"
+      - "127.0.0.1:${GRAYLOG_WEB_PORT:-9009}:9000"
+      - "127.0.0.1:${GRAYLOG_GELF_PORT:-12201}:12201/udp"
+    environment:
+      GRAYLOG_HTTP_EXTERNAL_URI: http://localhost:${GRAYLOG_WEB_PORT:-9009}/
 
   # Auto-hébergement de Nominatim et OSRM (Lot P9) : en dev, l'application pointe encore sur
   # les serveurs publics de démo (nominatim.openstreetmap.org, router.project-osrm.org), dont
@@ -85,7 +98,7 @@ services:
       - ./nominatim-source:/nominatim/data
       - nominatim-data:/var/lib/postgresql/14/main
     ports:
-      - "127.0.0.1:8081:8080"
+      - "127.0.0.1:${NOMINATIM_PORT:-8081}:8080"
     deploy:
       resources:
         limits:
@@ -111,7 +124,7 @@ services:
     volumes:
       - ./osrm-data:/data:ro
     ports:
-      - "127.0.0.1:5000:5000"
+      - "127.0.0.1:${OSRM_PORT:-5000}:5000"
     deploy:
       resources:
         limits:
