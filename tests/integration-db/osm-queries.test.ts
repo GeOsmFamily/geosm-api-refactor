@@ -1,19 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { DB_AVAILABLE, getPrisma,  disconnectPrisma } from './setup.js';
+import { DB_AVAILABLE, getPrisma, disconnectPrisma } from './setup.js';
 import { OsmQueryService } from '../../src/infrastructure/database/osm-query.service.js';
 
 const TEST_SCHEMA = 'test_osm';
 
-beforeAll(async () => {
-}, 60_000);
+beforeAll(async () => {}, 60_000);
 
 afterAll(async () => {
   if (DB_AVAILABLE) {
     const prisma = getPrisma();
     await prisma.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${TEST_SCHEMA}" CASCADE`);
-    await prisma.$executeRawUnsafe('DROP TABLE IF EXISTS planet_osm_point CASCADE');
-    await prisma.$executeRawUnsafe('DROP TABLE IF EXISTS planet_osm_line CASCADE');
-    await prisma.$executeRawUnsafe('DROP TABLE IF EXISTS planet_osm_polygon CASCADE');
+    await prisma.$executeRawUnsafe('DROP SCHEMA IF EXISTS osm CASCADE');
     await disconnectPrisma();
   }
 });
@@ -26,10 +23,17 @@ describe.skipIf(!DB_AVAILABLE)('OSM raw SQL queries', () => {
     service = new OsmQueryService(prisma);
     await prisma.$executeRawUnsafe('CREATE EXTENSION IF NOT EXISTS postgis');
 
+    // OsmQueryService lit toujours les tables planet_osm_* depuis le schéma "osm" (voir
+    // moveTablesToOsmSchema() dans import-osm-data.use-case.ts, qui les y déplace après
+    // l'import osm2pgsql) - on reproduit donc ce placement ici plutôt que de les créer dans
+    // "public", sans quoi toutes les requêtes échouent avec "relation osm.planet_osm_* does
+    // not exist" malgré des tables bien présentes ailleurs.
+    await prisma.$executeRawUnsafe('CREATE SCHEMA IF NOT EXISTS osm');
+
     // Create minimal planet_osm_* tables mimicking osm2pgsql output
     // osm2pgsql stores geometries in EPSG:3857 in a column called "way"
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS planet_osm_point (
+      CREATE TABLE IF NOT EXISTS osm.planet_osm_point (
         osm_id BIGINT,
         "name" TEXT,
         "amenity" TEXT,
@@ -39,11 +43,11 @@ describe.skipIf(!DB_AVAILABLE)('OSM raw SQL queries', () => {
       )
     `);
     await prisma.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS planet_osm_point_way_idx ON planet_osm_point USING GIST(way)
+      CREATE INDEX IF NOT EXISTS planet_osm_point_way_idx ON osm.planet_osm_point USING GIST(way)
     `);
 
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS planet_osm_line (
+      CREATE TABLE IF NOT EXISTS osm.planet_osm_line (
         osm_id BIGINT,
         "name" TEXT,
         "highway" TEXT,
@@ -52,11 +56,11 @@ describe.skipIf(!DB_AVAILABLE)('OSM raw SQL queries', () => {
       )
     `);
     await prisma.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS planet_osm_line_way_idx ON planet_osm_line USING GIST(way)
+      CREATE INDEX IF NOT EXISTS planet_osm_line_way_idx ON osm.planet_osm_line USING GIST(way)
     `);
 
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS planet_osm_polygon (
+      CREATE TABLE IF NOT EXISTS osm.planet_osm_polygon (
         osm_id BIGINT,
         "name" TEXT,
         "building" TEXT,
@@ -65,26 +69,26 @@ describe.skipIf(!DB_AVAILABLE)('OSM raw SQL queries', () => {
       )
     `);
     await prisma.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS planet_osm_polygon_way_idx ON planet_osm_polygon USING GIST(way)
+      CREATE INDEX IF NOT EXISTS planet_osm_polygon_way_idx ON osm.planet_osm_polygon USING GIST(way)
     `);
 
     // Insert sample data (geometry in 3857)
     await prisma.$executeRawUnsafe(`
-      INSERT INTO planet_osm_point (osm_id, "name", "amenity", way)
+      INSERT INTO osm.planet_osm_point (osm_id, "name", "amenity", way)
       VALUES (1001, 'Test School', 'school', ST_Transform(ST_SetSRID(ST_MakePoint(11.5, 3.85), 4326), 3857))
     `);
     await prisma.$executeRawUnsafe(`
-      INSERT INTO planet_osm_point (osm_id, "name", "shop", way)
+      INSERT INTO osm.planet_osm_point (osm_id, "name", "shop", way)
       VALUES (1002, 'Test Shop', 'supermarket', ST_Transform(ST_SetSRID(ST_MakePoint(11.51, 3.86), 4326), 3857))
     `);
 
     await prisma.$executeRawUnsafe(`
-      INSERT INTO planet_osm_line (osm_id, "name", "highway", way)
+      INSERT INTO osm.planet_osm_line (osm_id, "name", "highway", way)
       VALUES (2001, 'Main Road', 'primary', ST_Transform(ST_SetSRID(ST_MakeLine(ST_MakePoint(11.5, 3.85), ST_MakePoint(11.6, 3.9)), 4326), 3857))
     `);
 
     await prisma.$executeRawUnsafe(`
-      INSERT INTO planet_osm_polygon (osm_id, "name", "building", way)
+      INSERT INTO osm.planet_osm_polygon (osm_id, "name", "building", way)
       VALUES (3001, 'Test Building', 'yes',
         ST_Transform(ST_SetSRID(ST_GeomFromText('POLYGON((11.5 3.85, 11.501 3.85, 11.501 3.851, 11.5 3.851, 11.5 3.85))'), 4326), 3857))
     `);
