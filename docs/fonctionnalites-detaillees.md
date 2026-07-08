@@ -37,6 +37,12 @@
 31. [Service Email](#31-service-email)
 32. [Upload de Fichiers](#32-upload-de-fichiers)
 33. [Sante et Monitoring](#33-sante-et-monitoring)
+34. [Commentaires sur la Carte](#34-commentaires-sur-la-carte)
+35. [Plans de Localisation (PDF)](#35-plans-de-localisation-pdf)
+36. [Assistant IA Conversationnel](#36-assistant-ia-conversationnel)
+37. [Geosignets (Signets de Carte)](#37-geosignets-signets-de-carte)
+38. [Sauvegardes Automatiques de la Base de Donnees](#38-sauvegardes-automatiques-de-la-base-de-donnees)
+39. [Bouton "Infos" et Formulaire de Signalement](#39-bouton-infos-et-formulaire-de-signalement)
 
 ---
 
@@ -249,6 +255,34 @@ Les endpoints suivants sont reserves aux `SUPER_ADMIN` et permettent la gestion 
 
 - Route : `PATCH /api/v1/users/:id/activate` (SUPER_ADMIN)
 - Use case : `ToggleUserActiveUseCase`
+
+### 1.12 Connexion via OpenStreetMap (OAuth 2.0)
+
+**Description** : Permet de se connecter a GeOSM en un clic avec son compte OpenStreetMap plutot qu'email/mot de passe, via le flux OAuth 2.0 standard d'OSM. Au premier login, un compte GeOSM local est cree automatiquement (role `VIEWER` par defaut, avec un mot de passe aleatoire inutilisable - l'utilisateur ne se connecte que via OSM tant qu'il ne passe pas par "mot de passe oublie"). Aux connexions suivantes, le compte GeOSM existant est retrouve via l'identifiant OSM lie.
+
+**Cas d'usage** : Un contributeur OpenStreetMap deja habitue a son compte osm.org clique sur "Se connecter avec OpenStreetMap" et accede immediatement au geoportail sans creer un nouveau mot de passe.
+
+**Implementation technique** :
+- `GET /api/v1/auth/osm/status` - indique au frontend si l'OAuth OSM est configure (masque le bouton sinon)
+- `GET /api/v1/auth/osm/login-url` - retourne l'URL d'autorisation OSM a ouvrir (etat anti-CSRF signe, purpose=`login`)
+- `GET /api/v1/auth/osm/callback` - point de retour unique OSM (login ET liaison, differencies par le `purpose` du state signe) ; redirige vers le frontend avec les tokens JWT en query string
+- Use case : `OsmLoginUseCase` -> `OsmOAuthService` (echange code/token, recupere le profil via `GET /api/0.6/user/details.json`) -> cree ou retrouve l'utilisateur -> `OsmProfile` (upsert)
+- Le token d'acces OSM est chiffre au repos (AES-256-GCM, voir `encryption.util.ts`) avant stockage - jamais en clair en base.
+
+### 1.13 Liaison/Deliaison d'un Compte OpenStreetMap
+
+**Description** : Un utilisateur deja connecte (email/mot de passe) peut lier son compte OSM depuis son profil, ou le delier a tout moment (repasse alors uniquement en email/mot de passe).
+
+- `GET /api/v1/auth/osm/link-url` (authentifie) - URL d'autorisation OSM, purpose=`link`, userId embarque dans le state signe (une redirection plein-ecran ne transporte pas le header `Authorization`)
+- `DELETE /api/v1/auth/osm/link` (authentifie) - Use case : `UnlinkOsmAccountUseCase`
+- Rejette la liaison (`ConflictError`) si le compte OSM est deja lie a un autre compte GeOSM - `LinkOsmAccountUseCase`
+
+### 1.14 Consultation du Profil OpenStreetMap Lie
+
+**Description** : Affiche les informations du profil OSM lie (nom d'affichage, avatar, date de creation du compte OSM, nombre de contributions/changesets) dans le panneau Parametres du frontend - utile pour qu'un utilisateur voie ses propres statistiques, et en vue d'un futur controle de fiabilite des contributions.
+
+- Route : `GET /api/v1/auth/osm/profile` (authentifie)
+- Use case : `GetOsmProfileUseCase`
 
 ---
 
@@ -516,6 +550,26 @@ POST /api/v1/instances/:instanceId/layers
 
 - Route : `GET /api/v1/instances/:instanceId/layers/:id/source-file` (authentifie)
 - Use case : `GetSourceFileUseCase` -> `LayerRepository.findById()` -> `StorageService.getPresignedUrl()`
+
+### 5.8 Fraicheur des Donnees et Resynchronisation
+
+**Description** : Les couches par defaut (voir `CreateInstanceUseCase`) sont des **instantanes** materialises (`CREATE TABLE ... AS SELECT`) construits une fois a partir des tables OSM brutes (`osm.planet_osm_point/line/polygon`), pas des vues live. Cet endpoint recree la table derivee de la couche a partir de l'etat ACTUEL des tables source (sans retelecharger/reimporter de donnees OSM), et met a jour `metadata.lastSyncedAt`, `featureCount`, `totalArea`, `totalLength`.
+
+**Cas d'usage** : Apres un reimport manuel des donnees OSM brutes, l'administrateur clique sur "Resynchroniser" dans le panneau de couche pour repercuter les changements sur la couche "Hopitaux" sans devoir la recreer entierement.
+
+**Implementation technique** :
+- Route : `POST /api/v1/instances/:instanceId/layers/:id/resync` (SUPER_ADMIN, ADMIN_INSTANCE) (`layer.routes.ts`)
+- Use case : `ResyncLayerUseCase` (`application/use-cases/layers/resync-layer.use-case.ts`) -> retrouve la config OSM d'origine (tags, type de geometrie) via le suffixe du slug dans `domain/constants/default-layers.constants.ts` -> `OsmQueryService.createTable()` (idempotent, `DROP TABLE IF EXISTS` puis recreation)
+- Rejette (400) les couches qui ne sont pas des couches par defaut derivees d'OSM (ex. couches importees manuellement) : pas de config OSM a retrouver pour elles
+- Reutilise par le job planifie d'import OSM (voir [Section 29.10](#2910-import-osm-programme-job-mensuel))
+
+**Reponse** :
+```json
+{
+  "success": true,
+  "data": { "id": "uuid-couche", "metadata": { "lastSyncedAt": "2026-07-04T20:52:00Z", "featureCount": 128, "totalArea": null, "totalLength": null } }
+}
+```
 
 ---
 
@@ -1007,6 +1061,27 @@ POST /api/v1/geoportail/elevation-profile
 - Route : `POST /api/v1/geoportail/save-coord-pdf` (authentifie)
 - Use case : `SaveCoordPdfUseCase`
 
+### 13.7 Statistiques Narratives d'une Couche (IA)
+
+**Description** : Calcule les statistiques d'une couche (nombre de features, superficie/longueur totale, emprise) via PostGIS puis genere un court texte narratif en langage naturel via Gemini pour resumer ces chiffres de facon lisible, dans la langue de l'utilisateur (`Accept-Language` : fr/en/es).
+
+**Cas d'usage** : Un utilisateur active la couche "Hopitaux" et voit s'afficher : *"Cette couche compte 342 hopitaux repartis sur l'ensemble du territoire, avec une concentration plus forte autour de Yaounde et Douala."* plutot qu'un simple tableau de chiffres bruts.
+
+**Implementation technique** :
+- Route : `POST /api/v1/geoportail/layers/:layerId/stats` (authentifie)
+- Use case : `GetLayerStatsUseCase` -> `PostGISService.getLayerStats()` (calcul) + `GeminiService.generateText()` (narration)
+- Le nom de la couche est localise (fr/en) avant d'etre injecte dans le prompt Gemini - une regression corrigee assurait auparavant que le JSON multilingue brut (`{"fr":"...","en":"..."}`) ne fuite plus dans le texte genere.
+
+### 13.8 Resume Narratif de la Vue Actuelle (IA)
+
+**Description** : Genere un resume en langage naturel de ce qui est visible dans l'emprise actuelle de la carte (couches actives, nombre de features visibles par couche) via Gemini.
+
+**Cas d'usage** : Un utilisateur navigue sur la carte, clique sur "Resumer la vue" et obtient un paragraphe decrivant ce qu'il regarde, utile pour un rapport rapide ou un partage par email.
+
+- Route : `POST /api/v1/geoportail/summarize-view` (authentifie)
+- Use case : `SummarizeViewportUseCase` -> `GeminiService.generateText()`
+- Parametre `lang` resolu depuis `Accept-Language` (fr par defaut) - le prompt systeme change entierement de langue, pas seulement une traduction du resultat.
+
 ---
 
 ## 14. Geocodage (Nominatim)
@@ -1064,6 +1139,28 @@ Integration du service OSRM (Open Source Routing Machine) pour le calcul d'itine
 - Route : `GET /api/v1/routing/nearest?lon=11.52&lat=3.87&number=3`
 - Use case : `FindNearestUseCase` -> `OSRMService.nearest()`
 
+### 15.3 Recherche du Plus Proche par Distance Routiere Reelle
+
+**Description** : A ne pas confondre avec 15.2 (qui fait du *snapping* sur le reseau routier). Ici on cherche, parmi les features d'une couche (ex. tous les hopitaux), celle(s) qui sont le plus proche(s) d'un point donne **par la route** (pas a vol d'oiseau). Deux etapes : (1) prefiltrage rapide des N candidats les plus proches a vol d'oiseau via PostGIS (`ORDER BY geom <-> point` avec index GiST), (2) calcul de la distance/duree routiere reelle pour chacun via une matrice OSRM one-to-many en un seul appel HTTP (`OSRMService.table()`). En cas d'echec OSRM, repli automatique sur la distance a vol d'oiseau.
+
+**Cas d'usage** : Un utilisateur clique sur la carte et veut savoir quel est l'hopital le plus proche en temps de trajet reel, pas juste en distance geometrique (utile quand deux hopitaux sont proches a vol d'oiseau mais separes par une riviere sans pont).
+
+**Implementation technique** :
+- Route : `GET /api/v1/routing/nearest-feature?layerId=uuid&lon=11.52&lat=3.87&limit=5` (`routing.routes.ts`)
+- Use case : `FindNearestFeatureUseCase` (`application/use-cases/routing/find-nearest-feature.use-case.ts`)
+- `PostGISService.findNearestCandidates()` (KNN `<->` prefiltrage, `CANDIDATE_POOL_SIZE = 10`) -> `OSRMService.table()` (matrice distance/duree) -> tri -> retourne les `limit` meilleurs resultats
+
+**Reponse** :
+```json
+{
+  "success": true,
+  "data": [
+    { "featureId": "uuid", "name": "Hopital Central", "distanceMeters": 1590, "durationSeconds": 120 },
+    { "featureId": "uuid", "name": "Clinique Bastos", "distanceMeters": 2100, "durationSeconds": 180 }
+  ]
+}
+```
+
 ---
 
 ## 16. Recherche (MeiliSearch)
@@ -1104,6 +1201,24 @@ Moteur de recherche full-text base sur MeiliSearch pour la recherche de couches 
 ### 16.5 Suppression d'Index
 
 - Use case : `RemoveLayerIndexUseCase` -> `MeiliSearchService.deleteIndex()`
+
+### 16.6 Suggestions de Recherche Personnalisees
+
+**Description** : Propose une liste de couches suggerees pour une instance, classees par frequence d'activation passee par l'ensemble des utilisateurs (classement deterministe par popularite, pas d'IA) - affichees au survol de la barre de recherche avant meme que l'utilisateur ait tape quoi que ce soit.
+
+**Cas d'usage** : A l'ouverture de la carte du Cameroun, l'utilisateur voit immediatement suggerees les couches les plus consultees ("Hopitaux", "Ecoles", "Routes principales") sans avoir a chercher.
+
+- Route : `GET /api/v1/search/suggestions?instanceId=uuid&limit=5` (authentification optionnelle)
+- Use case : `GetSearchSuggestionsUseCase` -> agregation des evenements `layer_activated` (voir Analytiques, section 22)
+
+### 16.7 Recommandations de Couches (Co-activation)
+
+**Description** : Pour une couche donnee, recommande d'autres couches frequemment activees par les memes utilisateurs dans la meme session ("les utilisateurs qui ont active X ont aussi active Y") - logique de co-occurrence calculee par requete SQL sur les evenements analytiques.
+
+**Cas d'usage** : Un utilisateur active la couche "Hopitaux" et se voit proposer "Pharmacies" et "Centres de sante", frequemment activees ensemble par d'autres utilisateurs.
+
+- Route : `GET /api/v1/search/layer-recommendations?layerId=uuid&instanceId=uuid&limit=5`
+- Use case : `GetLayerRecommendationsUseCase` -> requete SQL de co-activation avec cast explicite `::uuid` sur les colonnes comparees (correctif d'un bug de comparaison de type)
 
 ---
 
@@ -1647,6 +1762,20 @@ POST /api/v1/admin/instances/template
 
 Voir [Section 7.1 - Import des Donnees OSM Brutes](#71-import-des-donnees-osm-brutes-osm2pgsql).
 
+### 29.10 Import OSM Programme (Job Mensuel)
+
+**Description** : Job BullMQ recurrent (cron, pas de nouvel endpoint HTTP) qui reimporte periodiquement le fichier `.osm.pbf` brut puis resynchronise automatiquement toutes les couches par defaut derivees d'OSM de toutes les instances actives (reutilise [ResyncLayerUseCase, section 5.8](#58-fraicheur-des-donnees-et-resynchronisation)).
+
+**Important** : ce job ne telecharge PAS lui-meme le fichier `.osm.pbf` (aucune integration Geofabrik/API OSM dans le code) -- il relit simplement le fichier present au chemin configure par `OSM_IMPORT_PBF_PATH`. Sans cette variable d'environnement, le job se declenche quand meme chaque mois mais ne fait rien (no-op loggue). Pour un import mensuel reellement a jour, un mecanisme externe (script/cron separe) doit rafraichir ce fichier avant l'execution du job.
+
+**Implementation technique** :
+- `QueueService.addRepeatableJob(queueName, jobName, data, cronPattern)` (`infrastructure/queue/queue.service.ts`) -- utilise le support natif `repeat: { pattern }` de BullMQ ; idempotent (rappeler au demarrage du serveur ne duplique pas le job)
+- Queue : `scheduled-osm-import`, cron configurable via `OSM_IMPORT_CRON` (defaut `0 2 1 * *` -- le 1er de chaque mois a 02h00)
+- Use case : `ScheduledOsmImportUseCase` (`application/use-cases/admin/scheduled-osm-import.use-case.ts`) -> `ImportOsmDataUseCase.execute({ pbfPath, append: true })` -> pour chaque instance active, pour chaque couche, `ResyncLayerUseCase.execute()` (les couches non derivees d'OSM par defaut sont ignorees sans erreur bloquante)
+- Worker : `createScheduledOsmImportProcessor` (`infrastructure/queue/workers/scheduled-osm-import.worker.ts`)
+- Enregistrement : au demarrage du serveur (`server.ts`), pas via une route HTTP
+- Verification de l'enregistrement (introspection BullMQ) : `QueueService.getRepeatableJobs('scheduled-osm-import')`, ou directement via Redis : `redis-cli KEYS "bull:scheduled-osm-import:repeat:*"`
+
 ---
 
 ## 30. Notifications Temps Reel (WebSocket)
@@ -1715,6 +1844,248 @@ Voir [Section 7.1 - Import des Donnees OSM Brutes](#71-import-des-donnees-osm-br
 ### 33.3 Journalisation
 
 **Description** : Logger structure (`src/infrastructure/observability/logger.ts`) avec middleware de logging des requetes (`requestLoggerMiddleware`).
+
+---
+
+## 34. Commentaires sur la Carte
+
+Permet aux utilisateurs de poser des commentaires geolocalises directement sur la carte, avec fils de discussion (reponses) et statut de resolution -- utile pour la collecte terrain collaborative et le suivi de signalements.
+
+### 34.1 Liste des Commentaires
+
+**Description** : Retourne les commentaires racine d'une instance (`parentId: null`), chacun avec ses reponses imbriquees (`replies`) et le nom de l'auteur enrichi (`authorName`).
+
+**Cas d'usage** : Le geoportail affiche les epingles de commentaires sur la carte, avec le fil de discussion complet a l'ouverture de chaque epingle.
+
+**Implementation technique** :
+- Route : `GET /api/v1/comments?instanceId=uuid` (authentifie) (`comment.routes.ts`)
+- Use case : `GetCommentsUseCase` -> `PrismaCommentRepository.findByInstanceId()` (Prisma `include` sur `user` et `replies`, aplati en un seul niveau)
+- Modele BD : `Comment` (id, instanceId, userId, text, lat, lon, parentId, resolved, createdAt)
+
+### 34.2 Creation d'un Commentaire
+
+**Description** : Cree un commentaire racine a une position geographique donnee.
+
+- Route : `POST /api/v1/comments` (authentifie)
+- Use case : `SaveCommentUseCase`
+
+```json
+POST /api/v1/comments
+{ "instanceId": "uuid", "text": "Route degradee ici", "lat": 3.87, "lon": 11.52 }
+```
+
+### 34.3 Reponse a un Commentaire
+
+**Description** : Ajoute une reponse a un commentaire existant. La reponse herite automatiquement de `instanceId`/`lat`/`lon` du commentaire parent (non fournis par le client). Les reponses aux reponses sont aplaties a un seul niveau (`parentId` prend toujours l'id du commentaire racine, pas de la reponse intermediaire).
+
+**Cas d'usage** : Un editeur repond a un signalement pour indiquer que la reparation est en cours.
+
+**Implementation technique** :
+- Route : `POST /api/v1/comments/:id/reply` (authentifie)
+- Use case : `ReplyToCommentUseCase` (`application/use-cases/comments/reply-to-comment.use-case.ts`)
+
+```json
+POST /api/v1/comments/:id/reply
+{ "text": "Signalement transmis a la voirie." }
+```
+
+### 34.4 Resolution d'un Commentaire
+
+**Description** : Marque un commentaire comme resolu ou non resolu (bascule visuelle : epingle verte/rouge sur la carte).
+
+- Route : `PATCH /api/v1/comments/:id/resolve` (authentifie)
+- Use case : `ResolveCommentUseCase`
+
+```json
+PATCH /api/v1/comments/:id/resolve
+{ "resolved": true }
+```
+
+### 34.5 Suppression d'un Commentaire
+
+- Route : `DELETE /api/v1/comments/:id` (authentifie, HTTP 204)
+- Use case : `DeleteCommentUseCase`
+
+---
+
+## 35. Plans de Localisation (PDF)
+
+Genere un plan de localisation professionnel au format PDF via QGIS (PyQGIS) : carte principale a echelle maitrisee, carte de situation (vicinity map), grille de coordonnees, fleche du nord, echelle graphique, legende et cartouche (titre, coordonnees WGS84/UTM). Remplace une simple capture d'ecran cote client par un document cartographique complet.
+
+### 35.1 Creation d'un Plan de Localisation
+
+**Description** : Lance la generation asynchrone d'un PDF via un job BullMQ. Le frontend interroge ensuite le statut (`PENDING` -> `PROCESSING` -> `COMPLETED`/`FAILED`) par polling.
+
+**Cas d'usage** : Un agent terrain choisit un point sur la carte, saisit un titre et un point de repere, et genere un plan de localisation A4 a imprimer pour se rendre sur site.
+
+**Implementation technique** :
+- Route : `POST /api/v1/location-plans` (authentifie) (`location-plan.routes.ts`)
+- Use case : `CreateLocationPlanUseCase` -> `LocationPlanRepository.create()` (statut `PENDING`) -> `QueueService.addJob('location-plan', 'generate', ...)`
+- Worker : `createLocationPlanProcessor` (`infrastructure/queue/workers/location-plan.worker.ts`) -> `QGISProjectService.generateLocationPlan()` -> execute `python_scripts/generate_location_plan.py` en sous-processus -> upload PDF vers MinIO -> notification WebSocket
+- Modele BD : `LocationPlan` (id, userId, instanceId, status, title, description, landmark, lon, lat, scale, paperSize [A4/A3], orientation [PORTRAIT/LANDSCAPE], includeLegend, includeScale, includeGrid, includeNorthArrow, filePath, fileSize)
+
+**Constructeur de mise en page personnalisee** : quatre indicateurs booleens optionnels (`includeLegend`, `includeScale`, `includeGrid`, `includeNorthArrow`, tous par defaut a `true` pour ne pas changer le rendu des plans deja generes) controlent la presence de chaque element sur le PDF. Le script Python recalcule dynamiquement l'espacement vertical (curseur `current_y`) pour eviter tout trou ou chevauchement quand un element est masque -- une marge minimale garantie protege en particulier le cartouche d'un chevauchement avec l'annotation de coordonnees de la grille quand echelle et legende sont toutes deux masquees.
+
+```json
+POST /api/v1/location-plans
+{
+  "instanceId": "uuid",
+  "title": "Ecole de Bastos",
+  "landmark": "Face a la mairie",
+  "lon": 11.52,
+  "lat": 3.87,
+  "paperSize": "A4",
+  "orientation": "PORTRAIT",
+  "includeLegend": true,
+  "includeScale": true,
+  "includeGrid": false,
+  "includeNorthArrow": true
+}
+```
+
+**Reponse** :
+```json
+{ "success": true, "data": { "id": "uuid-plan", "status": "PENDING", "includeLegend": true, "includeGrid": false } }
+```
+
+### 35.2 Statut d'un Plan de Localisation
+
+- Route : `GET /api/v1/location-plans/:id` (authentifie)
+- Use case : `GetLocationPlanUseCase`
+
+### 35.3 Telechargement du PDF
+
+**Description** : Telecharge le fichier PDF genere une fois le statut `COMPLETED`.
+
+- Route : `GET /api/v1/location-plans/:id/download` (authentifie)
+- Use case : `DownloadLocationPlanUseCase` -> `StorageService` (stream depuis MinIO)
+
+### 35.4 Redaction Assistee par IA (Description et Point de Repere)
+
+**Description** : Si le champ optionnel `autoFillWithAI` est active et que `description`/`landmark` ne sont pas fournis, Gemini redige automatiquement une courte description du lieu et un point de repere plausible a partir des coordonnees et du titre, dans la langue de l'utilisateur. Best-effort : un echec de la redaction IA (quota Gemini, timeout) ne bloque jamais la creation du plan - les champs restent simplement vides.
+
+**Cas d'usage** : Un agent terrain pressé saisit juste un titre et des coordonnees, coche "Redaction automatique", et laisse l'IA proposer une description et un repere qu'il peut ensuite corriger avant validation.
+
+- Corps de requete : `{ ..., "autoFillWithAI": true }` sur `POST /api/v1/location-plans`
+- Implementation : `CreateLocationPlanUseCase.draftWithAI()` -> `GeminiService.generateText()`, prompt fr/en distinct selon `lang`
+
+---
+
+## 36. Assistant IA Conversationnel
+
+Assistant conversationnel agentique base sur Gemini (function-calling), integre au geoportail : l'utilisateur pose des questions en langage naturel ou demande des actions, l'assistant pilote les endpoints existants (analyse spatiale, recherche, plan de localisation...) comme des "outils", et renvoie des actions que le frontend execute lui-meme pour tout ce qui touche a l'affichage de la carte (activer une couche, zoomer, afficher une geometrie) - le backend n'execute jamais d'action cote client a la place de l'utilisateur.
+
+### 36.1 Discussion avec l'Assistant
+
+**Description** : Envoie un message a l'assistant dans le contexte d'une conversation existante. L'assistant peut repondre par du texte, et/ou demander l'execution d'une ou plusieurs "actions client" (`clientActions`) que le frontend interprete et applique sur la carte.
+
+**Cas d'usage** : L'utilisateur tape *"Montre-moi les hopitaux a moins de 5km du centre-ville et zoome dessus"* ; l'assistant active la couche Hopitaux, lance une analyse spatiale de proximite, et renvoie une action `zoomToExtent` que la carte execute.
+
+**Implementation technique** :
+- Route : `POST /api/v1/assistant/chat` (authentifie)
+- Use case : `AssistantChatUseCase` -> `GeminiService.generateWithTools()` avec un catalogue de function declarations (recherche, analyse spatiale, plan de localisation, etc.)
+- Historique persiste cote serveur par conversation (le client ne renvoie que le nouveau message, pas tout l'historique)
+- Langue du systeme de prompt resolue depuis `Accept-Language` (fr/en/es)
+
+```json
+POST /api/v1/assistant/chat
+{ "instanceId": "uuid", "conversationId": "uuid", "message": "Montre-moi les hopitaux pres du centre-ville" }
+```
+
+### 36.2 Gestion des Conversations
+
+**Description** : Chaque conversation avec l'assistant est persistee (titre implicite, historique complet des messages et actions) et associee a un utilisateur et une instance - permet de reprendre une conversation plus tard ou d'en avoir plusieurs en parallele pour differents besoins.
+
+- `GET /api/v1/assistant/conversations?instanceId=uuid` (authentifie) - Use case : `ListAssistantConversationsUseCase`
+- `POST /api/v1/assistant/conversations` (authentifie) - Use case : `CreateAssistantConversationUseCase`
+- `GET /api/v1/assistant/conversations/:id` (authentifie) - Use case : `GetAssistantConversationUseCase` (historique complet)
+- `DELETE /api/v1/assistant/conversations/:id` (authentifie) - Use case : `DeleteAssistantConversationUseCase` - verifie que la conversation appartient bien a l'utilisateur demandeur (`ForbiddenError` sinon)
+
+---
+
+## 37. Geosignets (Signets de Carte)
+
+Permet a un utilisateur de sauvegarder une position de carte (centre + niveau de zoom) sous un nom, pour y revenir rapidement plus tard - equivalent d'un signet de navigateur applique a une vue cartographique.
+
+### 37.1 Creation d'un Geosignet
+
+**Description** : Sauvegarde la position actuelle de la carte (centre et zoom) sous un nom choisi par l'utilisateur.
+
+**Cas d'usage** : Un utilisateur navigue jusqu'a un quartier qu'il consulte souvent, clique sur "Ajouter un signet", le nomme "Quartier Bastos" et peut y revenir en un clic depuis n'importe quelle session future.
+
+- Route : `POST /api/v1/geosignets` (authentifie)
+- Use case : `SaveGeosignetUseCase`
+
+```json
+POST /api/v1/geosignets
+{ "name": "Quartier Bastos", "center": [11.52, 3.87], "zoom": 14 }
+```
+
+### 37.2 Liste des Geosignets
+
+**Description** : Retourne tous les geosignets de l'utilisateur connecte.
+
+- Route : `GET /api/v1/geosignets` (authentifie)
+- Use case : `GetGeosignetsUseCase`
+
+### 37.3 Suppression d'un Geosignet
+
+**Description** : Supprime un geosignet. Verifie que le geosignet appartient bien a l'utilisateur demandeur avant suppression (`ForbiddenError` sinon) - un utilisateur ne peut jamais supprimer le signet d'un autre.
+
+- Route : `DELETE /api/v1/geosignets/:id` (authentifie)
+- Use case : `DeleteGeosignetUseCase`
+
+---
+
+## 38. Sauvegardes Automatiques de la Base de Donnees
+
+Sauvegarde complete et automatisee de la base PostgreSQL, planifiee quotidiennement, avec retention glissante et stockage hors du conteneur de base de donnees lui-meme.
+
+### 38.1 Sauvegarde Planifiee (Cron)
+
+**Description** : Un job BullMQ recurrent execute quotidiennement (`BACKUP_CRON`, par defaut `0 3 * * *`) un `pg_dump` complet de la base, uploade le fichier resultant vers MinIO, puis applique une politique de retention (suppression des sauvegardes plus anciennes que `BACKUP_RETENTION_DAYS`, par defaut 30 jours).
+
+**Implementation technique** :
+- Use case : `DatabaseBackupUseCase` - ecrit le dump sur disque temporaire (jamais entierement en memoire, pour rester borne par l'espace disque plutot que la RAM sur une base volumineuse) via `pg_dump -F c` (format custom, auto-compresse, restaurable via `pg_restore -j` en parallele), puis l'uploade vers MinIO avec une taille explicite
+- Worker : planifie via `QueueService.addRepeatableJob('database-backup', 'daily-backup', {}, BACKUP_CRON)` (voir `server.ts`)
+
+### 38.2 Sauvegarde Manuelle Immediate
+
+**Description** : Declenche un backup complet immediatement, sans attendre le prochain cron - utile avant une operation risquee (migration de schema, import massif de donnees).
+
+**Cas d'usage** : Un administrateur s'apprete a lancer un import OSM volumineux et declenche d'abord un backup manuel par securite.
+
+- Route : `POST /api/v1/admin/backup` (SUPER_ADMIN)
+- Use case : `DatabaseBackupUseCase.execute()` (meme use case que le job planifie, execution synchrone)
+
+**Reponse** :
+```json
+{ "success": true, "data": { "key": "backups/geosm-2026-07-06T03-00-00.dump", "sizeBytes": 2443070217, "deletedOldBackups": 0 } }
+```
+
+---
+
+## 39. Bouton "Infos" et Formulaire de Signalement
+
+Bouton "Infos" dans le header du geoportail, ouvrant un panneau avec les credits du developpeur, la mention open source du projet, le telechargement du guide d'utilisation complet, et un formulaire de signalement.
+
+### 39.1 Soumission d'un Signalement
+
+**Description** : Permet a un utilisateur (connecte ou non) de signaler un bug, faire une suggestion, ou proposer une nouvelle fonctionnalite directement depuis le geoportail. Notifie l'equipe via Slack.
+
+**Cas d'usage** : Un utilisateur remarque qu'une couche ne s'affiche pas correctement, ouvre le panneau "Infos", selectionne "Signaler un bug", decrit le probleme et optionnellement laisse son email pour etre recontacte.
+
+**Implementation technique** :
+- Route : `POST /api/v1/feedback` (authentification optionnelle)
+- Use case : `SubmitFeedbackUseCase` -> `PrismaFeedbackRepository.create()` + `AlertingService.sendAlert('WARNING', ...)`
+- Modele BD : `FeedbackSubmission` (id, type [BUG/SUGGESTION/FEATURE_REQUEST], description, contactEmail, page, userId nullable, createdAt)
+
+### 39.2 Guide d'Utilisation en PDF
+
+**Description** : Le guide complet de GeOSM (ce document, dans une version destinee aux utilisateurs finaux) est genere statiquement en PDF, bilingue (fr/en), via un script Puppeteer cote frontend - pas genere a la demande par requete HTTP puisqu'il s'agit de documentation, pas de donnees dynamiques.
+
+- Script : `npm run generate:guide` (frontend) -> `scripts/generate-guide.mjs`
+- Fichiers servis statiquement : `assets/docs/geosm-guide-fr.pdf`, `assets/docs/geosm-guide-en.pdf`
 
 ---
 

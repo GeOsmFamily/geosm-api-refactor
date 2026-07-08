@@ -1,4 +1,8 @@
-import { PrismaClient, DefaultTheme as PrismaDefaultTheme, DefaultTag as PrismaDefaultTag } from '@prisma/client';
+import {
+  PrismaClient,
+  DefaultTheme as PrismaDefaultTheme,
+  DefaultTag as PrismaDefaultTag,
+} from '@prisma/client';
 import { IDefaultThemeRepository } from '../../../domain/repositories/default-theme.repository.js';
 import { DefaultTheme } from '../../../domain/entities/default-theme.entity.js';
 import { DefaultTag } from '../../../domain/entities/default-tag.entity.js';
@@ -11,7 +15,7 @@ export class PrismaDefaultThemeRepository implements IDefaultThemeRepository {
       orderBy: { order: 'asc' },
       include: { tags: true },
     });
-    return records.map(r => this.toDomain(r));
+    return records.map((r) => this.toDomain(r));
   }
 
   async findBySlug(slug: string): Promise<DefaultTheme | null> {
@@ -41,7 +45,10 @@ export class PrismaDefaultThemeRepository implements IDefaultThemeRepository {
     return this.toDomain(record);
   }
 
-  async update(id: string, data: Partial<Omit<DefaultTheme, 'id' | 'createdAt' | 'updatedAt'>>): Promise<DefaultTheme> {
+  async update(
+    id: string,
+    data: Partial<Omit<DefaultTheme, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<DefaultTheme> {
     const record = await this.prisma.defaultTheme.update({
       where: { id },
       data: {
@@ -68,7 +75,7 @@ export class PrismaDefaultThemeRepository implements IDefaultThemeRepository {
       where: { themeId },
       orderBy: { name: 'asc' },
     });
-    return records.map(r => this.tagToDomain(r));
+    return records.map((r) => this.tagToDomain(r));
   }
 
   async createTag(data: Omit<DefaultTag, 'createdAt' | 'updatedAt'>): Promise<DefaultTag> {

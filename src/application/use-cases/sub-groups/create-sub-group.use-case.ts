@@ -6,6 +6,9 @@ import { SubGroup } from '../../../domain/entities/sub-group.entity.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ConflictError } from '../../../domain/errors/conflict.error.js';
 import { Slug } from '../../../domain/value-objects/slug.vo.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateSubGroupUseCase');
 
 export class CreateSubGroupUseCase {
   constructor(
@@ -21,7 +24,7 @@ export class CreateSubGroupUseCase {
     const existing = await this.subGroupRepository.findBySlug(slug.value, groupId);
     if (existing) throw new ConflictError('SubGroup with this slug already exists in this group');
 
-    return this.subGroupRepository.create({
+    const subGroup = await this.subGroupRepository.create({
       id: uuidv4(),
       name: dto.name,
       slug: slug.value,
@@ -31,5 +34,7 @@ export class CreateSubGroupUseCase {
       isActive: true,
       groupId,
     });
+    logger.info('Sub-group created', { groupId, subGroupId: subGroup.id });
+    return subGroup;
   }
 }

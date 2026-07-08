@@ -34,7 +34,9 @@ export class PrismaMapCompositionRepository {
   }
 
   async findById(id: string): Promise<MapCompositionRecord | null> {
-    return this.prisma.mapComposition.findUnique({ where: { id } }) as Promise<MapCompositionRecord | null>;
+    return this.prisma.mapComposition.findUnique({
+      where: { id },
+    }) as Promise<MapCompositionRecord | null>;
   }
 
   async findByInstanceId(instanceId: string): Promise<MapCompositionRecord[]> {
@@ -51,16 +53,22 @@ export class PrismaMapCompositionRepository {
     }) as Promise<MapCompositionRecord[]>;
   }
 
-  async update(id: string, data: {
-    name?: string;
-    slug?: string;
-    description?: string | null;
-    layers?: Prisma.InputJsonValue;
-    center?: Prisma.InputJsonValue;
-    zoom?: number;
-    isPublic?: boolean;
-  }): Promise<MapCompositionRecord> {
-    return this.prisma.mapComposition.update({ where: { id }, data }) as Promise<MapCompositionRecord>;
+  async update(
+    id: string,
+    data: {
+      name?: string;
+      slug?: string;
+      description?: string | null;
+      layers?: Prisma.InputJsonValue;
+      center?: Prisma.InputJsonValue;
+      zoom?: number;
+      isPublic?: boolean;
+    },
+  ): Promise<MapCompositionRecord> {
+    return this.prisma.mapComposition.update({
+      where: { id },
+      data,
+    }) as Promise<MapCompositionRecord>;
   }
 
   async delete(id: string): Promise<void> {

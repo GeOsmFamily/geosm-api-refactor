@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+// z.coerce.boolean() appelle Boolean(value) sur la chaîne brute de process.env,
+// donc Boolean("false") === true (chaîne non vide) - un piège classique qui
+// rendait MINIO_USE_SSL=false toujours vrai. On parse explicitement la chaîne.
+const booleanEnv = (defaultValue: boolean) =>
+  z
+    .string()
+    .optional()
+    .transform((v) => (v === undefined ? defaultValue : v.toLowerCase() === 'true' || v === '1'));
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3000),
@@ -39,7 +48,14 @@ const envSchema = z.object({
   MINIO_ACCESS_KEY: z.string().default('minio_access'),
   MINIO_SECRET_KEY: z.string().default('minio_secret'),
   MINIO_BUCKET: z.string().default('geosm'),
-  MINIO_USE_SSL: z.coerce.boolean().default(false),
+  MINIO_USE_SSL: booleanEnv(false),
+  // Hôte/port utilisés UNIQUEMENT pour signer les URLs présignées renvoyées au navigateur -
+  // distincts de MINIO_ENDPOINT/MINIO_PORT qui servent aux appels serveur->MinIO internes au
+  // réseau Docker (ex. "minio", injoignable depuis un navigateur hors conteneur). Vides par
+  // défaut : retombent sur MINIO_ENDPOINT/MINIO_PORT si non définis (cas prod où l'API et MinIO
+  // partagent un même hôte public).
+  MINIO_PUBLIC_ENDPOINT: z.string().optional(),
+  MINIO_PUBLIC_PORT: z.coerce.number().optional(),
 
   MEILISEARCH_HOST: z.string().default('http://localhost:7700'),
   MEILISEARCH_API_KEY: z.string().default('masterKey'),
@@ -50,9 +66,42 @@ const envSchema = z.object({
   DATA_DIR: z.string().default('/tmp/geosm-data'),
   NOMINATIM_URL: z.string().default('http://localhost:8081'),
   OSRM_URL: z.string().default('http://localhost:5000'),
+  // Import OSM programmé (voir ScheduledOsmImportUseCase) : chemin du fichier .osm.pbf à
+  // ré-importer périodiquement (déposé manuellement/par un job externe sur ce chemin - il
+  // n'existe pas de téléchargement automatique depuis Geofabrik ou l'API OSM dans ce code).
+  // Non défini = le job planifié se déclenche mais ne fait rien (no-op silencieux, loggé).
+  OSM_IMPORT_PBF_PATH: z.string().optional(),
+  OSM_IMPORT_CRON: z.string().default('0 2 1 * *'),
+
+  // Backup Postgres programmé (voir DatabaseBackupUseCase) - actif par défaut (contrairement
+  // à l'import OSM, un backup ne dépend d'aucune configuration externe pour être utile).
+  BACKUP_CRON: z.string().default('0 3 * * *'),
+  BACKUP_RETENTION_DAYS: z.coerce.number().default(30),
+
+  // Google Gemini (assistant IA) - optionnel : les fonctionnalites IA sont desactivees
+  // proprement (erreur explicite a l'appel, pas de crash au demarrage) si absent.
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+
+  // Authentification via OpenStreetMap (OAuth 2.0, voir OsmOAuthService) - optionnel : le
+  // bouton "Se connecter avec OpenStreetMap" est masqué côté frontend si absent, aucun crash
+  // au démarrage. OSM_OAUTH_BASE_URL bascule entre l'instance réelle et le sandbox de test
+  // (master.apis.dev.openstreetmap.org) sans changer le code.
+  OSM_OAUTH_CLIENT_ID: z.string().optional(),
+  OSM_OAUTH_CLIENT_SECRET: z.string().optional(),
+  OSM_OAUTH_REDIRECT_URI: z.string().optional(),
+  OSM_OAUTH_BASE_URL: z.string().default('https://www.openstreetmap.org'),
+  // Clé de chiffrement au repos du token OSM (AES-256-GCM, voir encryption.util.ts) - distincte
+  // des secrets JWT car un usage différent (chiffrement réversible vs signature).
+  ENCRYPTION_KEY: z.string().optional(),
+  // Token public Mapbox utilisé pour le fond de carte satellite par défaut (voir
+  // default-basemaps.constants.ts) - aucune valeur par défaut en dur ici : générer le vôtre sur
+  // https://account.mapbox.com/access-tokens/ et le placer dans .env. Si absent, le fond de
+  // carte Mapbox est simplement omis de la liste (pas de crash au démarrage).
+  MAPBOX_ACCESS_TOKEN: z.string().optional(),
 
   LOG_LEVEL: z.string().default('info'),
-  PROMETHEUS_ENABLED: z.coerce.boolean().default(true),
+  PROMETHEUS_ENABLED: booleanEnv(true),
 
   // Observability
   GRAYLOG_HOST: z.string().optional(),

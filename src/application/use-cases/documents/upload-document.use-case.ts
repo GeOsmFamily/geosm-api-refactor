@@ -1,6 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
-import { PrismaDocumentRepository, DocumentRecord } from '../../../infrastructure/database/repositories/prisma-document.repository.js';
+import {
+  PrismaDocumentRepository,
+  DocumentRecord,
+} from '../../../infrastructure/database/repositories/prisma-document.repository.js';
 import { MinioStorageService } from '../../../infrastructure/storage/minio.service.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('UploadDocumentUseCase');
 
 export interface UploadDocumentDTO {
   name: string;
@@ -23,9 +29,19 @@ export class UploadDocumentUseCase {
     const id = uuidv4();
     const key = `documents/${dto.instanceId}/${id}/${dto.fileName}`;
 
-    await this.storageService.uploadFile(key, dto.fileBuffer, dto.mimeType);
+    try {
+      await this.storageService.uploadFile(key, dto.fileBuffer, dto.mimeType);
+    } catch (error) {
+      logger.error('Failed to upload document file to storage', {
+        documentId: id,
+        instanceId: dto.instanceId,
+        fileSize: dto.fileSize,
+        error: (error as Error).message,
+      });
+      throw error;
+    }
 
-    return this.documentRepository.create({
+    const document = await this.documentRepository.create({
       id,
       name: dto.name,
       description: dto.description ?? null,
@@ -36,5 +52,11 @@ export class UploadDocumentUseCase {
       instanceId: dto.instanceId,
       userId,
     });
+    logger.info('Document uploaded', {
+      documentId: id,
+      instanceId: dto.instanceId,
+      fileSize: dto.fileSize,
+    });
+    return document;
   }
 }

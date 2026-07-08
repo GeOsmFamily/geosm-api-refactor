@@ -1,6 +1,12 @@
 import type { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
-import type { PostGISService, GeoJSONFeatureCollection } from '../../../infrastructure/database/postgis.service.js';
+import type {
+  PostGISService,
+  GeoJSONFeatureCollection,
+} from '../../../infrastructure/database/postgis.service.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GetFeaturesUseCase');
 
 export interface GetFeaturesInput {
   layerId: string;
@@ -17,6 +23,7 @@ export class GetFeaturesUseCase {
   ) {}
 
   async execute(input: GetFeaturesInput): Promise<GeoJSONFeatureCollection> {
+    logger.debug('Getting features', { layerId: input.layerId, bbox: input.bbox });
     const layer = await this.layerRepository.findById(input.layerId);
     if (!layer) throw new NotFoundError('Layer', input.layerId);
     if (!layer.schemaName || !layer.tableName) {

@@ -10,3 +10,4 @@ coverage/
 *.tsbuildinfo
 python_scripts/__pycache__/
 data
+logs

@@ -19,9 +19,27 @@ export interface LayerImportJobData {
 }
 
 export function createLayerImportProcessor(deps: {
-  exportRepository: { findById: (id: string) => Promise<unknown>; update: (id: string, data: Record<string, unknown>) => Promise<unknown> };
-  layerRepository: { findById: (id: string) => Promise<{ id: string; schemaName: string | null; tableName: string | null; geometryType: string; instanceId: string; name: string } | null>; update: (id: string, data: Record<string, unknown>) => Promise<unknown> };
-  storageService: { downloadFile: (key: string) => Promise<NodeJS.ReadableStream>; getFileInfo: (key: string) => Promise<{ size: number }> };
+  exportRepository: {
+    findById: (id: string) => Promise<unknown>;
+    update: (id: string, data: Record<string, unknown>) => Promise<unknown>;
+  };
+  layerRepository: {
+    findById: (
+      id: string,
+    ) => Promise<{
+      id: string;
+      schemaName: string | null;
+      tableName: string | null;
+      geometryType: string;
+      instanceId: string;
+      name: string;
+    } | null>;
+    update: (id: string, data: Record<string, unknown>) => Promise<unknown>;
+  };
+  storageService: {
+    downloadFile: (key: string) => Promise<NodeJS.ReadableStream>;
+    getFileInfo: (key: string) => Promise<{ size: number }>;
+  };
   notificationService: { notifyUser: (userId: string, event: string, data: unknown) => void };
   postGISService: PostGISService;
   ogr2ogrService: Ogr2OgrService;
@@ -37,7 +55,12 @@ export function createLayerImportProcessor(deps: {
     try {
       // Update status to PROCESSING
       await deps.exportRepository.update(exportId, { status: 'PROCESSING', startedAt: new Date() });
-      deps.notificationService.notifyUser(userId, 'import:progress', { exportId, layerId, status: 'PROCESSING', progress: 0 });
+      deps.notificationService.notifyUser(userId, 'import:progress', {
+        exportId,
+        layerId,
+        status: 'PROCESSING',
+        progress: 0,
+      });
 
       // Get layer info
       const layer = await deps.layerRepository.findById(layerId);
@@ -48,7 +71,12 @@ export function createLayerImportProcessor(deps: {
       const writeStream = createWriteStream(tmpFilePath);
       await pipeline(stream, writeStream);
 
-      deps.notificationService.notifyUser(userId, 'import:progress', { exportId, layerId, status: 'PROCESSING', progress: 20 });
+      deps.notificationService.notifyUser(userId, 'import:progress', {
+        exportId,
+        layerId,
+        status: 'PROCESSING',
+        progress: 20,
+      });
 
       // Determine schema and table names
       const schemaName = layer.schemaName || `instance_${layer.instanceId.replace(/-/g, '_')}`;
@@ -57,7 +85,12 @@ export function createLayerImportProcessor(deps: {
       // Ensure schema exists
       await deps.postGISService.createSchema(schemaName);
 
-      deps.notificationService.notifyUser(userId, 'import:progress', { exportId, layerId, status: 'PROCESSING', progress: 30 });
+      deps.notificationService.notifyUser(userId, 'import:progress', {
+        exportId,
+        layerId,
+        status: 'PROCESSING',
+        progress: 30,
+      });
 
       let featureCount = 0;
 
@@ -70,18 +103,37 @@ export function createLayerImportProcessor(deps: {
         const geometryType = layer.geometryType || 'GEOMETRY';
         await deps.postGISService.createSpatialTable(schemaName, tableName, geometryType);
 
-        deps.notificationService.notifyUser(userId, 'import:progress', { exportId, layerId, status: 'PROCESSING', progress: 50 });
+        deps.notificationService.notifyUser(userId, 'import:progress', {
+          exportId,
+          layerId,
+          status: 'PROCESSING',
+          progress: 50,
+        });
 
         const features: GeoJSONFeature[] = geojson.features || [];
         featureCount = await deps.postGISService.insertFeatures(schemaName, tableName, features);
 
-        deps.notificationService.notifyUser(userId, 'import:progress', { exportId, layerId, status: 'PROCESSING', progress: 80 });
+        deps.notificationService.notifyUser(userId, 'import:progress', {
+          exportId,
+          layerId,
+          status: 'PROCESSING',
+          progress: 80,
+        });
       } else {
         // For Shapefile/GPKG/KML/CSV: use ogr2ogr to import into PostGIS
-        const importResult = await deps.ogr2ogrService.importFile(tmpFilePath, schemaName, tableName);
+        const importResult = await deps.ogr2ogrService.importFile(
+          tmpFilePath,
+          schemaName,
+          tableName,
+        );
         featureCount = importResult.featureCount;
 
-        deps.notificationService.notifyUser(userId, 'import:progress', { exportId, layerId, status: 'PROCESSING', progress: 80 });
+        deps.notificationService.notifyUser(userId, 'import:progress', {
+          exportId,
+          layerId,
+          status: 'PROCESSING',
+          progress: 80,
+        });
       }
 
       // Update the layer's tableName and schemaName in the database
@@ -105,7 +157,12 @@ export function createLayerImportProcessor(deps: {
         },
       });
 
-      deps.notificationService.notifyUser(userId, 'import:progress', { exportId, layerId, status: 'PROCESSING', progress: 90 });
+      deps.notificationService.notifyUser(userId, 'import:progress', {
+        exportId,
+        layerId,
+        status: 'PROCESSING',
+        progress: 90,
+      });
 
       // Get file info for size
       const fileInfo = await deps.storageService.getFileInfo(fileKey);
@@ -149,7 +206,11 @@ export function createLayerImportProcessor(deps: {
       throw error;
     } finally {
       // Clean up temp file
-      try { await unlink(tmpFilePath); } catch { /* ignore */ }
+      try {
+        await unlink(tmpFilePath);
+      } catch {
+        /* ignore */
+      }
     }
   };
 }

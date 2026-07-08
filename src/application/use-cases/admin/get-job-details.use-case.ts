@@ -1,4 +1,7 @@
 import { QueueService } from '../../../infrastructure/queue/queue.service.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GetJobDetailsUseCase');
 
 export interface JobDetails {
   id: string;
@@ -27,6 +30,7 @@ export class GetJobDetailsUseCase {
       const job = await queue.getJob(jobId);
       if (job) {
         const state = await job.getState();
+        logger.debug('Job details retrieved', { jobId, queue: queueName, status: state });
         return {
           id: job.id ?? jobId,
           name: job.name,
@@ -43,6 +47,7 @@ export class GetJobDetailsUseCase {
       }
     }
 
+    logger.debug('Job details lookup: not found', { jobId });
     return null;
   }
 }

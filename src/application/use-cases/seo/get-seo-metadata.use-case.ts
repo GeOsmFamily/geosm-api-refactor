@@ -1,4 +1,7 @@
 import { PrismaClient } from '@prisma/client';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('GetSeoMetadataUseCase');
 
 export interface SeoMetadata {
   title: string;
@@ -13,6 +16,7 @@ export class GetSeoMetadataUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(instanceSlug: string, baseUrl: string): Promise<SeoMetadata | null> {
+    logger.debug('Getting SEO metadata', { instanceSlug });
     const instance = await this.prisma.instance.findUnique({
       where: { slug: instanceSlug },
       include: {

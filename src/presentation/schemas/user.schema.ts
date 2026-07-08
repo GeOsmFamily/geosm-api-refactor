@@ -6,7 +6,10 @@ export const listUsersQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
   role: z.nativeEnum(Role).optional(),
-  isActive: z.preprocess(v => v === 'true' ? true : v === 'false' ? false : v, z.boolean().optional()),
+  isActive: z.preprocess(
+    (v) => (v === 'true' ? true : v === 'false' ? false : v),
+    z.boolean().optional(),
+  ),
 });
 
 export const createUserSchema = z.object({

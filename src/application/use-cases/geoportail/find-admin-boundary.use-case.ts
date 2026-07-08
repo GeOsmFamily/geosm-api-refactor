@@ -1,4 +1,7 @@
 import { PrismaClient } from '@prisma/client';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('FindAdminBoundaryUseCase');
 
 export interface AdminBoundaryResult {
   id: number;
@@ -8,11 +11,13 @@ export interface AdminBoundaryResult {
 }
 
 export class FindAdminBoundaryUseCase {
-  constructor(
-    private readonly prisma: PrismaClient,
-  ) {}
+  constructor(private readonly prisma: PrismaClient) {}
 
-  async execute(lat: number, lon: number, tableName: string = 'public.admin_boundaries'): Promise<AdminBoundaryResult[]> {
+  async execute(
+    lat: number,
+    lon: number,
+    tableName: string = 'public.admin_boundaries',
+  ): Promise<AdminBoundaryResult[]> {
     const parts = tableName.split('.');
     const schema = parts.length > 1 ? parts[0] : 'public';
     const table = parts.length > 1 ? parts[1] : parts[0];
@@ -25,7 +30,7 @@ export class FindAdminBoundaryUseCase {
       lon,
       lat,
     );
-
+    logger.debug('Found admin boundaries', { lat, lon, tableName, count: results.length });
     return results;
   }
 }

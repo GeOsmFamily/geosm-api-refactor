@@ -15,7 +15,15 @@ export interface DrawingRecord {
 export class PrismaDrawingRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async create(data: { id: string; userId: string; instanceId: string; name: string; geojson: Prisma.InputJsonValue; description: string | null; isPublic: boolean }): Promise<DrawingRecord> {
+  async create(data: {
+    id: string;
+    userId: string;
+    instanceId: string;
+    name: string;
+    geojson: Prisma.InputJsonValue;
+    description: string | null;
+    isPublic: boolean;
+  }): Promise<DrawingRecord> {
     return this.prisma.drawing.create({ data }) as Promise<DrawingRecord>;
   }
 
@@ -30,7 +38,15 @@ export class PrismaDrawingRepository {
     }) as Promise<DrawingRecord[]>;
   }
 
-  async update(id: string, data: { name?: string; geojson?: Prisma.InputJsonValue; description?: string | null; isPublic?: boolean }): Promise<DrawingRecord> {
+  async update(
+    id: string,
+    data: {
+      name?: string;
+      geojson?: Prisma.InputJsonValue;
+      description?: string | null;
+      isPublic?: boolean;
+    },
+  ): Promise<DrawingRecord> {
     return this.prisma.drawing.update({ where: { id }, data }) as Promise<DrawingRecord>;
   }
 

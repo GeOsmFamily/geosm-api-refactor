@@ -18,10 +18,18 @@ export class BoundingBox {
     return new BoundingBox(minLon, minLat, maxLon, maxLat);
   }
 
-  get minLon(): number { return this._minLon; }
-  get minLat(): number { return this._minLat; }
-  get maxLon(): number { return this._maxLon; }
-  get maxLat(): number { return this._maxLat; }
+  get minLon(): number {
+    return this._minLon;
+  }
+  get minLat(): number {
+    return this._minLat;
+  }
+  get maxLon(): number {
+    return this._maxLon;
+  }
+  get maxLat(): number {
+    return this._maxLat;
+  }
 
   toArray(): [number, number, number, number] {
     return [this._minLon, this._minLat, this._maxLon, this._maxLat];

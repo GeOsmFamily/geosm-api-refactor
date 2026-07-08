@@ -4,7 +4,9 @@ export interface ExportProps {
   id: string;
   format: ExportFormat;
   status: JobStatus;
-  layerId: string;
+  layerId: string | null;
+  layerIds: string[] | null;
+  isBulk: boolean;
   userId: string;
   filePath: string | null;
   fileSize: number | null;
@@ -20,7 +22,9 @@ export class Export {
   readonly id: string;
   readonly format: ExportFormat;
   readonly status: JobStatus;
-  readonly layerId: string;
+  readonly layerId: string | null;
+  readonly layerIds: string[] | null;
+  readonly isBulk: boolean;
   readonly userId: string;
   readonly filePath: string | null;
   readonly fileSize: number | null;
@@ -36,6 +40,8 @@ export class Export {
     this.format = props.format;
     this.status = props.status;
     this.layerId = props.layerId;
+    this.layerIds = props.layerIds;
+    this.isBulk = props.isBulk;
     this.userId = props.userId;
     this.filePath = props.filePath;
     this.fileSize = props.fileSize;

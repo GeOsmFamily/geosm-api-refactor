@@ -7,7 +7,10 @@ export class QgisServerService {
     this.baseUrl = config.QGIS_SERVER_URL;
   }
 
-  async proxyWmsRequest(params: Record<string, string>, mapPath?: string): Promise<{ data: Buffer; contentType: string }> {
+  async proxyWmsRequest(
+    params: Record<string, string>,
+    mapPath?: string,
+  ): Promise<{ data: Buffer; contentType: string }> {
     const searchParams = new URLSearchParams(params);
     searchParams.set('SERVICE', 'WMS');
 
@@ -26,7 +29,10 @@ export class QgisServerService {
     return { data, contentType };
   }
 
-  async proxyWfsRequest(params: Record<string, string>, mapPath?: string): Promise<{ data: Buffer; contentType: string }> {
+  async proxyWfsRequest(
+    params: Record<string, string>,
+    mapPath?: string,
+  ): Promise<{ data: Buffer; contentType: string }> {
     const searchParams = new URLSearchParams(params);
     searchParams.set('SERVICE', 'WFS');
 

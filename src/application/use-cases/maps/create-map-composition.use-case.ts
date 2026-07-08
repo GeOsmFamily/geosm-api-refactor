@@ -1,6 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Prisma } from '@prisma/client';
-import { PrismaMapCompositionRepository, MapCompositionRecord } from '../../../infrastructure/database/repositories/prisma-map-composition.repository.js';
+import {
+  PrismaMapCompositionRepository,
+  MapCompositionRecord,
+} from '../../../infrastructure/database/repositories/prisma-map-composition.repository.js';
+import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+
+const logger = createChildLogger('CreateMapCompositionUseCase');
 
 export interface CreateMapCompositionDTO {
   name: string;
@@ -15,8 +21,12 @@ export interface CreateMapCompositionDTO {
 export class CreateMapCompositionUseCase {
   constructor(private readonly mapCompositionRepository: PrismaMapCompositionRepository) {}
 
-  async execute(userId: string, instanceId: string, dto: CreateMapCompositionDTO): Promise<MapCompositionRecord> {
-    return this.mapCompositionRepository.create({
+  async execute(
+    userId: string,
+    instanceId: string,
+    dto: CreateMapCompositionDTO,
+  ): Promise<MapCompositionRecord> {
+    const composition = await this.mapCompositionRepository.create({
       id: uuidv4(),
       name: dto.name,
       slug: dto.slug,
@@ -28,5 +38,7 @@ export class CreateMapCompositionUseCase {
       isPublic: dto.isPublic ?? false,
       userId,
     });
+    logger.info('Map composition created', { userId, instanceId, compositionId: composition.id });
+    return composition;
   }
 }

@@ -12,16 +12,30 @@ export class PrismaLayerRepository implements ILayerRepository {
   }
 
   async findBySlug(slug: string, instanceId: string): Promise<Layer | null> {
-    const record = await this.prisma.layer.findUnique({ where: { slug_instanceId: { slug, instanceId } } });
+    const record = await this.prisma.layer.findUnique({
+      where: { slug_instanceId: { slug, instanceId } },
+    });
     return record ? this.toDomain(record) : null;
   }
 
   async findBySubGroup(subGroupId: string): Promise<Layer[]> {
-    const records = await this.prisma.layer.findMany({ where: { subGroupId }, orderBy: { order: 'asc' } });
-    return records.map(r => this.toDomain(r));
+    const records = await this.prisma.layer.findMany({
+      where: { subGroupId },
+      orderBy: { order: 'asc' },
+    });
+    return records.map((r) => this.toDomain(r));
   }
 
-  async findByInstance(instanceId: string, options?: { page?: number; limit?: number; search?: string; geometryType?: GeometryType; subGroupId?: string }): Promise<{ data: Layer[]; total: number }> {
+  async findByInstance(
+    instanceId: string,
+    options?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      geometryType?: GeometryType;
+      subGroupId?: string;
+    },
+  ): Promise<{ data: Layer[]; total: number }> {
     const page = options?.page ?? 1;
     const limit = options?.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -41,28 +55,41 @@ export class PrismaLayerRepository implements ILayerRepository {
       this.prisma.layer.count({ where }),
     ]);
 
-    return { data: records.map(r => this.toDomain(r)), total };
+    return { data: records.map((r) => this.toDomain(r)), total };
   }
 
   async create(data: Omit<Layer, 'createdAt' | 'updatedAt'>): Promise<Layer> {
     const record = await this.prisma.layer.create({
       data: {
-        id: data.id, name: data.name, slug: data.slug, description: data.description,
-        geometryType: data.geometryType, sourceType: data.sourceType,
-        sourceUrl: data.sourceUrl, sourceLayer: data.sourceLayer,
-        tableName: data.tableName, schemaName: data.schemaName,
-        minZoom: data.minZoom, maxZoom: data.maxZoom,
-        isVisible: data.isVisible, isQueryable: data.isQueryable,
-        opacity: data.opacity, order: data.order,
-        metadata: data.metadata as Prisma.InputJsonValue ?? Prisma.JsonNull,
-        subGroupId: data.subGroupId, instanceId: data.instanceId,
+        id: data.id,
+        name: data.name,
+        slug: data.slug,
+        description: data.description,
+        geometryType: data.geometryType,
+        sourceType: data.sourceType,
+        sourceUrl: data.sourceUrl,
+        sourceLayer: data.sourceLayer,
+        tableName: data.tableName,
+        schemaName: data.schemaName,
+        minZoom: data.minZoom,
+        maxZoom: data.maxZoom,
+        isVisible: data.isVisible,
+        isQueryable: data.isQueryable,
+        opacity: data.opacity,
+        order: data.order,
+        metadata: (data.metadata as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        subGroupId: data.subGroupId,
+        instanceId: data.instanceId,
         qgisProjectId: data.qgisProjectId,
       },
     });
     return this.toDomain(record);
   }
 
-  async update(id: string, data: Partial<Omit<Layer, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Layer> {
+  async update(
+    id: string,
+    data: Partial<Omit<Layer, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<Layer> {
     const updateData: Prisma.LayerUpdateInput = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.slug !== undefined) updateData.slug = data.slug;
@@ -77,7 +104,8 @@ export class PrismaLayerRepository implements ILayerRepository {
     if (data.isQueryable !== undefined) updateData.isQueryable = data.isQueryable;
     if (data.opacity !== undefined) updateData.opacity = data.opacity;
     if (data.order !== undefined) updateData.order = data.order;
-    if ('metadata' in data) updateData.metadata = data.metadata as Prisma.InputJsonValue ?? Prisma.JsonNull;
+    if ('metadata' in data)
+      updateData.metadata = (data.metadata as Prisma.InputJsonValue) ?? Prisma.JsonNull;
     const record = await this.prisma.layer.update({ where: { id }, data: updateData });
     return this.toDomain(record);
   }
@@ -88,16 +116,28 @@ export class PrismaLayerRepository implements ILayerRepository {
 
   private toDomain(record: PrismaLayer): Layer {
     return new Layer({
-      id: record.id, name: record.name, slug: record.slug, description: record.description,
-      geometryType: record.geometryType as GeometryType, sourceType: record.sourceType as SourceType,
-      sourceUrl: record.sourceUrl, sourceLayer: record.sourceLayer,
-      tableName: record.tableName, schemaName: record.schemaName,
-      minZoom: record.minZoom, maxZoom: record.maxZoom,
-      isVisible: record.isVisible, isQueryable: record.isQueryable,
-      opacity: record.opacity, order: record.order,
+      id: record.id,
+      name: record.name,
+      slug: record.slug,
+      description: record.description,
+      geometryType: record.geometryType as GeometryType,
+      sourceType: record.sourceType as SourceType,
+      sourceUrl: record.sourceUrl,
+      sourceLayer: record.sourceLayer,
+      tableName: record.tableName,
+      schemaName: record.schemaName,
+      minZoom: record.minZoom,
+      maxZoom: record.maxZoom,
+      isVisible: record.isVisible,
+      isQueryable: record.isQueryable,
+      opacity: record.opacity,
+      order: record.order,
       metadata: record.metadata as Record<string, unknown> | null,
-      subGroupId: record.subGroupId, instanceId: record.instanceId,
-      qgisProjectId: record.qgisProjectId, createdAt: record.createdAt, updatedAt: record.updatedAt,
+      subGroupId: record.subGroupId,
+      instanceId: record.instanceId,
+      qgisProjectId: record.qgisProjectId,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
     });
   }
 }
