@@ -45,7 +45,12 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY src/infrastructure/database/prisma/ ./src/infrastructure/database/prisma/
+# L'arborescence src/ complete (pas juste le schema Prisma) est necessaire car prisma/seed.ts
+# est execute directement via "tsx" (pas depuis dist/ compile) et importe une dizaine de
+# fichiers sous src/application/ et src/infrastructure/ - une copie plus etroite fait echouer
+# "npm run db:seed" en production avec ERR_MODULE_NOT_FOUND (verifie en conditions reelles).
+COPY tsconfig.json ./
+COPY src/ ./src/
 COPY python_scripts/ ./python_scripts/
 COPY prisma/ ./prisma/
 COPY scripts/ ./scripts/
