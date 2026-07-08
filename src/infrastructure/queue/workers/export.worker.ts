@@ -37,9 +37,7 @@ const FORMAT_TO_OGR: Record<
 
 type ExportWorkerDeps = {
   exportRepository: {
-    findById: (
-      id: string,
-    ) => Promise<{
+    findById: (id: string) => Promise<{
       id: string;
       format: string;
       layerId: string | null;
@@ -48,9 +46,7 @@ type ExportWorkerDeps = {
     update: (id: string, data: Record<string, unknown>) => Promise<unknown>;
   };
   layerRepository: {
-    findById: (
-      id: string,
-    ) => Promise<{
+    findById: (id: string) => Promise<{
       id: string;
       schemaName: string | null;
       tableName: string | null;

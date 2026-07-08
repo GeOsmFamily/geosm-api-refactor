@@ -24,9 +24,7 @@ export function createLayerImportProcessor(deps: {
     update: (id: string, data: Record<string, unknown>) => Promise<unknown>;
   };
   layerRepository: {
-    findById: (
-      id: string,
-    ) => Promise<{
+    findById: (id: string) => Promise<{
       id: string;
       schemaName: string | null;
       tableName: string | null;
