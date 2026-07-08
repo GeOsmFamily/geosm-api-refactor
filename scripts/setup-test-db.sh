@@ -21,10 +21,13 @@ echo "Running Prisma migrations..."
 export DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public"
 npx prisma migrate deploy --schema=src/infrastructure/database/prisma/schema.prisma
 
-# Enable PostGIS extension if not already enabled
-echo "Enabling PostGIS extension..."
+# Enable PostGIS extensions if not already enabled (postgis_raster est requis en plus de
+# postgis depuis PostGIS 3 pour le type "raster" utilisé par la table srtm)
+echo "Enabling PostGIS extensions..."
 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c \
   'CREATE EXTENSION IF NOT EXISTS postgis;'
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c \
+  'CREATE EXTENSION IF NOT EXISTS postgis_raster;'
 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c \
   'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
 

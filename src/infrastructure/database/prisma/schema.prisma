@@ -7,7 +7,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [postgis, uuidOssp(map: "uuid-ossp")]
+  extensions = [postgis, postgisRaster(map: "postgis_raster"), uuidOssp(map: "uuid-ossp")]
 }
 
 enum Role {

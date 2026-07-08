@@ -113,6 +113,7 @@ jobs:
           image-ref: 'geosm-api:security-scan'
           format: 'table'
           severity: 'CRITICAL'
+          trivyignores: '.trivyignore'
           # Avant ce lot, exit-code: '0' faisait que ce job ne pouvait JAMAIS échouer quel que
           # soit le nombre de vulnérabilités trouvées - le scan tournait mais ne bloquait rien.
           # On ne bloque que sur CRITICAL (pas HIGH) pour éviter de casser le pipeline sur des
