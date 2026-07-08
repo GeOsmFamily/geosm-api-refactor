@@ -236,8 +236,11 @@ services:
           cpus: '0.1'
           memory: 128M
     restart: unless-stopped
+    # curl absent de l'image officielle prom/prometheus (basee busybox) - "curl: not found" en
+    # boucle meme quand Prometheus repondait normalement. wget (applet busybox) est present,
+    # confirme via "docker exec ... which wget" avant ce correctif.
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9090/-/healthy || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:9090/-/healthy || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
