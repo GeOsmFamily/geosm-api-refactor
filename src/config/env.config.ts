@@ -61,6 +61,14 @@ const envSchema = z.object({
   MEILISEARCH_API_KEY: z.string().default('masterKey'),
 
   QGIS_SERVER_URL: z.string().default('http://localhost:8380/ows'),
+  // URL PUBLIQUE (atteignable par le navigateur) utilisee pour les sourceUrl WMS envoyees au
+  // frontend - distincte de QGIS_SERVER_URL qui reste l'URL INTERNE Docker (api -> qgis-server)
+  // utilisee pour les appels serveur->serveur (health check, validation de projet...). Sans
+  // cette distinction, le navigateur d'un visiteur recevait "http://localhost:8380/ows" (ou le
+  // nom de service Docker), inatteignable depuis l'exterieur - les couches WMS ne chargeaient
+  // aucune tuile. Par defaut "/ows", chemin relatif deja proxifie vers qgis-server par le
+  // nginx du conteneur frontend (meme origine que le reste de l'app, voir nginx.conf).
+  QGIS_PUBLIC_URL: z.string().default('/ows'),
   QGIS_PROJECTS_DIR: z.string().default('/var/www/qgis/projects'),
   QGIS_STYLES_DIR: z.string().default('/var/www/qgis/styles'),
   DATA_DIR: z.string().default('/tmp/geosm-data'),

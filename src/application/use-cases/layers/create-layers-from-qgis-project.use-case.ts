@@ -39,7 +39,8 @@ export class CreateLayersFromQgisProjectUseCase {
     const project = await this.qgisProjectRepository.findById(input.qgisProjectId);
     if (!project) throw new NotFoundError('QgisProject', input.qgisProjectId);
 
-    const sourceUrl = `${config.QGIS_SERVER_URL}?map=${project.filePath}`;
+    // URL publique (atteignable par le navigateur), pas l'URL interne Docker.
+    const sourceUrl = `${config.QGIS_PUBLIC_URL}?map=${project.filePath}`;
     const created: Layer[] = [];
 
     for (const selection of input.layers) {

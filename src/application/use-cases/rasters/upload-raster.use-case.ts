@@ -105,7 +105,8 @@ export class UploadRasterUseCase {
       description: input.description ?? null,
       geometryType: GeometryType.POLYGON,
       sourceType: SourceType.WMS,
-      sourceUrl: `${config.QGIS_SERVER_URL}?map=${projectPath}`,
+      // URL publique (atteignable par le navigateur), pas l'URL interne Docker.
+      sourceUrl: `${config.QGIS_PUBLIC_URL}?map=${projectPath}`,
       sourceLayer: finalTable,
       tableName: importResult.tableName,
       schemaName: 'public',

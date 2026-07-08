@@ -287,7 +287,9 @@ export class CreateInstanceUseCase {
         description: null,
         geometryType: layerConfig.geometryType,
         sourceType: SourceType.WMS,
-        sourceUrl: `http://localhost:8380/ows?map=${projectFilePath}`,
+        // URL publique (atteignable par le navigateur), pas l'URL interne Docker - voir
+        // QGIS_PUBLIC_URL dans env.config.ts.
+        sourceUrl: `${config.QGIS_PUBLIC_URL}?map=${projectFilePath}`,
         sourceLayer: `${instanceSlug}:${dbTableName}`,
         tableName: dbTableName,
         schemaName: instanceSlug,
