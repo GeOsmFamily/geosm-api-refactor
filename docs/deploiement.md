@@ -4,6 +4,13 @@ Checklist etape par etape pour deployer GeOSM sur un VPS vierge, du serveur nu j
 l'application fonctionnelle. Si une etape manque ici pour reussir un deploiement reel, c'est un
 bug de ce document, pas juste une note manquante.
 
+Ce guide a ete entierement revu le 2026-07-09 apres un deploiement complet en conditions
+reelles sur `geosm.app`, qui a fait remonter plusieurs pieges non documentes jusque-la (voir la
+section [Depannage](#depannage---incidents-reels-et-solutions) en fin de document, qui recense
+chaque probleme reellement rencontre et sa cause exacte). Les correctifs de code correspondants
+sont deja integres au depot - en suivant ce guide dans l'ordre, vous ne devriez rencontrer aucun
+de ces problemes.
+
 ---
 
 ## Architecture des services
@@ -37,7 +44,7 @@ Le deploiement complet comprend **15 services** (2 applicatifs + 13 d'infrastruc
 > En developpement, `NOMINATIM_URL`/`OSRM_URL` pointent encore sur les serveurs publics
 > (`nominatim.openstreetmap.org`, `router.project-osrm.org`). Leurs politiques d'usage ("light
 > testing only", 1 requete/seconde) ne supportent pas un trafic de production - voir
-> [Auto-hebergement Nominatim et OSRM](#auto-hebergement-nominatim-et-osrm) plus bas.
+> [Auto-hebergement Nominatim et OSRM](#5-auto-hebergement-nominatim-et-osrm) plus bas.
 
 ### Stack d'observabilite
 
@@ -48,13 +55,17 @@ Le deploiement complet comprend **15 services** (2 applicatifs + 13 d'infrastruc
 | **jaeger** | `jaegertracing/all-in-one:1.52` | `JAEGER_UI_PORT`, `JAEGER_OTLP_PORT` | 16686, 4318 | Tracing distribue (OpenTelemetry) |
 | **graylog** | `graylog/graylog:5.2` | `GRAYLOG_WEB_PORT`, `GRAYLOG_GELF_PORT` | 9009, 12201/udp | Gestion centralisee des logs (GELF) |
 | **mongodb** | `mongo:6.0` | -- | -- | Backend Graylog (pas de port publie sur l'hote) |
-| **opensearch** | `opensearchproject/opensearch:2.11.0` | -- | -- | Indexation des logs (Graylog, pas de port publie sur l'hote) |
+| **opensearch** | `opensearchproject/opensearch:2.11.0` | -- | -- | Indexation des logs (Graylog, pas de port publie sur l'hote) - **1.5 Go de RAM minimum reserves**, voir note dans la section 1 |
 
 **Tous ces ports sont surchargeables depuis `.env`** (voir le bloc "Ports publies sur l'hote"
 en tete de `.env.example`) - utile si un autre service tourne deja sur l'un de ces ports sur le
-meme VPS. Changer le NUMERO de port n'a aucun impact sur le reste de la stack (les services se
-parlent toujours entre eux par nom Docker sur leur port interne fixe, ex. `postgres:5432`) ni
-sur leur niveau d'exposition (tous restes lies a `127.0.0.1` en production, sauf `frontend`).
+meme VPS (frequent sur un serveur mutualise avec d'autres applications). Changer le NUMERO de
+port n'a aucun impact sur le reste de la stack (les services se parlent toujours entre eux par
+nom Docker sur leur port interne fixe, ex. `postgres:5432`) ni sur leur niveau d'exposition
+(tous restes lies a `127.0.0.1` en production, sauf `frontend` et `minio`, voir juste en
+dessous). Si vous deployez sur un VPS deja charge, envisagez de choisir une plage dediee (ex.
+15000-15025) pour tous ces ports d'un coup plutot que de garder les valeurs par defaut au cas
+par cas.
 
 Tous les services sont lies a `127.0.0.1` en production (`docker-compose.prod.yml`), **a deux
 exceptions volontaires pres** :
@@ -66,28 +77,48 @@ exceptions volontaires pres** :
   prive) - les URLs presignees de telechargement (exports, documents, imports QGIS, raster)
   pointent directement sur ce port et doivent etre atteignables par le navigateur des
   visiteurs. Ce port doit etre ouvert explicitement dans le firewall du VPS (voir
-  [Prerequis](#1-prerequis) et l'etape [Demarrer la stack complete](#7-demarrer-la-stack-complete)).
-  Trafic HTTP brut sur ce port precis (pas de TLS) - accepte car les URLs sont presignees a
-  duree de vie limitee (voir `getPresignedUrl`, expiration par defaut 1h).
+  [Prerequis](#1-prerequis)). Trafic HTTP brut sur ce port precis (pas de TLS) - accepte car les
+  URLs sont presignees a duree de vie limitee (voir `getPresignedUrl`, expiration par defaut 1h).
 
 ---
 
 ## 1. Prerequis
 
 - Un VPS avec au moins **4 vCPU et 8 Go de RAM** (Nominatim et OSRM sont plus gourmands que le
-  reste de la stack - voir leurs limites de ressources dans `docker-compose.prod.yml`)
+  reste de la stack - voir leurs limites de ressources dans `docker-compose.prod.yml`).
+  OpenSearch (backend de Graylog) a lui seul besoin d'environ **1.5 Go reserves** - sur un VPS
+  deja charge par d'autres applications, une limite trop basse le fait tuer par le noyau (OOM)
+  en boucle, symptome : "Killed" dans ses logs, Graylog ne parvenant jamais a s'y connecter
+  ("Connection refused"). Voir [Depannage](#depannage---incidents-reels-et-solutions).
 - **40 Go d'espace disque** minimum (extract OSM regional + import Nominatim + volumes Postgres/MinIO)
 - Docker 24+ et Docker Compose v2+ installes
-- Un nom de domaine pointant vers l'IP du VPS (enregistrement DNS `A`)
-- Acces SSH avec une cle dediee au deploiement (voir [CI/CD](#10-cicd-et-deploiement-continu-a-faire-sur-github-avant-ou-apres-le-premier-lancement-manuel))
+- Un nom de domaine pointant vers l'IP du VPS (enregistrement DNS `A`) - **verifiez aussi tout
+  sous-domaine `www.`** : certains registrars (Gandi notamment) configurent `www` par defaut
+  comme une "redirection web" plutot qu'un enregistrement DNS classique, ce qui fait echouer la
+  validation Certbot pour ce sous-domaine specifiquement. Verification :
+  ```bash
+  dig +short votre-domaine.org
+  dig +short www.votre-domaine.org
+  ```
+  Les deux doivent renvoyer l'IP du VPS (directement, ou via un `CNAME` qui y mene) - pas
+  l'adresse d'un service de redirection tiers.
+- Acces SSH avec une cle dediee au deploiement (voir [CI/CD](#11-cicd-et-deploiement-continu-a-faire-sur-github-avant-ou-apres-le-premier-lancement-manuel))
 - Firewall du VPS autorisant en entree : `80`/`443` (reverse proxy systeme) et le port MinIO
   public (`MINIO_PUBLIC_PORT`, defaut `9000`, voir [Architecture des
   services](#architecture-des-services)) - tous les autres ports de la stack restent internes,
   aucune autre ouverture necessaire. Exemple avec `ufw` :
   ```bash
+  sudo ufw allow OpenSSH
   sudo ufw allow 80/tcp
   sudo ufw allow 443/tcp
   sudo ufw allow 9000/tcp
+  sudo ufw enable
+  ```
+- Si vous prevoyez d'utiliser le script `scripts/seed-admin-boundaries.sh` (limites
+  administratives, voir section 5) : `psql` et `ogr2ogr` doivent etre installes **sur l'hote**
+  (ce script tourne en dehors de Docker) :
+  ```bash
+  sudo apt install -y postgresql-client gdal-bin
   ```
 
 ## 2. Provisionner le VPS
@@ -114,6 +145,14 @@ clone separement.
 sudo -u deploy -i
 git clone https://github.com/GeOsmFamily/geosm-api-refactor.git /opt/geosm
 cd /opt/geosm
+```
+
+**Rendre tous les scripts executables** (necessaire une seule fois - `git clone` ne preserve pas
+toujours le bit d'execution selon le systeme, symptome sinon : `Permission denied` a chaque
+script lance dans ce guide) :
+
+```bash
+chmod +x scripts/*.sh docker/entrypoint.sh
 ```
 
 ## 4. Generer et renseigner tous les secrets
@@ -158,7 +197,9 @@ MINIO_SECRET_KEY=<genere>
 MEILISEARCH_API_KEY=<genere>
 REDIS_PASSWORD=<genere>
 
-# Super admin (a changer immediatement apres la premiere connexion, voir rotation des secrets)
+# Super admin - IMPORTANT : le mot de passe par defaut de .env.example
+# ("AdminP@ssw0rd!") est un exemple documente publiquement, jamais un secret reel - le
+# remplacer est obligatoire, pas juste recommande.
 SUPER_ADMIN_EMAIL=admin@votre-domaine.org
 SUPER_ADMIN_PASSWORD=<genere>
 
@@ -208,14 +249,16 @@ GRAYLOG_ROOT_PASSWORD_SHA2=<genere>
 MEILI_ENV=production
 ```
 
-> **Rappel** : `MAPBOX_ACCESS_TOKEN` (backend) et le token Mapillary (`mapillaryToken` dans
-> `src/environments/environment.prod.ts` du depot frontend, injecte au build via le secret
-> GitHub Actions `MAPILLARY_TOKEN` - voir [CI/CD](#10-cicd-et-deploiement-continu-a-faire-sur-github-avant-ou-apres-le-premier-lancement-manuel)) doivent etre
-> des tokens **que vous generez vous-meme**, distincts de ceux ayant pu circuler dans
-> d'anciennes versions du code source pendant le developpement. Si un token a deja ete commite
-> par erreur dans l'historique Git a un moment donne, considerez-le compromis : revoquez-le sur
-> le tableau de bord du fournisseur (mapbox.com / mapillary.com) avant de mettre l'app en ligne,
-> meme si le fichier actuel ne le contient plus.
+> **Rappel important** : `MAPBOX_ACCESS_TOKEN` (backend) et le token Mapillary (`mapillaryToken`
+> dans `src/environments/environment.prod.ts` du depot frontend, injecte au build via le secret
+> GitHub Actions `MAPILLARY_TOKEN` - voir [CI/CD](#11-cicd-et-deploiement-continu-a-faire-sur-github-avant-ou-apres-le-premier-lancement-manuel))
+> doivent etre des tokens **que vous generez vous-meme**, distincts de ceux ayant pu circuler
+> dans d'anciennes versions du code source pendant le developpement. Si un token a deja ete
+> commite par erreur dans l'historique Git a un moment donne, considerez-le compromis :
+> revoquez-le sur le tableau de bord du fournisseur (mapbox.com / mapillary.com) avant de mettre
+> l'app en ligne, meme si le fichier actuel ne le contient plus, et **meme s'il semble encore
+> repondre a un test d'API direct** - un token expose publiquement doit etre remplace, pas
+> juste verifie comme "encore actif".
 
 ## 5. Auto-hebergement Nominatim et OSRM
 
@@ -234,9 +277,9 @@ curl -L -o nominatim-source/region-latest.osm.pbf \
 ```
 
 Le premier demarrage du conteneur `nominatim` lance automatiquement l'import complet (compter
-**15 a 45 minutes** pour un extract pays selon les ressources du VPS) ; les demarrages suivants
-reutilisent les donnees deja importees dans le volume `nominatim-data`, sans reimporter. Suivre
-la progression :
+**15 a 45 minutes** pour un extract pays selon les ressources du VPS, plus si le serveur est
+partage avec d'autres applications gourmandes) ; les demarrages suivants reutilisent les
+donnees deja importees dans le volume `nominatim-data`, sans reimporter. Suivre la progression :
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f nominatim
@@ -285,12 +328,17 @@ chaque demarrage du conteneur, ne refuse de demarrer a cause de cette table "non
 Deux facons de la peupler :
 
 1. **Pre-remplissage initial** via le meme extract `.osm.pbf` que Nominatim/OSRM ci-dessus
-   (reutilise le pilote OSM de GDAL pour extraire les polygones `boundary=administrative`) :
+   (reutilise le pilote OSM de GDAL pour extraire les polygones `boundary=administrative`) -
+   necessite `psql`/`ogr2ogr` installes sur l'hote (voir [Prerequis](#1-prerequis)) :
    ```bash
-   PBF_PATH=nominatim-source/region-latest.osm.pbf \
-     DATABASE_URL="$DATABASE_URL" \
+   DATABASE_URL="postgresql://geosm:<MOT_DE_PASSE>@localhost:${POSTGRES_PORT:-5432}/geosm" \
+     PBF_PATH=nominatim-source/region-latest.osm.pbf \
      ./scripts/seed-admin-boundaries.sh
    ```
+   **Attention** : `DATABASE_URL` ici doit pointer vers `localhost:<POSTGRES_PORT>` (le port
+   publie sur l'hote), **pas** vers `postgres:5432` (nom de service Docker, resolvable
+   uniquement depuis l'interieur du reseau Docker) - ce script tourne directement sur l'hote,
+   pas dans un conteneur.
    Idempotent au niveau de la creation de table (`CREATE TABLE IF NOT EXISTS`), mais **ajoute**
    les lignes a chaque execution sans supprimer les anciennes - ne pas relancer sans y penser sur
    une base deja peuplee (voir l'option "remplacer ce niveau" ci-dessous pour un remplacement
@@ -368,7 +416,8 @@ sudo systemctl reload apache2
 ```
 
 **4. Verifier que le DNS pointe deja vers le VPS** (obligatoire avant Certbot - Let's Encrypt
-valide le domaine en interrogeant le DNS public) :
+valide le domaine en interrogeant le DNS public - voir aussi la remarque sur `www.` dans les
+[Prerequis](#1-prerequis)) :
 
 ```bash
 dig +short geosm.app        # doit renvoyer l'IP du VPS
@@ -383,6 +432,10 @@ ci-dessus pour ajouter un bloc `<VirtualHost *:443>` avec les directives SSL et 
 sudo certbot --apache -d geosm.app -d www.geosm.app
 # Choisir l'option de redirection automatique HTTP -> HTTPS quand Certbot la propose
 ```
+
+Si le DNS de `www.` n'est pas encore corrige, demandez le certificat pour le domaine apex
+seul (`sudo certbot --apache -d geosm.app`) et etendez-le plus tard sans tout refaire :
+`sudo certbot --expand -d geosm.app -d www.geosm.app`.
 
 Certbot installe egalement un timer systemd (`certbot.timer`) qui renouvelle le certificat
 automatiquement avant son expiration (tous les 90 jours). Verifier que le renouvellement
@@ -410,7 +463,7 @@ sudo systemctl reload apache2
 > `secure`/redirection conditionnelle au protocole) - cette etape est une bonne pratique pour
 > des logs/futures fonctionnalites exactes, pas un correctif d'un bug existant.
 
-### Option B - Caddy devant le port 80 du frontend (alternative la plus simple, TLS automatique)
+### Option B - Caddy devant le port du frontend (alternative la plus simple, TLS automatique)
 
 Pertinent uniquement si Apache n'est pas deja impose sur le VPS (ce qui n'est pas le cas du
 deploiement GeOSM actuel, voir Option A ci-dessus).
@@ -464,53 +517,339 @@ sudo certbot --nginx -d votre-domaine.org
 sudo certbot renew --dry-run
 ```
 
-## 7. Demarrer la stack complete
+## 7. Publier les images Docker sur GitHub (a faire cote GitHub avant de demarrer la stack)
+
+Les images `api`/`frontend` sont construites par GitHub Actions (voir
+[CI/CD](#11-cicd-et-deploiement-continu-a-faire-sur-github-avant-ou-apres-le-premier-lancement-manuel))
+et publiees sur GHCR (`ghcr.io/geosmfamily/...`). Deux points a verifier **avant** de tenter de
+les tirer sur le VPS, sinon `docker compose pull` echoue avec `unauthorized` (message trompeur -
+GHCR renvoie la meme erreur que le paquet soit prive OU qu'il n'existe pas, pour ne pas reveler
+l'existence d'un paquet prive a un tiers non autorise) :
+
+1. **Le paquet doit exister** : un push sur `main` a-t-il deja declenche `deploy.yml` avec succes
+   sur les deux depots ? Verifier dans l'onglet **Actions** de chaque depot.
+2. **Le paquet doit etre public** (le plus simple), ou le VPS doit etre authentifie a GHCR :
+   - Pour le rendre public : sur la page principale du depot GitHub -> colonne de droite,
+     section **Packages** -> cliquer sur le paquet -> **Package settings** (en bas de la page) ->
+     **Change visibility** -> **Public**. A faire sur les **deux** depots.
+   - Pour garder les paquets prives : generer un Personal Access Token GitHub (scope
+     `read:packages`) puis, **specifiquement pour l'utilisateur `deploy`** (pas root, qui a son
+     propre `~/.docker/config.json` distinct) :
+     ```bash
+     sudo -u deploy docker login ghcr.io -u <votre_user_github> -p <TOKEN>
+     ```
+     Sans ca, le pull manuel en root peut fonctionner (si vous etes connecte en root) mais le
+     deploiement automatique SSH (qui se connecte en `deploy`) continuera d'echouer.
+
+## 8. Demarrer la stack complete
 
 ```bash
 cd /opt/geosm
-export API_IMAGE=ghcr.io/geosmfamily/geosm-api-refactor:latest
-export FRONTEND_IMAGE=ghcr.io/geosmfamily/geosm-frontend-refactor:latest
+```
 
+**Ajouter les references d'image dans `.env`** (pas juste en `export`, qui ne persiste que pour
+la session shell courante - toute nouvelle connexion SSH perdrait ces variables et ferait
+echouer `docker compose` avec `required variable API_IMAGE is missing a value`) :
+
+```bash
+echo "API_IMAGE=ghcr.io/geosmfamily/geosm-api-refactor:latest" >> .env
+echo "FRONTEND_IMAGE=ghcr.io/geosmfamily/geosm-frontend-refactor:latest" >> .env
+```
+
+```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # Suivre le demarrage (Nominatim prend le plus de temps au premier lancement, voir section 5)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -a
 docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f api
 ```
 
-## 8. Initialiser la base de donnees
+`api` et `frontend` dependent de la sante de plusieurs autres services (`nominatim`, `osrm`,
+`postgres`...) - tant que ceux-ci ne sont pas `healthy`, `api`/`frontend` restent en statut
+`Created` (normal, pas une erreur). Une fois toutes leurs dependances `healthy`, relancer
+simplement `docker compose ... up -d` (Compose ne surveille pas les dependances en arriere-plan
+tout seul, il faut redemander un `up` pour qu'il les demarre) :
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api npx prisma migrate deploy
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api npm run db:seed
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -a
+```
 
-# Bucket MinIO (si pas deja cree par le seed)
+Si un service refuse de demarrer avec une erreur `address already in use` alors que le port
+semble libre, ou reste bloque `unhealthy` malgre des logs applicatifs propres, voir la section
+[Depannage](#depannage---incidents-reels-et-solutions).
+
+## 9. Initialiser la base de donnees
+
+Le schema Prisma est applique **automatiquement** a chaque demarrage du conteneur `api` (voir
+`docker/entrypoint.sh`, qui execute `prisma db push`) - **aucune commande `prisma migrate
+deploy` n'est necessaire ni meme utilisee dans ce projet** (ce depot ne maintient pas de dossier
+`prisma/migrations` ; `db push` reconcilie directement le schema declare avec la base reelle a
+chaque boot). Verifiez simplement dans les logs de demarrage d'`api` que vous voyez bien `The
+database is already in sync with the Prisma schema.` sans avertissement de perte de donnees.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api npm run db:seed
+```
+
+Ce script cree le compte super admin, la premiere instance (pays), les themes par defaut, et
+tente un import OSM initial. **Si l'extension PostgreSQL `hstore` n'est pas encore activee**
+(cas d'une base toute neuve), cet import OSM interne au seed echouera silencieusement et
+retombera sur un schema de demonstration (donnees factices, pas les vraies donnees du pays) -
+symptome : le seed se termine "avec succes" mais la carte n'affiche presque rien de reel une
+fois les couches activees. Activez l'extension **avant** de lancer `db:seed` pour eviter ce
+repli :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec postgres \
+  psql -U geosm -d geosm -c "CREATE EXTENSION IF NOT EXISTS hstore;"
+```
+
+**Bucket MinIO** (si pas deja cree par le seed) :
+
+```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml exec minio \
   mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
 docker compose -f docker-compose.yml -f docker-compose.prod.yml exec minio mc mb local/geosm
 ```
 
-Puis, via l'API (voir `docs/reference-api.md`) :
+### Importer les vraies donnees OSM applicatives (couches thematiques)
 
-1. Se connecter avec le compte super admin : `POST /api/v1/auth/login`
-2. Creer la premiere instance (pays) : `POST /api/v1/instances`
-3. Initialiser les themes par defaut : `POST /api/v1/default-themes/seed`
-4. Importer les donnees OSM applicatives (couches thematiques, distinct de l'import Nominatim
-   ci-dessus) : `POST /api/v1/admin/osm/import`
+C'est une etape **distincte** de l'import Nominatim/OSRM (section 5) et du mini-import interne
+au seed ci-dessus : elle alimente les tables `planet_osm_*` avec les vraies donnees du pays ET
+cree/rafraichit le catalogue de couches thematiques affichees sur la carte (Sante, Restauration,
+etc.), via l'API :
 
-## 9. Checklist de verification post-deploiement
+```bash
+# 1. Se connecter avec le compte super admin
+curl -s -X POST https://votre-domaine.org/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@votre-domaine.org","password":"<SUPER_ADMIN_PASSWORD>"}'
+# Recuperer "accessToken" dans la reponse
+
+# 2. Lancer l'import OSM applicatif (le fichier .pbf, deja telecharge pour Nominatim/OSRM en
+#    section 5, est reutilise - le chemin exact depend de votre configuration, generalement
+#    /data/<fichier>.osm.pbf a l'interieur du conteneur api)
+curl -s -X POST https://votre-domaine.org/api/v1/admin/osm/import \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"pbfPath": "/data/cameroon-latest.osm.pbf"}'
+```
+
+**Pourquoi passer par cette route plutot que d'executer `osm2pgsql` directement en shell** :
+`ImportOsmDataUseCase` (le code derriere cette route) deplace automatiquement les tables
+`planet_osm_*` du schema `public` vers un schema dedie `osm` juste apres l'import
+(`ALTER TABLE public.planet_osm_x SET SCHEMA osm`). Prisma ne gere par defaut que le schema
+`public` - une fois les tables dans `osm`, elles lui deviennent invisibles et ne sont plus
+jamais candidates a une suppression/modification implicite au prochain demarrage du conteneur.
+**Un `osm2pgsql` lance directement en shell (hors de cette route) laisse les tables dans
+`public`**, ce qui fait echouer le prochain demarrage d'`api` avec une erreur `Use the
+--accept-data-loss flag` (Prisma refuse, a raison, de supprimer implicitement des tables
+remplies de plusieurs millions de lignes). Voir
+[Depannage](#depannage---incidents-reels-et-solutions) si ce cas s'est deja produit.
+
+3. Initialiser les themes par defaut (si pas deja fait par `db:seed`) :
+   `POST /api/v1/default-themes/seed`
+
+### Resynchroniser les couches existantes apres un import/reimport
+
+Si des couches existaient deja (par exemple issues du seed initial, avant que les vraies
+donnees OSM soient disponibles), leurs tables derivees ne se mettent **pas** a jour toutes
+seules quand les donnees brutes `osm.planet_osm_*` changent - il faut les resynchroniser une
+par une via `POST /api/v1/instances/:instanceId/layers/:id/resync` (reserve
+`SUPER_ADMIN`/`ADMIN_INSTANCE`). Exemple de boucle pour toutes les couches WMS d'une instance :
+
+```bash
+INSTANCE_ID="<id de l'instance>"
+TOKEN="<access token admin>"
+LAYER_IDS=$(docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres \
+  psql -U geosm -d geosm -t -c "SELECT id FROM layers WHERE instance_id='$INSTANCE_ID' AND source_type='WMS';" \
+  | tr -d ' \r' | grep -v '^$')
+
+for id in $LAYER_IDS; do
+  echo -n "Resync $id... "
+  curl -s -X POST "https://votre-domaine.org/api/v1/instances/$INSTANCE_ID/layers/$id/resync" \
+    -H "Authorization: Bearer $TOKEN" -o /dev/null -w "%{http_code}\n"
+done
+```
+
+Verifiez qu'une couche renvoie bien des donnees apres resynchronisation :
+
+```bash
+curl -s "https://votre-domaine.org/api/v1/layers/<layer_id>/features?bbox=<lon_min>,<lat_min>,<lon_max>,<lat_max>&limit=5"
+```
+La reponse doit contenir des `features` non vides (`"features":[]` = donnees pas encore
+synchronisees, ou aucune donnee dans cette zone).
+
+## 10. Checklist de verification post-deploiement
 
 - [ ] `curl https://votre-domaine.org/api/v1/health` -> `200`, tous les services `"status":"up"`
 - [ ] `https://votre-domaine.org` charge la carte, le selecteur d'instance liste le(s) pays cree(s)
+- [ ] Activer une couche thematique (ex. Sante) affiche bien des points sur la carte, pas une
+      carte vide - sinon voir la section resynchronisation ci-dessus
+- [ ] Les icones des couches s'affichent (pas d'icone generique/manquante) -
+      `curl -I https://votre-domaine.org/api/v1/layers/icons/<un-slug-de-couche>.svg` doit
+      renvoyer `200` avec `Content-Type: image/svg+xml`
 - [ ] Connexion (email/mot de passe) et connexion OpenStreetMap fonctionnent toutes les deux
 - [ ] Une recherche geographique (barre de recherche) renvoie un resultat via Nominatim auto-heberge
 - [ ] Un calcul d'itineraire renvoie un trace via OSRM auto-heberge
+- [ ] Mapillary (si active) affiche des points de couverture sur une zone connue pour en avoir
+      (grande ville) apres un zoom suffisant - voir la note CACHEBUST dans
+      [Depannage](#depannage---incidents-reels-et-solutions) si le placeholder
+      `__MAPILLARY_TOKEN__` apparait au lieu d'un vrai token dans les requetes reseau
 - [ ] `POST /api/v1/admin/backup` declenche bien un backup visible dans MinIO (bucket `geosm`, prefixe `backups/`)
 - [ ] Un export (ou tout autre telechargement genere via URL presignee) s'ouvre bien depuis un navigateur **externe au VPS** (pas juste `curl` depuis le serveur) - confirme que le port `MINIO_PUBLIC_PORT` est bien ouvert dans le firewall
 - [ ] Grafana (port `GRAFANA_PORT`, defaut `:3001`, via tunnel SSH - non expose publiquement) affiche des metriques recentes
 - [ ] Jaeger (port `JAEGER_UI_PORT`, defaut `:16686`) affiche des traces recentes pour une requete Gemini/OSRM/Nominatim
+- [ ] Graylog (port `GRAYLOG_WEB_PORT`, defaut `:9009`) est accessible et recoit des logs -
+      sinon verifier qu'OpenSearch n'a pas ete tue par manque de memoire (voir Depannage)
 - [ ] Un email de test (verification ou reinitialisation de mot de passe) arrive bien
 - [ ] Le certificat TLS est valide (`https://` sans avertissement navigateur) et se renouvelle automatiquement
+
+---
+
+## Depannage - incidents reels et solutions
+
+Cette section documente chaque probleme reellement rencontre lors du premier deploiement complet
+de GeOSM en production (2026-07-09), avec sa cause exacte. Les correctifs correspondants sont
+deja integres au code de ce depot - cette section sert de reference si un symptome similaire
+reapparait (ex. apres une modification manuelle de `nginx.conf`/`docker-compose.prod.yml`, ou
+sur un fork).
+
+### `docker compose up` echoue avec "address already in use" sur un port pourtant libre
+
+**Cause reelle** : dans `docker-compose.prod.yml`, chaque service redefinissait `ports:` pour le
+restreindre a `127.0.0.1`. Or Docker Compose **fusionne** les listes `ports:` entre fichiers par
+defaut (au lieu de remplacer) - le mapping du fichier de base (`docker-compose.yml`, souvent en
+`0.0.0.0` pour un usage dev) et celui du fichier de prod cohabitaient, faisant tenter au meme
+conteneur de publier le meme port **deux fois**. La deuxieme tentative entrait en collision avec
+la premiere. Symptome caracteristique : un service different echoue a chaque nouvelle tentative
+(l'ordre de traitement interne de Docker n'est pas garanti), donnant l'illusion d'un probleme
+externe (VPS partage, race condition) alors que la cause etait entierement dans nos propres
+fichiers.
+
+**Correctif deja applique** : chaque `ports:` de `docker-compose.prod.yml` utilise maintenant le
+tag YAML `ports: !override` (pas juste `ports:`), qui force Compose a **remplacer** la liste du
+fichier precedent au lieu de la fusionner. Verification que la config finale n'a aucun doublon :
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml config | grep -c "published:"
+```
+(le compte doit correspondre exactement au nombre de ports reellement voulus, jamais le double).
+
+### Nominatim/OSRM restent bloques `unhealthy` malgre des logs applicatifs propres
+
+**Cause reelle** : les commandes de test de sante utilisaient `wget`, absent des images
+`mediagis/nominatim`/`osrm/osrm-backend`. Le service repondait parfaitement (verifiable par
+`curl` direct sur son port), mais le test de sante lui-meme echouait avec `wget: not found`,
+marquant le conteneur `unhealthy` en boucle - et bloquant par ricochet `api`/`frontend`, qui en
+dependent.
+
+**Correctif deja applique** : les tests de sante utilisent maintenant `bash -c
+':> /dev/tcp/localhost/<port>'` (fonctionnalite integree a bash, pas un binaire externe a
+installer) plutot que `wget`. Verifiez toujours qu'un outil de test de sante est reellement
+present dans l'image avant de l'utiliser :
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec <service> sh -c "which wget curl bash nc 2>&1"
+```
+
+### `api` refuse de demarrer avec "Use the --accept-data-loss flag"
+
+**Cause reelle** : un `osm2pgsql` lance directement en shell (au lieu de passer par
+`POST /admin/osm/import`) laisse les tables `planet_osm_*` dans le schema `public`, que Prisma
+essaie alors de reconcilier avec son schema declare (qui ne les connait pas) au demarrage
+suivant d'`api` - et propose de les supprimer/modifier, ce qu'il refuse sans le flag explicite
+`--accept-data-loss` (protection **volontaire** contre la perte de donnees, a ne surtout pas
+contourner aveuglement si les tables contiennent de vraies donnees importees).
+
+**Correctif** : toujours passer par `POST /api/v1/admin/osm/import` (voir [section
+9](#importer-les-vraies-donnees-osm-applicatives-couches-thematiques)), qui deplace
+automatiquement les tables vers le schema `osm` (invisible pour Prisma) apres l'import. Si des
+tables sont deja bloquees dans `public` avec de vraies donnees dedans, les deplacer
+manuellement avant de relancer `api` :
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec postgres psql -U geosm -d geosm -c "
+CREATE SCHEMA IF NOT EXISTS osm;
+ALTER TABLE public.planet_osm_point SET SCHEMA osm;
+ALTER TABLE public.planet_osm_line SET SCHEMA osm;
+ALTER TABLE public.planet_osm_polygon SET SCHEMA osm;
+ALTER TABLE public.planet_osm_roads SET SCHEMA osm;
+ALTER TABLE public.planet_osm_nodes SET SCHEMA osm;
+ALTER TABLE public.planet_osm_ways SET SCHEMA osm;
+ALTER TABLE public.planet_osm_rels SET SCHEMA osm;
+"
+```
+
+### `osm2pgsql --hstore` echoue avec `type "hstore" does not exist`
+
+**Cause reelle** : l'extension PostgreSQL `hstore` n'est pas activee par defaut sur une base
+neuve. Voir la commande `CREATE EXTENSION IF NOT EXISTS hstore;` dans la
+[section 9](#9-initialiser-la-base-de-donnees) - a executer **avant** tout import OSM.
+
+### Graylog reste `unhealthy`, logs "Connection refused" vers OpenSearch
+
+**Cause reelle** : la limite memoire par defaut d'OpenSearch (512 Mo) est trop juste pour la
+distribution complete (tous les plugins charges - alerting, ml, security, sql, knn...), meme
+avec un tas Java reduit (`-Xmx256m`). Le noyau Linux tue le processus des qu'il depasse ce
+plafond cgroup ("Killed" dans les logs `opensearch`), independamment de la memoire disponible
+sur le reste du serveur.
+
+**Correctif deja applique** : la limite est passee a 1536 Mo dans `docker-compose.yml`. Si le
+probleme persiste sur un VPS particulierement contraint en RAM, augmenter encore cette valeur
+ou desactiver certains plugins OpenSearch non utilises.
+
+### Le token Mapillary reste `__MAPILLARY_TOKEN__` (placeholder litteral) meme apres avoir correctement configure le secret GitHub
+
+**Cause reelle** : le `Dockerfile` frontend injecte le vrai token Mapillary a la place du
+placeholder via `RUN --mount=type=secret,id=mapillary_token`. Docker (et le cache GitHub Actions,
+`cache-from`/`cache-to: type=gha`) met en cache les layers `RUN` en fonction du **texte** de la
+commande, **pas** du contenu du secret monte (choix volontaire de BuildKit, pour ne jamais faire
+fuiter un hash de secret dans les metadonnees de cache). Si un premier build a tourne avant que
+le secret soit correctement configure (secret absent ou vide), ce layer reste en cache avec le
+placeholder toujours present - et des builds ulterieurs, meme apres avoir corrige le secret,
+peuvent reutiliser ce meme layer en cache car rien d'autre dans le Dockerfile ne change pour
+l'invalider.
+
+**Correctif deja applique** : le `Dockerfile` declare `ARG CACHEBUST=1` et le reference dans la
+commande `RUN` d'injection ; `deploy.yml` (frontend) passe `CACHEBUST=${{ github.run_id }}-${{
+github.run_attempt }}` (une valeur unique a chaque run CI) via `build-args`, forcant ce layer
+precis a toujours etre recalcule. Verification directe que le vrai token est bien present dans
+le bundle servi (ne pas se fier uniquement a l'onglet Reseau du navigateur, qui peut afficher une
+requete perimee restee dans le journal - videz-le avant de retester) :
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec frontend \
+  sh -c "grep -l 'mapillaryToken\|MAPILLARY_TOKEN' /usr/share/nginx/html/*.js"
+# Puis, sur le fichier trouve :
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec frontend \
+  sh -c "grep -o '.\{0,20\}mapillaryToken.\{0,80\}' /usr/share/nginx/html/<fichier-trouve>.js"
+```
+
+### Les icones de couches ou une couche WMS renvoient un 404 generique nginx (pas une erreur JSON de l'API)
+
+**Cause reelle** : `nginx.conf` (frontend) avait une location regex `location ~*
+\.(js|css|...|svg|...)$` pour mettre en cache les assets statiques. En nginx, les locations
+**regex** sont toujours prioritaires sur les locations **prefixe** simples comme `location
+/api/`, quel que soit l'ordre d'ecriture dans le fichier. Toute URL sous `/api/` se terminant par
+une extension de cette liste (ex. `/api/v1/layers/icons/xxx.svg`) etait donc interceptee par le
+bloc de cache statique au lieu d'etre relayee vers l'API - nginx cherchait alors un fichier `.svg`
+inexistant sur son propre disque, d'ou un 404 **generique nginx** (page HTML "404 Not Found",
+`Server: nginx`), pas l'erreur JSON `{"error":"Icon not found"}` que renverrait l'API elle-meme.
+Meme mecanisme potentiel pour toute route API future se terminant par une de ces extensions.
+
+**Correctif deja applique** : `location /api/` et `location /ows` utilisent maintenant le
+modificateur `^~` (`location ^~ /api/`), qui leur donne la priorite sur les locations regex des
+qu'ils correspondent, sans meme evaluer les regles suivantes.
+
+### `docker compose build frontend` (ou `--no-cache`) ne fait rien, aucune sortie
+
+**Cause reelle** : le service `frontend` n'a pas de cle `build:` dans `docker-compose.yml`
+(contrairement a `api`, qui a `build: .`) - il n'existe que via `image:`, pulled depuis GHCR. Il
+n'y a donc rien a construire localement sur le VPS pour ce service.
+
+**A retenir** : le depot frontend n'etant pas clone sur le VPS (voir [section
+3](#3-cloner-le-depot-backend-sur-le-vps)), toute modification du frontend (nginx.conf,
+Dockerfile, code Angular...) ne peut atteindre la production que via le pipeline normal
+(commit + push -> CI GitHub Actions -> GHCR -> `docker compose pull frontend` sur le VPS), jamais
+via un build local.
 
 ---
 
@@ -536,7 +875,7 @@ fuite) :
 | `OSM_OAUTH_CLIENT_SECRET` | Regenere depuis les parametres de l'app OAuth sur osm.org | Invalide les connexions OSM en cours (rare, sessions courtes) |
 | `GEMINI_API_KEY` | Regeneree depuis Google AI Studio | Aucun impact utilisateur, coupure de l'assistant IA le temps de la bascule |
 | `MAPBOX_ACCESS_TOKEN` | Regenere depuis account.mapbox.com/access-tokens | Le fond de carte "Mapbox Streets" cesse de charger jusqu'a mise a jour + redemarrage `api` (les autres fonds de carte ne sont pas affectes) |
-| `MAPILLARY_TOKEN` (secret GitHub Actions, depot **frontend**) | Regenere depuis mapillary.com/dashboard/developers | Ne prend effet qu'au prochain build/deploiement frontend (le token est bake dans le bundle au build, pas lu au runtime) |
+| `MAPILLARY_TOKEN` (secret GitHub Actions, depot **frontend**) | Regenere depuis mapillary.com/dashboard/developers | Ne prend effet qu'au prochain build/deploiement frontend (le token est bake dans le bundle au build, pas lu au runtime) - voir la note CACHEBUST dans [Depannage](#depannage---incidents-reels-et-solutions) si le nouveau token ne semble pas pris en compte |
 | `DEPLOY_SSH_KEY` (secret GitHub Actions, **les deux depots**) | Nouvelle paire de cles dediee au deploiement, generee **hors** du VPS (poste local) :<br>`ssh-keygen -t ed25519 -C "geosm-deploy" -f ./geosm_deploy_key -N ""`<br>Copier la cle **publique** sur le VPS : `ssh-copy-id -i geosm_deploy_key.pub deploy@<IP_VPS>` (ou coller son contenu dans `~deploy/.ssh/authorized_keys`).<br>Coller le contenu de la cle **privee** (`cat geosm_deploy_key`) dans le secret GitHub `DEPLOY_SSH_KEY` | Mettre a jour `authorized_keys` sur le VPS avant de revoquer l'ancienne |
 
 **Note importante sur `ENCRYPTION_KEY`** : contrairement aux autres secrets, ce n'est **pas**
@@ -585,7 +924,8 @@ Interface : `http://localhost:16686` (tunnel SSH recommande, non expose publique
 Logging Winston applique a l'ensemble des domaines de use-cases (auth, couches, commentaires,
 assistant IA, geosignets, sauvegardes...), avec `requestId` de correlation. Niveau configurable
 via `LOG_LEVEL` (recommande : `info` en production). Les erreurs frontend non gerees remontent
-aussi via `POST /logs/frontend-error` (voir `GlobalErrorHandler` Angular).
+aussi via `POST /logs/frontend-error` (voir `GlobalErrorHandler` Angular). Si Graylog ne recoit
+jamais rien, voir la note OpenSearch dans [Depannage](#depannage---incidents-reels-et-solutions).
 
 ### Alerting
 
@@ -614,7 +954,7 @@ maintenir a la main comme dans les versions precedentes de ce document :
   supprimes automatiquement)
 - Backup manuel immediat (avant une operation risquee, ex. import OSM volumineux) :
   ```bash
-  curl -X POST https://api.votre-domaine.org/api/v1/admin/backup \
+  curl -X POST https://votre-domaine.org/api/v1/admin/backup \
     -H "Authorization: Bearer $SUPER_ADMIN_TOKEN"
   ```
 - **Restauration** (a tester au moins une fois en environnement de test avant le lancement reel -
@@ -636,7 +976,7 @@ docker run --rm -v geosm_qgis-projects:/data -v $(pwd):/backup \
 
 ---
 
-## 10. CI/CD et deploiement continu (a faire sur GitHub, avant OU apres le premier lancement manuel)
+## 11. CI/CD et deploiement continu (a faire sur GitHub, avant OU apres le premier lancement manuel)
 
 Le deploiement automatique est gere par GitHub Actions (`deploy.yml`, sur les deux depots -
 backend et frontend, meme structure) :
@@ -646,6 +986,8 @@ backend et frontend, meme structure) :
 2. **Build Docker** : construction de l'image
 3. **Push GHCR** : `ghcr.io/geosmfamily/geosm-api-refactor:<version>` /
    `ghcr.io/geosmfamily/geosm-frontend-refactor:<version>`, tag `<yyyyMMdd>.<numBuild>` + `latest`
+   - Le paquet doit etre **public** (ou le VPS authentifie) pour pouvoir etre tire ensuite - voir
+     [section 7](#7-publier-les-images-docker-sur-github-a-faire-cote-github-avant-de-demarrer-la-stack)
 4. **Deploiement SSH** (si active, voir ci-dessous) : pull de la nouvelle image sur le VPS,
    redemarrage du seul service concerne, verification du healthcheck (jusqu'a 60s), et **rollback
    automatique vers `:latest` precedent si le healthcheck echoue**
@@ -673,6 +1015,16 @@ ssh-copy-id -i geosm_deploy_key.pub deploy@<IP_DU_VPS>
 ssh -i geosm_deploy_key deploy@<IP_DU_VPS> "echo OK"
 ```
 
+Si `ssh-copy-id` echoue car l'utilisateur `deploy` n'a pas de mot de passe defini (cas normal -
+il ne devrait en avoir besoin d'aucun, l'acces se faisant uniquement par cle), passez par un
+compte administrateur existant pour deposer la cle publique :
+```bash
+cat geosm_deploy_key.pub | ssh <votre_user_admin>@<IP_DU_VPS> \
+  "sudo mkdir -p /home/deploy/.ssh && sudo tee -a /home/deploy/.ssh/authorized_keys && \
+   sudo chown -R deploy:deploy /home/deploy/.ssh && sudo chmod 700 /home/deploy/.ssh && \
+   sudo chmod 600 /home/deploy/.ssh/authorized_keys"
+```
+
 **Etape 3 - creer les secrets et variables GitHub.** Sur **chacun des deux depots** (backend et
 frontend), aller dans **Settings -> Secrets and variables -> Actions**, onglet **Secrets**,
 bouton **New repository secret** pour chacune des lignes suivantes :
@@ -683,7 +1035,7 @@ bouton **New repository secret** pour chacune des lignes suivantes :
 | `DEPLOY_SSH_USER` | Backend **et** frontend | `deploy` |
 | `DEPLOY_SSH_KEY` | Backend **et** frontend | Contenu complet de `geosm_deploy_key` (la cle **privee**, `cat geosm_deploy_key`) - coller tel quel, en-tetes `-----BEGIN OPENSSH PRIVATE KEY-----`/`-----END...` compris |
 | `DEPLOY_PATH` | Backend **et** frontend | `/opt/geosm` (chemin du depot **backend** clone sur le VPS - les deux workflows s'y referent, meme celui du frontend, car c'est la que vivent `docker-compose*.yml` et `.env`) |
-| `MAPILLARY_TOKEN` | **Frontend uniquement** | Votre token Mapillary de production (genere sur mapillary.com/dashboard/developers) - injecte dans l'image au build, jamais lu au runtime |
+| `MAPILLARY_TOKEN` | **Frontend uniquement** | Votre token Mapillary de production (genere sur mapillary.com/dashboard/developers, **jamais** un token deja expose publiquement - voir [section 4](#4-generer-et-renseigner-tous-les-secrets)) - injecte dans l'image au build, jamais lu au runtime |
 
 Puis, onglet **Variables** (a cote de "Secrets" dans le meme ecran), bouton **New repository
 variable**, sur **chacun des deux depots** :
