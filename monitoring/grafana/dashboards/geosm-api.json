@@ -91,7 +91,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "websocket_active_connections",
+          "expr": "active_websocket_connections",
           "legendFormat": "Connections",
           "refId": "A"
         }
@@ -119,18 +119,18 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "job_queue_size{status=\"waiting\"}",
-          "legendFormat": "Waiting",
+          "expr": "sum(jobs_waiting_count) by (queue)",
+          "legendFormat": "Waiting ({{queue}})",
           "refId": "A"
         },
         {
-          "expr": "job_queue_size{status=\"active\"}",
-          "legendFormat": "Active",
+          "expr": "sum(rate(jobs_processed_total[5m])) by (queue)",
+          "legendFormat": "Processed/s ({{queue}})",
           "refId": "B"
         },
         {
-          "expr": "job_queue_size{status=\"failed\"}",
-          "legendFormat": "Failed",
+          "expr": "sum(rate(jobs_failed_total[5m])) by (queue)",
+          "legendFormat": "Failed/s ({{queue}})",
           "refId": "C"
         }
       ],
