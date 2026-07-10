@@ -1,7 +1,12 @@
 apiVersion: 1
 
 datasources:
-  - name: Prometheus
+  # uid fixe obligatoire : sans lui, Grafana genere un uid aleatoire a chaque provisioning, qui
+  # ne correspond jamais a "prometheus" (l'uid code en dur dans les 9 panneaux de
+  # monitoring/grafana/dashboards/geosm-api.json) - resultat, tous les panneaux affichent une
+  # erreur de source de donnees (rouge) au lieu des metriques.
+  - uid: prometheus
+    name: Prometheus
     type: prometheus
     access: proxy
     url: http://prometheus:9090

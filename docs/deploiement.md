@@ -1086,6 +1086,40 @@ jamais rien, voir la note OpenSearch dans [Depannage](#depannage---incidents-ree
   et les incidents critiques
 - **Email** : `ALERT_EMAIL_TO` - reserve aux alertes de niveau critique
 
+#### Alerting Grafana (metriques)
+
+En plus des alertes applicatives ci-dessus, Grafana peut alerter directement sur les metriques
+Prometheus (taux d'erreur, jobs en echec, latence...). Le point de contact combine Slack + email
+est deja provisionne automatiquement (`monitoring/grafana/provisioning/alerting/`) et reutilise
+`SLACK_WEBHOOK_URL`/`ALERT_EMAIL_TO` sans dupliquer ces secrets (lus via la macro Grafana
+`$__env{...}`, jamais ecrits en clair dans les fichiers commit'es).
+
+**Ce qui est deja fait** : point de contact `geosm-notifications` (Slack + email) et politique
+de notification par defaut qui y route toute alerte. **Ce qui reste a faire manuellement** : les
+regles d'alerte elles-memes (le schema de provisioning Grafana pour les regles est complexe et
+n'a pas ete genere en aveugle - la creation via l'interface est plus fiable et donne un apercu
+live du seuil).
+
+**Verifier d'abord que le point de contact fonctionne** : Grafana -> Alerting -> Contact points
+-> `geosm-notifications` -> bouton "Test" sur chaque receiver (Slack et email separement).
+
+**Creer les regles** : Grafana -> Alerting -> Alert rules -> New alert rule. Suggestions de
+depart (memes requetes que les dashboards deja crees) :
+
+| Nom | Requete PromQL | Condition | Duree "for" |
+|---|---|---|---|
+| Taux d'erreurs 5xx eleve | `sum(rate(http_requests_total{status_code=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100` | `> 5` | 5m |
+| Latence DB elevee | `histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le))` | `> 1` | 5m |
+| Ratio de cache faible | `sum(rate(cache_hits_total[5m])) / (sum(rate(cache_hits_total[5m])) + sum(rate(cache_misses_total[5m]))) * 100` | `< 50` | 10m |
+| Jobs en echec | `sum(rate(jobs_failed_total[5m])) by (queue)` | `> 0` | 5m |
+| Appels Gemini en echec | `sum(rate(gemini_calls_total{status="error"}[5m]))` | `> 0` | 5m |
+
+Pour chacune : coller la requete dans l'onglet Query (source de donnees Prometheus), definir le
+seuil dans l'onglet suivant, `Folder` = `GeOSM Alerts` (creer le dossier si besoin), `Evaluation
+group` = nouveau groupe `geosm-alerts` toutes les 1m, `for` selon le tableau, puis dans "Labels
+and notifications" laisser la politique par defaut (elle route deja vers
+`geosm-notifications`).
+
 ### Sondes de sante
 
 | Endpoint | Usage |

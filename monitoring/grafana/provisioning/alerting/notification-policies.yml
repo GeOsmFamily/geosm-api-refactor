@@ -1,0 +1,14 @@
+# Politique de notification par defaut : toute alerte qui se declenche (quelle que soit sa
+# regle/son libelle) part vers le point de contact "geosm-notifications" (Slack + email),
+# defini dans contactpoints.yml. Pas de sous-routage par gravite pour le moment - a affiner
+# plus tard si le volume d'alertes le justifie (ex. Slack pour warning, email en plus pour
+# critical).
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: geosm-notifications
+    group_by: ['alertname']
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h

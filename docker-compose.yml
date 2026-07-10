@@ -202,6 +202,21 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_INSTALL_PLUGINS: grafana-clock-panel
+      # SMTP pour l'alerting Grafana (reutilise le meme compte que l'API, pas de nouveau
+      # secret) - GF_SMTP_HOST attend "host:port" en une seule valeur, pas deux champs
+      # separes comme SMTP_HOST/SMTP_PORT cote API.
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: ${SMTP_HOST}:${SMTP_PORT}
+      GF_SMTP_USER: ${SMTP_USER}
+      GF_SMTP_PASSWORD: ${SMTP_PASS}
+      GF_SMTP_FROM_ADDRESS: ${SMTP_FROM}
+      GF_SMTP_FROM_NAME: GeOSM Grafana
+      # Exposes au conteneur uniquement pour etre lus par les fichiers de provisioning
+      # d'alerting (monitoring/grafana/provisioning/alerting/*.yml) via la macro Grafana
+      # $__env{...} - ces fichiers sont commit'es dans le repo donc NE DOIVENT jamais
+      # contenir les vraies valeurs, seulement le nom de la variable.
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
