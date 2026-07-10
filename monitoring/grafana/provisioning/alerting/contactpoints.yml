@@ -1,7 +1,9 @@
 # Points de contact pour l'alerting Grafana. Aucune valeur secrete ici : les URLs/adresses
 # reelles sont lues depuis les variables d'environnement du conteneur Grafana (voir
-# docker-compose.yml, SLACK_WEBHOOK_URL/ALERT_EMAIL_TO) via la macro $__env{...} de Grafana -
-# ce fichier est commit'e dans le repo, il ne doit donc jamais contenir de secret en clair.
+# docker-compose.yml, SLACK_WEBHOOK_URL/ALERT_EMAIL_TO) via l'interpolation ${VAR}/$VAR que
+# Grafana applique nativement aux VALEURS de tout fichier de provisioning (datasources et
+# canaux de notification d'alerting - voir doc officielle "Provisioning" de Grafana) - ce
+# fichier est commit'e dans le repo, il ne doit donc jamais contenir de secret en clair.
 apiVersion: 1
 
 contactPoints:
@@ -11,7 +13,7 @@ contactPoints:
       - uid: geosm-slack
         type: slack
         settings:
-          url: $__env{SLACK_WEBHOOK_URL}
+          url: ${SLACK_WEBHOOK_URL}
           title: '{{ template "default.title" . }}'
           text: '{{ template "default.message" . }}'
         disableResolveMessage: false
@@ -19,6 +21,6 @@ contactPoints:
       - uid: geosm-email
         type: email
         settings:
-          addresses: $__env{ALERT_EMAIL_TO}
+          addresses: ${ALERT_EMAIL_TO}
           singleEmail: true
         disableResolveMessage: false
