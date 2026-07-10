@@ -463,6 +463,152 @@ sudo systemctl reload apache2
 > `secure`/redirection conditionnelle au protocole) - cette etape est une bonne pratique pour
 > des logs/futures fonctionnalites exactes, pas un correctif d'un bug existant.
 
+### Sous-domaines pour les outils d'observabilite (Grafana/Prometheus/Jaeger/Graylog)
+
+Les 4 services de la [stack d'observabilite](#stack-dobservabilite) sont deployes en prod
+lies uniquement a `127.0.0.1` (`docker-compose.prod.yml`), donc injoignables depuis
+l'exterieur du VPS par defaut - jusqu'ici la seule facon d'y acceder etait un tunnel SSH.
+Cette section les expose chacun sur son propre sous-domaine, comme le reste de l'application.
+
+**Important - Prometheus et Jaeger n'ont pas d'authentification integree** (contrairement a
+Grafana et Graylog, qui ont leur propre ecran de connexion). Sans protection supplementaire,
+n'importe qui connaissant l'URL pourrait consulter toutes les metriques/traces de l'API. Le
+bloc ci-dessous ajoute une authentification basique Apache pour ces deux-la uniquement.
+
+**1. Creer les 4 enregistrements DNS** (chez votre registrar/fournisseur DNS - a faire avant
+Certbot, qui valide chaque sous-domaine en interrogeant le DNS public) :
+
+| Type | Nom | Valeur |
+|---|---|---|
+| A | `grafana.geosm.app` | IP du VPS |
+| A | `prometheus.geosm.app` | IP du VPS |
+| A | `jaeger.geosm.app` | IP du VPS |
+| A | `graylog.geosm.app` | IP du VPS |
+
+Verifier avant de continuer :
+
+```bash
+dig +short grafana.geosm.app prometheus.geosm.app jaeger.geosm.app graylog.geosm.app
+# chaque ligne doit renvoyer l'IP du VPS
+```
+
+**2. Definir `PUBLIC_DOMAIN` dans `.env`** (utilise par `docker-compose.prod.yml` pour que
+Grafana/Graylog generent leurs propres URL/redirections correctement derriere le proxy) :
+
+```bash
+# Dans /opt/geosm/.env
+PUBLIC_DOMAIN=geosm.app
+```
+
+**3. Creer les identifiants d'authentification basique** (Prometheus + Jaeger uniquement) :
+
+```bash
+sudo apt-get install -y apache2-utils   # fournit htpasswd, si pas deja installe
+sudo htpasswd -c /etc/apache2/.htpasswd-observability admin
+# -c cree le fichier (uniquement au premier utilisateur - omettre -c pour en ajouter d'autres)
+```
+
+**4. Creer le virtual host Apache** (`/etc/apache2/sites-available/geosm-observability.conf`) -
+un seul fichier, 4 blocs `<VirtualHost>` :
+
+```apacheconf
+<VirtualHost *:80>
+    ServerName grafana.geosm.app
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:3001/
+    ProxyPassReverse / http://127.0.0.1:3001/
+    ErrorLog ${APACHE_LOG_DIR}/geosm-grafana-error.log
+    CustomLog ${APACHE_LOG_DIR}/geosm-grafana-access.log combined
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName prometheus.geosm.app
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:9090/
+    ProxyPassReverse / http://127.0.0.1:9090/
+
+    # Prometheus n'a pas d'authentification native - obligatoire ici.
+    <Location />
+        AuthType Basic
+        AuthName "GeOSM Observability"
+        AuthUserFile /etc/apache2/.htpasswd-observability
+        Require valid-user
+    </Location>
+
+    ErrorLog ${APACHE_LOG_DIR}/geosm-prometheus-error.log
+    CustomLog ${APACHE_LOG_DIR}/geosm-prometheus-access.log combined
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName jaeger.geosm.app
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:16686/
+    ProxyPassReverse / http://127.0.0.1:16686/
+
+    # Jaeger non plus n'a pas d'authentification native - obligatoire ici.
+    <Location />
+        AuthType Basic
+        AuthName "GeOSM Observability"
+        AuthUserFile /etc/apache2/.htpasswd-observability
+        Require valid-user
+    </Location>
+
+    ErrorLog ${APACHE_LOG_DIR}/geosm-jaeger-error.log
+    CustomLog ${APACHE_LOG_DIR}/geosm-jaeger-access.log combined
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName graylog.geosm.app
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:9009/
+    ProxyPassReverse / http://127.0.0.1:9009/
+    ErrorLog ${APACHE_LOG_DIR}/geosm-graylog-error.log
+    CustomLog ${APACHE_LOG_DIR}/geosm-graylog-access.log combined
+</VirtualHost>
+```
+
+```bash
+sudo a2enmod proxy proxy_http auth_basic   # auth_basic requis par Prometheus/Jaeger ci-dessus
+sudo a2ensite geosm-observability.conf
+sudo apache2ctl configtest   # doit afficher "Syntax OK"
+sudo systemctl reload apache2
+```
+
+**5. Emettre les certificats TLS** (les 4 sous-domaines en une seule commande, plugin Apache -
+modifie automatiquement chaque bloc pour ajouter le `:443` + la redirection 80 -> 443) :
+
+```bash
+sudo certbot --apache \
+  -d grafana.geosm.app \
+  -d prometheus.geosm.app \
+  -d jaeger.geosm.app \
+  -d graylog.geosm.app
+# Choisir l'option de redirection automatique HTTP -> HTTPS quand Certbot la propose
+```
+
+**6. Recreer les conteneurs Grafana/Graylog** pour qu'ils prennent en compte `PUBLIC_DOMAIN` :
+
+```bash
+cd /opt/geosm
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate grafana graylog
+```
+
+**7. Verifier** :
+
+```bash
+curl -Is https://grafana.geosm.app | head -1     # 200 ou 302 (redirection connexion)
+curl -Is https://prometheus.geosm.app | head -1  # 401 sans identifiants, 200 avec
+curl -Is https://jaeger.geosm.app | head -1      # 401 sans identifiants, 200 avec
+curl -Is https://graylog.geosm.app | head -1     # 200 ou 302
+```
+
+Puis dans un navigateur : Grafana et Graylog doivent afficher leur propre ecran de connexion
+habituel ; Prometheus et Jaeger doivent d'abord demander les identifiants definis a l'etape 3.
+
+> Le panneau admin du frontend (`OBSERVABILITY_LINKS` /
+> `environments/environment.prod.ts::observabilityLinks`) pointe deja vers ces 4 URL - aucune
+> action supplementaire cote frontend, juste redeployer normalement si ce n'est pas deja fait.
+
 ### Option B - Caddy devant le port du frontend (alternative la plus simple, TLS automatique)
 
 Pertinent uniquement si Apache n'est pas deja impose sur le VPS (ce qui n'est pas le cas du
@@ -699,9 +845,14 @@ synchronisees, ou aucune donnee dans cette zone).
       `__MAPILLARY_TOKEN__` apparait au lieu d'un vrai token dans les requetes reseau
 - [ ] `POST /api/v1/admin/backup` declenche bien un backup visible dans MinIO (bucket `geosm`, prefixe `backups/`)
 - [ ] Un export (ou tout autre telechargement genere via URL presignee) s'ouvre bien depuis un navigateur **externe au VPS** (pas juste `curl` depuis le serveur) - confirme que le port `MINIO_PUBLIC_PORT` est bien ouvert dans le firewall
-- [ ] Grafana (port `GRAFANA_PORT`, defaut `:3001`, via tunnel SSH - non expose publiquement) affiche des metriques recentes
-- [ ] Jaeger (port `JAEGER_UI_PORT`, defaut `:16686`) affiche des traces recentes pour une requete Gemini/OSRM/Nominatim
-- [ ] Graylog (port `GRAYLOG_WEB_PORT`, defaut `:9009`) est accessible et recoit des logs -
+- [ ] `https://grafana.geosm.app` affiche l'ecran de connexion Grafana et des metriques recentes
+      une fois connecte (voir [sous-domaines d'observabilite](#sous-domaines-pour-les-outils-dobservabilite-grafanaprometheusjaegergraylog))
+- [ ] `https://prometheus.geosm.app` demande bien les identifiants d'authentification basique
+      avant d'afficher quoi que ce soit (sinon l'auth Apache n'est pas active - a corriger avant
+      d'aller plus loin, ces metriques ne doivent pas etre publiques)
+- [ ] `https://jaeger.geosm.app` (memes identifiants) affiche des traces recentes pour une
+      requete Gemini/OSRM/Nominatim
+- [ ] `https://graylog.geosm.app` affiche l'ecran de connexion Graylog et recoit des logs -
       sinon verifier qu'OpenSearch n'a pas ete tue par manque de memoire (voir Depannage)
 - [ ] Un email de test (verification ou reinitialisation de mot de passe) arrive bien
 - [ ] Le certificat TLS est valide (`https://` sans avertissement navigateur) et se renouvelle automatiquement
@@ -917,7 +1068,9 @@ scrape_configs:
 ### Tracing (Jaeger)
 
 Spans automatiques (HTTP, DNS, ioredis) et manuels (appels Gemini/OSRM/Nominatim, jobs BullMQ).
-Interface : `http://localhost:16686` (tunnel SSH recommande, non expose publiquement).
+Interface : `https://jaeger.geosm.app` (authentification basique Apache - voir
+[sous-domaines d'observabilite](#sous-domaines-pour-les-outils-dobservabilite-grafanaprometheusjaegergraylog)).
+En local/dev, `http://localhost:16686` sans authentification.
 
 ### Logs (Graylog)
 

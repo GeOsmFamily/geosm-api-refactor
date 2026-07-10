@@ -66,6 +66,13 @@ services:
   grafana:
     ports: !override
       - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    environment:
+      # Sans ces deux variables, Grafana genere ses liens/redirections/assets a partir de
+      # localhost:3000 (son port INTERNE au conteneur) plutot que de l'URL publique reelle -
+      # comportement casse derriere un reverse proxy (voir docs/deploiement.md, section
+      # "Sous-domaines pour les outils d'observabilite").
+      GF_SERVER_ROOT_URL: https://grafana.${PUBLIC_DOMAIN:-geosm.app}/
+      GF_SERVER_DOMAIN: grafana.${PUBLIC_DOMAIN:-geosm.app}
 
   prometheus:
     ports: !override
@@ -81,7 +88,10 @@ services:
       - "127.0.0.1:${GRAYLOG_WEB_PORT:-9009}:9000"
       - "127.0.0.1:${GRAYLOG_GELF_PORT:-12201}:12201/udp"
     environment:
-      GRAYLOG_HTTP_EXTERNAL_URI: http://localhost:${GRAYLOG_WEB_PORT:-9009}/
+      # Idem Grafana ci-dessus : Graylog utilise cette valeur pour construire ses propres URL
+      # (redirections de connexion, liens dans les notifications...) - laissee sur
+      # "localhost:9009" en prod, l'interface web casse derriere le sous-domaine public.
+      GRAYLOG_HTTP_EXTERNAL_URI: https://graylog.${PUBLIC_DOMAIN:-geosm.app}/
 
   # Auto-hébergement de Nominatim et OSRM (Lot P9) : en dev, l'application pointe encore sur
   # les serveurs publics de démo (nominatim.openstreetmap.org, router.project-osrm.org), dont
