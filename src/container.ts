@@ -927,7 +927,15 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       { lifetime: Lifetime.SCOPED },
     ),
     deleteLayerUseCase: asFunction(
-      (c: Cradle) => new DeleteLayerUseCase(c.layerRepository, c.removeLayerIndexUseCase),
+      (c: Cradle) =>
+        new DeleteLayerUseCase(
+          c.layerRepository,
+          c.instanceRepository,
+          c.qgisProjectRepository,
+          c.qgisProjectService,
+          c.postGISService,
+          c.removeLayerIndexUseCase,
+        ),
       { lifetime: Lifetime.SCOPED },
     ),
     stageFileImportUseCase: asFunction(

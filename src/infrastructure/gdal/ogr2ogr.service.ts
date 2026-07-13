@@ -87,6 +87,12 @@ export class Ogr2OgrService {
           ]
         : [];
 
+    // Contrairement à GeoJSON/GPKG/Shapefile (CRS embarqué ou .prj), le pilote CSV de GDAL ne
+    // porte aucune métadonnée de projection - "-t_srs" seul échoue alors avec "source layer has
+    // no coordinate system". Les colonnes lon/lat détectées ci-dessus sont par convention en
+    // WGS84, donc "-s_srs EPSG:4326" peut être déclaré explicitement sans risque.
+    const csvSrsOptions = ext === '.csv' ? ['-s_srs', 'EPSG:4326'] : [];
+
     const cmd = [
       'ogr2ogr',
       '-f',
@@ -97,6 +103,7 @@ export class Ogr2OgrService {
       '-nln',
       `"${safeSchema}"."${safeTable}"`,
       '-overwrite',
+      ...csvSrsOptions,
       '-t_srs',
       `EPSG:${srid}`,
       '-lco',
@@ -205,8 +212,18 @@ export class Ogr2OgrService {
     let inputPath = filePath;
     if (ext === '.zip') inputPath = `/vsizip/${filePath}`;
 
+    // Sans ces mêmes options d'ouverture qu'importFile(), ogrinfo ne sait pas quelles colonnes
+    // d'un CSV portent la géométrie et rapporte "Geometry: None" même quand l'import réel a
+    // réussi à créer des points - l'aperçu affichait alors un type de géométrie trompeur.
+    const csvOpenOptionsStr =
+      ext === '.csv'
+        ? ' -oo X_POSSIBLE_NAMES=lon,longitude,lng,x -oo Y_POSSIBLE_NAMES=lat,latitude,y -oo GEOM_POSSIBLE_NAMES=geom,wkt,geometry -oo AUTODETECT_TYPE=YES -oo KEEP_GEOM_COLUMNS=NO'
+        : '';
+
     try {
-      const { stdout } = await execAsync(`ogrinfo -al -so "${inputPath}"`, { timeout: 60000 });
+      const { stdout } = await execAsync(`ogrinfo -al -so "${inputPath}"${csvOpenOptionsStr}`, {
+        timeout: 60000,
+      });
 
       const featureCountMatch = stdout.match(/Feature Count:\s*(\d+)/);
       const geomTypeMatch = stdout.match(/Geometry:\s*(\w+)/);

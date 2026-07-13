@@ -130,16 +130,47 @@ export class ReviewPersonalLayerPublicationUseCase {
       finalSchema = instance.slug;
       finalTable = `${instance.slug}_${slug.value}`.replace(/\W/g, '');
 
+      const tableExists = await this.postGISService.tableExists(finalSchema, finalTable);
+      if (tableExists) {
+        throw new ConflictError(
+          `La table "${finalSchema}"."${finalTable}" existe déjà dans la base de données. Veuillez choisir un autre nom pour la couche.`,
+        );
+      }
+
       await this.postGISService.createSchema(finalSchema);
-      await this.prisma.$executeRawUnsafe(
-        `ALTER TABLE "${layer.schemaName}"."${layer.tableName}" SET SCHEMA "${finalSchema}"`,
-      );
-      await this.prisma.$executeRawUnsafe(
-        `ALTER TABLE "${finalSchema}"."${layer.tableName}" RENAME TO "${finalTable}"`,
-      );
-      await this.prisma.$executeRawUnsafe(
-        `CREATE INDEX IF NOT EXISTS "${finalTable}_geom_idx" ON "${finalSchema}"."${finalTable}" USING GIST(geom)`,
-      );
+
+      // Détermine où se trouve actuellement la table (personal_data vs schéma cible)
+      // pour gérer de manière transparente les reprises sur échec (auto-correction/self-healing).
+      let currentSchema = layer.schemaName;
+      const existsInTarget = await this.postGISService.tableExists(finalSchema, layer.tableName);
+      if (existsInTarget) {
+        currentSchema = finalSchema;
+      } else {
+        const existsInOriginal = await this.postGISService.tableExists(
+          layer.schemaName,
+          layer.tableName,
+        );
+        if (!existsInOriginal) {
+          throw new ValidationError(
+            `La table de données "${layer.schemaName}"."${layer.tableName}" est introuvable.`,
+            {},
+          );
+        }
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        if (currentSchema !== finalSchema) {
+          await tx.$executeRawUnsafe(
+            `ALTER TABLE "${currentSchema}"."${layer.tableName}" SET SCHEMA "${finalSchema}"`,
+          );
+        }
+        await tx.$executeRawUnsafe(
+          `ALTER TABLE "${finalSchema}"."${layer.tableName}" RENAME TO "${finalTable}"`,
+        );
+        await tx.$executeRawUnsafe(
+          `CREATE INDEX IF NOT EXISTS "${finalTable}_geom_idx" ON "${finalSchema}"."${finalTable}" USING GIST(geom)`,
+        );
+      });
 
       const projectPath = this.qgisProjectService.getProjectPath(instance.slug);
       const pgUri = buildQgisPgUri(finalSchema, finalTable, {
@@ -165,16 +196,22 @@ export class ReviewPersonalLayerPublicationUseCase {
         });
       }
 
-      // Style QML natif optionnellement téléversé par l'utilisateur avant publication
-      // (voir UploadPersonalLayerQmlStyleUseCase) - appliqué maintenant que la couche existe
-      // réellement dans le projet QGIS de l'instance, jamais avant (non-fatal comme ci-dessus).
-      const qmlPath = (layer.style as { qmlPath?: string } | null)?.qmlPath;
-      if (qmlPath) {
+      // Style à appliquer maintenant que la couche existe réellement dans le projet QGIS de
+      // l'instance (jamais avant) - priorité au QML natif optionnellement téléversé par
+      // l'utilisateur (voir UploadPersonalLayerQmlStyleUseCase) ; à défaut, reprend le style
+      // couleur/forme qu'il avait déjà choisi dans son aperçu privé (ApplyPersonalLayerStyleUseCase)
+      // plutôt que de laisser QGIS appliquer son style aléatoire par défaut. Les deux chemins sont
+      // non-fatals comme addVectorLayer ci-dessus : un échec de style ne doit jamais faire échouer
+      // la publication elle-même.
+      const personalStyle = layer.style as
+        | { qmlPath?: string; color?: string; shape?: string }
+        | null;
+      if (personalStyle?.qmlPath) {
         try {
           const styleResult = await this.qgisProjectService.setLayerStyle(
             projectPath,
             finalTable,
-            qmlPath,
+            personalStyle.qmlPath,
           );
           if (!styleResult.success) {
             logger.warn("Échec de l'application du style QML personnel à la publication", {
@@ -184,6 +221,27 @@ export class ReviewPersonalLayerPublicationUseCase {
           }
         } catch (qErr) {
           logger.warn("Exception lors de l'application du style QML personnel", {
+            finalTable,
+            error: String(qErr),
+          });
+        }
+      } else if (personalStyle?.color) {
+        try {
+          const styleResult = await this.qgisProjectService.applySimpleStyle(
+            projectPath,
+            finalTable,
+            layer.geometryType,
+            personalStyle.color,
+            personalStyle.shape || 'circle',
+          );
+          if (!styleResult.success) {
+            logger.warn('Échec de la reprise du style couleur/forme personnel à la publication', {
+              finalTable,
+              error: styleResult.error,
+            });
+          }
+        } catch (qErr) {
+          logger.warn('Exception lors de la reprise du style couleur/forme personnel', {
             finalTable,
             error: String(qErr),
           });

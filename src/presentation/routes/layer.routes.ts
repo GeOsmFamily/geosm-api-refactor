@@ -43,7 +43,16 @@ const IMPORT_ALLOWED_MIMETYPES = [
   // silencieuse.
   'text/csv',
 ];
+// Le mimetype envoyé par le navigateur varie selon l'OS (ex. Windows+Chrome envoie souvent
+// "application/x-zip-compressed" pour un .zip, ou "application/vnd.ms-excel" pour un .csv) -
+// l'extension est donc vérifiée en premier, le mimetype ne sert qu'en repli.
+const IMPORT_ALLOWED_EXTENSIONS = ['.geojson', '.json', '.kml', '.gpkg', '.zip', '.csv'];
 const IMPORT_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+function isAllowedImportFile(filename: string, mimetype: string): boolean {
+  const ext = path.extname(filename).toLowerCase();
+  return IMPORT_ALLOWED_EXTENSIONS.includes(ext) || IMPORT_ALLOWED_MIMETYPES.includes(mimetype);
+}
 
 function parseBody<T>(
   schema: {
@@ -255,8 +264,11 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
           {},
         );
       }
-      if (!IMPORT_ALLOWED_MIMETYPES.includes(data.mimetype)) {
-        throw new ValidationError('Unsupported file type', { mimetype: data.mimetype });
+      if (!isAllowedImportFile(data.filename, data.mimetype)) {
+        throw new ValidationError('Unsupported file type', {
+          filename: data.filename,
+          mimetype: data.mimetype,
+        });
       }
 
       const dataDir = config.DATA_DIR;

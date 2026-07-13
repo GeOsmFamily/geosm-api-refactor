@@ -46,8 +46,20 @@ const IMPORT_ALLOWED_MIMETYPES = [
   'application/octet-stream',
   'text/csv',
 ];
+// Le mimetype envoyé par le navigateur pour un même type de fichier varie selon l'OS/navigateur
+// (ex. Windows+Chrome envoie souvent "application/x-zip-compressed" pour un .zip, ou
+// "application/vnd.ms-excel" pour un .csv si Excel est associé) - une validation uniquement par
+// mimetype rejette alors des fichiers pourtant valides. L'extension est donc vérifiée en premier
+// (fiable et sous contrôle de l'utilisateur qui a nommé son fichier), le mimetype ne sert qu'en
+// repli si l'extension est absente/inconnue.
+const IMPORT_ALLOWED_EXTENSIONS = ['.geojson', '.json', '.kml', '.gpkg', '.zip', '.csv'];
 const IMPORT_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const QGIS_UPLOAD_MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB
+
+function isAllowedImportFile(filename: string, mimetype: string): boolean {
+  const ext = path.extname(filename).toLowerCase();
+  return IMPORT_ALLOWED_EXTENSIONS.includes(ext) || IMPORT_ALLOWED_MIMETYPES.includes(mimetype);
+}
 
 function parseBody<T>(
   schema: {
@@ -159,8 +171,11 @@ export async function personalLayerRoutes(app: FastifyInstance): Promise<void> {
           {},
         );
       }
-      if (!IMPORT_ALLOWED_MIMETYPES.includes(data.mimetype)) {
-        throw new ValidationError('Unsupported file type', { mimetype: data.mimetype });
+      if (!isAllowedImportFile(data.filename, data.mimetype)) {
+        throw new ValidationError('Unsupported file type', {
+          filename: data.filename,
+          mimetype: data.mimetype,
+        });
       }
 
       const dataDir = config.DATA_DIR;
