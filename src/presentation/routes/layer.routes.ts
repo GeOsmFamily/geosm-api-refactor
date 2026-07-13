@@ -37,6 +37,11 @@ const IMPORT_ALLOWED_MIMETYPES = [
   'application/x-shapefile',
   'application/zip',
   'application/octet-stream',
+  // CSV : les colonnes lon/lat sont auto-détectées par ogr2ogr (voir Ogr2OgrService.importFile,
+  // options GDAL X_POSSIBLE_NAMES/Y_POSSIBLE_NAMES) - un CSV sans colonnes reconnues remonte
+  // simplement 0 entité géométrique (déjà rejeté par StageFileImportUseCase), pas une erreur
+  // silencieuse.
+  'text/csv',
 ];
 const IMPORT_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -226,9 +231,13 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
     '/import/file',
     {
       schema: {
-        description: 'Importer un fichier géospatial en staging (aperçu avant publication)',
+        description:
+          'Importer un fichier géospatial (multipart, champ "file") en staging - aperçu avant ' +
+          `publication (voir POST /import/file/confirm). Formats acceptés : ${IMPORT_ALLOWED_MIMETYPES.join(', ')} ` +
+          `(max ${IMPORT_MAX_FILE_SIZE / 1024 / 1024}MB).`,
         tags: ['Couches'],
         security: [{ bearerAuth: [] }],
+        consumes: ['multipart/form-data'],
       },
       preHandler: [
         app.authenticate,
@@ -345,11 +354,13 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
 
   // POST /:id/style/apply — applique un style couleur+icône (couches ponctuelles : régénère
   // l'icône SVG et pilote le rendu cluster client + QGIS ; autres géométries : couleur QGIS
-  // uniquement) ou le style natif d'un KML importé (multipart, fichier optionnel selon le mode).
+  // uniquement), le style OGR extrait d'un KML importé, ou un fichier de style QGIS natif (.qml,
+  // appliqué directement, sans conversion - le cas le plus courant pour un admin qui a déjà
+  // stylé sa couche dans QGIS Desktop) - multipart, fichier requis selon le mode.
   const applyLayerStyleUseCase =
     app.diContainer.resolve<ApplyLayerStyleUseCase>('applyLayerStyleUseCase');
   const applyStyleFieldsSchema = z.object({
-    mode: z.enum(['color-icon', 'kml']),
+    mode: z.enum(['color-icon', 'kml', 'qml']),
     color: z.string().optional(),
     iconKey: z.string().optional(),
     shape: z.enum(['circle', 'square', 'triangle', 'star', 'pin']).optional(),
@@ -358,9 +369,17 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
     '/:id/style/apply',
     {
       schema: {
-        description: 'Appliquer un style (couleur+icône ou KML) à une couche',
+        description:
+          "Appliquer un style à une couche : couleur+icône (JSON), ou fichier de style " +
+          "importé en multipart (KML avec style OGR embarqué, ou QML - style QGIS natif, " +
+          "appliqué tel quel).",
         tags: ['Couches'],
         security: [{ bearerAuth: [] }],
+        // Documente les champs non-fichier (mode/color/iconKey/shape) - le champ fichier
+        // lui-même (nom de partie "file", requis seulement si mode="kml"|"qml") n'est pas
+        // modélisable via ce helper zod->JSON Schema, d'où la précision manuelle ci-dessous.
+        consumes: ['application/json', 'multipart/form-data'],
+        body: zodToSwagger(applyStyleFieldsSchema),
       },
       preHandler: [
         app.authenticate,
@@ -380,19 +399,19 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
         : ((request.body as Record<string, unknown>) ?? {});
       const { mode, color, iconKey, shape } = parseBody(applyStyleFieldsSchema, rawFields);
 
-      if (mode === 'kml') {
-        if (!data) throw new ValidationError('Fichier KML manquant.', {});
+      if (mode === 'kml' || mode === 'qml') {
+        if (!data) throw new ValidationError(`Fichier ${mode.toUpperCase()} manquant.`, {});
         const buffer = await data.toBuffer();
         const dataDir = config.DATA_DIR;
         await mkdir(dataDir, { recursive: true });
-        const tmpPath = path.join(dataDir, `kml-style-${randomUUID()}.kml`);
+        const tmpPath = path.join(dataDir, `${mode}-style-${randomUUID()}.${mode}`);
         await writeFile(tmpPath, buffer);
         try {
-          const result = await applyLayerStyleUseCase.execute({
-            layerId: id,
-            mode: 'kml',
-            kmlFilePath: tmpPath,
-          });
+          const result = await applyLayerStyleUseCase.execute(
+            mode === 'kml'
+              ? { layerId: id, mode: 'kml', kmlFilePath: tmpPath }
+              : { layerId: id, mode: 'qml', qmlFilePath: tmpPath },
+          );
           return reply.send(successResponse(result));
         } finally {
           await unlink(tmpPath).catch(() => undefined);

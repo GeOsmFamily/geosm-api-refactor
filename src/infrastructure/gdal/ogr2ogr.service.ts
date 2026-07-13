@@ -64,12 +64,36 @@ export class Ogr2OgrService {
       inputPath = `/vsizip/${filePath}`;
     }
 
+    // Le pilote CSV de GDAL ne crée une géométrie QUE si on lui indique explicitement quelles
+    // colonnes contiennent la longitude/latitude (ou une colonne WKT) - sans ces options
+    // d'ouverture, un CSV s'importe comme une table plate sans colonne "geom", et
+    // StageFileImportUseCase le rejette ensuite silencieusement (0 entité géométrique). Les noms
+    // de colonnes couvrent les variantes les plus courantes (français/anglais) ; un CSV dont les
+    // colonnes ne correspondent à aucune de ces variantes échoue avec un message clair plutôt que
+    // d'importer des lignes sans position.
+    const csvOpenOptions =
+      ext === '.csv'
+        ? [
+            '-oo',
+            'X_POSSIBLE_NAMES=lon,longitude,lng,x',
+            '-oo',
+            'Y_POSSIBLE_NAMES=lat,latitude,y',
+            '-oo',
+            'GEOM_POSSIBLE_NAMES=geom,wkt,geometry',
+            '-oo',
+            'AUTODETECT_TYPE=YES',
+            '-oo',
+            'KEEP_GEOM_COLUMNS=NO',
+          ]
+        : [];
+
     const cmd = [
       'ogr2ogr',
       '-f',
       '"PostgreSQL"',
       `"${pgConn}"`,
       `"${inputPath}"`,
+      ...csvOpenOptions,
       '-nln',
       `"${safeSchema}"."${safeTable}"`,
       '-overwrite',

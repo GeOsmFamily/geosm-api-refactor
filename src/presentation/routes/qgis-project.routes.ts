@@ -15,6 +15,7 @@ import { ReloadQgisProjectUseCase } from '../../application/use-cases/qgis-proje
 import { UploadQgisProjectUseCase } from '../../application/use-cases/qgis-projects/upload-qgis-project.use-case.js';
 import { ListQgisProjectLayersUseCase } from '../../application/use-cases/qgis-projects/list-qgis-project-layers.use-case.js';
 import { CreateLayersFromQgisProjectUseCase } from '../../application/use-cases/layers/create-layers-from-qgis-project.use-case.js';
+import { AutoImportQgisProjectUseCase } from '../../application/use-cases/layers/auto-import-qgis-project.use-case.js';
 import { ExportQgisProjectBundleUseCase } from '../../application/use-cases/qgis-projects/export-qgis-project-bundle.use-case.js';
 
 const UPLOAD_ALLOWED_MIMETYPES = [
@@ -63,6 +64,9 @@ export async function qgisProjectRoutes(app: FastifyInstance): Promise<void> {
     );
   const exportQgisProjectBundleUseCase = app.diContainer.resolve<ExportQgisProjectBundleUseCase>(
     'exportQgisProjectBundleUseCase',
+  );
+  const autoImportQgisProjectUseCase = app.diContainer.resolve<AutoImportQgisProjectUseCase>(
+    'autoImportQgisProjectUseCase',
   );
 
   app.get(
@@ -220,6 +224,33 @@ export async function qgisProjectRoutes(app: FastifyInstance): Promise<void> {
         qgisProjectId,
         ...dto,
       });
+      return reply.status(201).send(successResponse(result));
+    },
+  );
+
+  // POST /:qgisProjectId/auto-import — importe TOUTES les couches du projet d'un coup, en
+  // recréant automatiquement la thématique/sous-thématique GeOSM depuis l'arborescence réelle
+  // du projet QGIS (voir AutoImportQgisProjectUseCase) - alternative à
+  // /:qgisProjectId/layers/confirm pour un utilisateur qui glisse-dépose un projet QGIS complet
+  // et veut tout publier sans choisir manuellement un sous-groupe par couche.
+  app.post(
+    '/:qgisProjectId/auto-import',
+    {
+      schema: {
+        description:
+          "Importer automatiquement toutes les couches d'un projet QGIS, en recréant la " +
+          'thématique/sous-thématique GeOSM depuis les groupes du projet',
+        tags: ['Projets QGIS'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [
+        app.authenticate,
+        requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE, Role.EDITOR),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { instanceId, qgisProjectId } = parseBody(qgisProjectIdParamSchema, request.params);
+      const result = await autoImportQgisProjectUseCase.execute(instanceId, qgisProjectId);
       return reply.status(201).send(successResponse(result));
     },
   );

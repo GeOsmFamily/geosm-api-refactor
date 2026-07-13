@@ -33,6 +33,7 @@ import { geocodingRoutes } from './presentation/routes/geocoding.routes.js';
 import { routingRoutes } from './presentation/routes/routing.routes.js';
 import { searchRoutes } from './presentation/routes/search.routes.js';
 import { qgisProjectRoutes } from './presentation/routes/qgis-project.routes.js';
+import { personalLayerRoutes } from './presentation/routes/personal-layers.routes.js';
 import { wmsProxyRoutes, wfsProxyRoutes } from './presentation/routes/wms-proxy.routes.js';
 import { defaultThemeRoutes } from './presentation/routes/default-theme.routes.js';
 import { adminRoutes } from './presentation/routes/admin.routes.js';
@@ -244,6 +245,9 @@ async function bootstrap(): Promise<void> {
   await app.register(searchRoutes, { prefix: `${appConfig.apiPrefix}/search` });
   await app.register(qgisProjectRoutes, {
     prefix: `${appConfig.apiPrefix}/instances/:instanceId/qgis-project`,
+  });
+  await app.register(personalLayerRoutes, {
+    prefix: `${appConfig.apiPrefix}/instances/:instanceId/personal-layers`,
   });
   await app.register(wmsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wms` });
   await app.register(wfsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wfs` });

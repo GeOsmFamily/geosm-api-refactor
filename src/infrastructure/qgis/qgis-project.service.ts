@@ -91,6 +91,14 @@ export class QGISProjectService {
     return this.runPythonScript('reload_project.py', [projectPath]);
   }
 
+  /** Lit l'arborescence réelle (groupes/sous-groupes/couches) du projet QGIS via son
+   * layerTreeRoot() - contrairement à ListQgisProjectLayersUseCase (WMS GetCapabilities, plat
+   * par construction), donne la structure exacte utilisée pour auto-recréer les thématiques
+   * GeOSM à l'import (voir AutoImportQgisProjectUseCase). */
+  async listProjectTree(projectPath: string): Promise<PyQGISResult> {
+    return this.runPythonScript('list_qgis_project_tree.py', [projectPath]);
+  }
+
   async setLayerStyle(
     projectPath: string,
     layerName: string,
@@ -266,6 +274,7 @@ export class QGISProjectService {
   ): Promise<PyQGISResult> {
     return this.runPythonScript('import_kml_style.py', [projectPath, layerName, kmlPath]);
   }
+
 
   /** Empaquette un projet QGIS connecté à PostGIS en un projet 100% autonome (données copiées
    * dans un unique GeoPackage, styles préservés, chemins relatifs) - voir

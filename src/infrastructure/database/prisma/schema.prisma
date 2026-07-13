@@ -44,6 +44,24 @@ enum ActionType {
   COMMENT
 }
 
+enum PersonalLayerSourceType {
+  FILE
+  QGIS_PROJECT
+}
+
+// PRIVATE : visible uniquement par son propriétaire (le cas par défaut, toute donnée importée
+// via l'outil "Importer mes données"). PENDING_PUBLICATION : le propriétaire a demandé sa
+// publication dans le catalogue partagé, en attente de revue admin. PUBLISHED : validée, une
+// vraie Layer existe désormais dans le catalogue (voir publishedLayerId) - la PersonalLayer
+// elle-même reste comme historique/référence côté propriétaire. REJECTED : refusée par un
+// admin/éditeur, reste privée, le propriétaire est notifié avec le motif (reviewNote).
+enum PersonalLayerStatus {
+  PRIVATE
+  PENDING_PUBLICATION
+  PUBLISHED
+  REJECTED
+}
+
 enum ExportFormat {
   GEOJSON
   SHAPEFILE
@@ -81,15 +99,16 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  refreshTokens          RefreshToken[]
-  exports                Export[]
-  locationPlans          LocationPlan[]
-  instanceUsers          InstanceUser[]
-  comments               Comment[]
-  osmProfile             OsmProfile?
-  passwordResetTokens    PasswordResetToken[]
+  refreshTokens           RefreshToken[]
+  exports                 Export[]
+  locationPlans           LocationPlan[]
+  instanceUsers           InstanceUser[]
+  comments                Comment[]
+  osmProfile              OsmProfile?
+  passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
-  feedbackSubmissions    FeedbackSubmission[]
+  feedbackSubmissions     FeedbackSubmission[]
+  personalLayers          PersonalLayer[]
 
   @@map("users")
 }
@@ -181,29 +200,30 @@ model RefreshToken {
 }
 
 model Instance {
-  id              String   @id @default(uuid()) @db.Uuid
-  name            String
-  slug            String   @unique
-  description     String?
-  logo            String?
-  bbox            Float[]
-  centerLat       Float?   @map("center_lat")
-  centerLon       Float?   @map("center_lon")
-  defaultZoom     Int      @default(6) @map("default_zoom")
-  boundaryTable   String?  @map("boundary_table")
-  boundaryId      Int?     @map("boundary_id")
-  boundaryGeomCol String?  @default("geom") @map("boundary_geom_col")
-  adminLevel      Int?     @map("admin_level")
-  parentInstanceId String? @map("parent_instance_id") @db.Uuid
-  isActive        Boolean  @default(true) @map("is_active")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String
+  slug             String   @unique
+  description      String?
+  logo             String?
+  bbox             Float[]
+  centerLat        Float?   @map("center_lat")
+  centerLon        Float?   @map("center_lon")
+  defaultZoom      Int      @default(6) @map("default_zoom")
+  boundaryTable    String?  @map("boundary_table")
+  boundaryId       Int?     @map("boundary_id")
+  boundaryGeomCol  String?  @default("geom") @map("boundary_geom_col")
+  adminLevel       Int?     @map("admin_level")
+  parentInstanceId String?  @map("parent_instance_id") @db.Uuid
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  groups       Group[]
-  layers       Layer[]
-  baseMaps     BaseMap[]
-  qgisProjects QgisProject[]
-  instanceUsers InstanceUser[]
+  groups         Group[]
+  layers         Layer[]
+  baseMaps       BaseMap[]
+  qgisProjects   QgisProject[]
+  instanceUsers  InstanceUser[]
+  personalLayers PersonalLayer[]
 
   @@map("instances")
 }
@@ -297,6 +317,51 @@ model Layer {
   @@index([instanceId])
   @@index([subGroupId])
   @@map("layers")
+}
+
+// Donnée importée par un utilisateur via l'outil carte "Importer mes données" (glisser-déposer -
+// fichier ou projet QGIS complet) : privée par défaut (visible uniquement par son propriétaire),
+// organisée en thématique/sous-thématique libres (PAS des FK vers Group/SubGroup - une
+// organisation purement personnelle, tant que la donnée n'est pas publiée). Peut être promue
+// dans le catalogue partagé via le flux de publication (voir status +
+// ReviewPersonalLayerPublicationUseCase), qui crée alors une vraie Layer/Group/SubGroup et
+// referme la boucle avec publishedLayerId.
+model PersonalLayer {
+  id               String                  @id @default(uuid()) @db.Uuid
+  userId           String                  @map("user_id") @db.Uuid
+  instanceId       String                  @map("instance_id") @db.Uuid
+  name             String
+  description      String?
+  groupName        String                  @map("group_name")
+  subGroupName     String                  @map("sub_group_name")
+  geometryType     GeometryType?           @map("geometry_type")
+  sourceType       PersonalLayerSourceType @map("source_type")
+  // FILE : donnée promue depuis le staging vers le schéma "personal_data" (voir
+  // ImportPersonalFileUseCase). QGIS_PROJECT : pointe vers le projet QGIS privé de
+  // l'utilisateur (isolé sous QGIS_PROJECTS_DIR/personal/<userId>/, jamais mélangé aux projets
+  // d'instance) et le nom de la couche telle qu'exposée par son WMS.
+  schemaName       String?                 @map("schema_name")
+  tableName        String?                 @map("table_name")
+  qgisProjectPath  String?                 @map("qgis_project_path")
+  sourceLayerName  String?                 @map("source_layer_name")
+  // {color, iconKey, shape} pour un rendu vectoriel client (FILE) - sans objet pour
+  // QGIS_PROJECT, qui porte déjà son propre style natif via le WMS du projet.
+  style            Json?
+  status           PersonalLayerStatus     @default(PRIVATE)
+  publicationNote  String?                 @map("publication_note")
+  reviewNote       String?                 @map("review_note")
+  reviewedBy       String?                 @map("reviewed_by") @db.Uuid
+  reviewedAt       DateTime?               @map("reviewed_at")
+  publishedLayerId String?                 @map("published_layer_id") @db.Uuid
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, instanceId])
+  @@index([instanceId, status])
+  @@map("personal_layers")
 }
 
 model LayerStyle {
@@ -400,31 +465,31 @@ enum PlanOrientation {
 }
 
 model LocationPlan {
-  id           String          @id @default(uuid()) @db.Uuid
-  userId       String          @map("user_id") @db.Uuid
-  instanceId   String          @map("instance_id") @db.Uuid
-  status       JobStatus       @default(PENDING)
-  title        String
-  description  String?
-  landmark     String?
-  lon          Float
-  lat          Float
-  scale        Int?
-  paperSize    PaperSize       @default(A4) @map("paper_size")
-  orientation  PlanOrientation @default(PORTRAIT)
+  id                String          @id @default(uuid()) @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  instanceId        String          @map("instance_id") @db.Uuid
+  status            JobStatus       @default(PENDING)
+  title             String
+  description       String?
+  landmark          String?
+  lon               Float
+  lat               Float
+  scale             Int?
+  paperSize         PaperSize       @default(A4) @map("paper_size")
+  orientation       PlanOrientation @default(PORTRAIT)
   // Éléments de mise en page optionnels (constructeur de mise en page personnalisée) -
   // tous à true par défaut pour ne pas changer le rendu des plans déjà existants/en cours.
-  includeLegend     Boolean @default(true) @map("include_legend")
-  includeScale      Boolean @default(true) @map("include_scale")
-  includeGrid       Boolean @default(true) @map("include_grid")
-  includeNorthArrow Boolean @default(true) @map("include_north_arrow")
-  filePath     String?         @map("file_path")
-  fileSize     Int?            @map("file_size")
-  errorMessage String?         @map("error_message")
-  startedAt    DateTime?       @map("started_at")
-  completedAt  DateTime?       @map("completed_at")
-  createdAt    DateTime        @default(now()) @map("created_at")
-  updatedAt    DateTime        @updatedAt @map("updated_at")
+  includeLegend     Boolean         @default(true) @map("include_legend")
+  includeScale      Boolean         @default(true) @map("include_scale")
+  includeGrid       Boolean         @default(true) @map("include_grid")
+  includeNorthArrow Boolean         @default(true) @map("include_north_arrow")
+  filePath          String?         @map("file_path")
+  fileSize          Int?            @map("file_size")
+  errorMessage      String?         @map("error_message")
+  startedAt         DateTime?       @map("started_at")
+  completedAt       DateTime?       @map("completed_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -476,14 +541,14 @@ model SharedMap {
 }
 
 model AnalyticsEvent {
-  id        String   @id @default(uuid()) @db.Uuid
-  eventType String   @map("event_type")
-  userId    String?  @map("user_id") @db.Uuid
-  instanceId String  @map("instance_id") @db.Uuid
-  layerId   String?  @map("layer_id") @db.Uuid
-  metadata  Json?
-  ipAddress String?  @map("ip_address")
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String   @id @default(uuid()) @db.Uuid
+  eventType  String   @map("event_type")
+  userId     String?  @map("user_id") @db.Uuid
+  instanceId String   @map("instance_id") @db.Uuid
+  layerId    String?  @map("layer_id") @db.Uuid
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([instanceId])
   @@index([eventType])
@@ -573,25 +638,25 @@ model Geosignet {
 }
 
 model Comment {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  instanceId String   @map("instance_id") @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  instanceId String    @map("instance_id") @db.Uuid
   text       String
   lat        Float
   lon        Float
   // parentId non nul = réponse dans le fil de discussion d'un commentaire racine (pas un
   // nouveau pin sur la carte). "resolved" ne s'applique en pratique qu'aux commentaires
   // racines (marquer un fil comme traité), mais le champ est générique.
-  parentId   String?  @map("parent_id") @db.Uuid
-  resolved   Boolean  @default(false)
+  parentId   String?   @map("parent_id") @db.Uuid
+  resolved   Boolean   @default(false)
   // Modération (Lot A4 admin) : un modérateur signale un commentaire problématique pour le
   // retrouver dans la file de modération, sans le supprimer immédiatement (garde une trace pour
   // décider en connaissance de cause). flaggedAt sert de tri chronologique dans la file.
-  flagged    Boolean  @default(false)
-  flagReason String?  @map("flag_reason")
+  flagged    Boolean   @default(false)
+  flagReason String?   @map("flag_reason")
   flaggedAt  DateTime? @map("flagged_at")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies Comment[] @relation("CommentReplies")
@@ -610,7 +675,7 @@ model Comment {
 // est censée exister et ne tente pas de la supprimer au démarrage du conteneur (sans cela, tout
 // redémarrage échoue : "You are about to drop the srtm table, which is not empty").
 model Srtm {
-  rid      Int                  @id @default(autoincrement())
+  rid      Int                    @id @default(autoincrement())
   rast     Unsupported("raster")?
   filename String?
 
@@ -664,7 +729,7 @@ model FeedbackSubmission {
 // un admin qui suit la documentation pour importer ses propres limites ferait planter l'API en
 // boucle au redémarrage suivant sans cette déclaration.
 model admin_boundaries {
-  id          Int                                           @id @default(autoincrement())
+  id          Int                                          @id @default(autoincrement())
   name        String
   admin_level Int?
   // MultiPolygon (pas Polygon) : les limites administratives réelles ont fréquemment des

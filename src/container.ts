@@ -189,6 +189,7 @@ import { ReloadQgisProjectUseCase } from './application/use-cases/qgis-projects/
 import { UploadQgisProjectUseCase } from './application/use-cases/qgis-projects/upload-qgis-project.use-case.js';
 import { ListQgisProjectLayersUseCase } from './application/use-cases/qgis-projects/list-qgis-project-layers.use-case.js';
 import { CreateLayersFromQgisProjectUseCase } from './application/use-cases/layers/create-layers-from-qgis-project.use-case.js';
+import { AutoImportQgisProjectUseCase } from './application/use-cases/layers/auto-import-qgis-project.use-case.js';
 import { ExportQgisProjectBundleUseCase } from './application/use-cases/qgis-projects/export-qgis-project-bundle.use-case.js';
 
 // Default Themes use cases
@@ -309,6 +310,19 @@ import { SubmitFeedbackUseCase } from './application/use-cases/feedback/submit-f
 import { AdminListFeedbackUseCase } from './application/use-cases/feedback/admin-list-feedback.use-case.js';
 import { UpdateFeedbackStatusUseCase } from './application/use-cases/feedback/update-feedback-status.use-case.js';
 import { AlertingService } from './infrastructure/observability/alerting.service.js';
+
+// Personal layers (données personnelles des utilisateurs, catalogue à part - voir schema.prisma)
+import { PrismaPersonalLayerRepository } from './infrastructure/database/repositories/prisma-personal-layer.repository.js';
+import { ImportPersonalFileUseCase } from './application/use-cases/personal-layers/import-personal-file.use-case.js';
+import { ImportPersonalQgisProjectUseCase } from './application/use-cases/personal-layers/import-personal-qgis-project.use-case.js';
+import { ListMyPersonalLayersUseCase } from './application/use-cases/personal-layers/list-my-personal-layers.use-case.js';
+import { DeletePersonalLayerUseCase } from './application/use-cases/personal-layers/delete-personal-layer.use-case.js';
+import { GetPersonalLayerFeaturesUseCase } from './application/use-cases/personal-layers/get-personal-layer-features.use-case.js';
+import { ApplyPersonalLayerStyleUseCase } from './application/use-cases/personal-layers/apply-personal-layer-style.use-case.js';
+import { RequestPersonalLayerPublicationUseCase } from './application/use-cases/personal-layers/request-personal-layer-publication.use-case.js';
+import { ListPendingPersonalLayerPublicationsUseCase } from './application/use-cases/personal-layers/list-pending-personal-layer-publications.use-case.js';
+import { ReviewPersonalLayerPublicationUseCase } from './application/use-cases/personal-layers/review-personal-layer-publication.use-case.js';
+import { UploadPersonalLayerQmlStyleUseCase } from './application/use-cases/personal-layers/upload-personal-layer-qml-style.use-case.js';
 
 // Additional admin use cases
 import { GetJobDetailsUseCase } from './application/use-cases/admin/get-job-details.use-case.js';
@@ -448,6 +462,7 @@ interface Cradle {
   uploadQgisProjectUseCase: UploadQgisProjectUseCase;
   listQgisProjectLayersUseCase: ListQgisProjectLayersUseCase;
   createLayersFromQgisProjectUseCase: CreateLayersFromQgisProjectUseCase;
+  autoImportQgisProjectUseCase: AutoImportQgisProjectUseCase;
   exportQgisProjectBundleUseCase: ExportQgisProjectBundleUseCase;
   // Default Themes
   listDefaultThemesUseCase: ListDefaultThemesUseCase;
@@ -554,6 +569,18 @@ interface Cradle {
   submitFeedbackUseCase: SubmitFeedbackUseCase;
   adminListFeedbackUseCase: AdminListFeedbackUseCase;
   updateFeedbackStatusUseCase: UpdateFeedbackStatusUseCase;
+  // Personal layers
+  personalLayerRepository: PrismaPersonalLayerRepository;
+  importPersonalFileUseCase: ImportPersonalFileUseCase;
+  importPersonalQgisProjectUseCase: ImportPersonalQgisProjectUseCase;
+  listMyPersonalLayersUseCase: ListMyPersonalLayersUseCase;
+  deletePersonalLayerUseCase: DeletePersonalLayerUseCase;
+  getPersonalLayerFeaturesUseCase: GetPersonalLayerFeaturesUseCase;
+  applyPersonalLayerStyleUseCase: ApplyPersonalLayerStyleUseCase;
+  requestPersonalLayerPublicationUseCase: RequestPersonalLayerPublicationUseCase;
+  listPendingPersonalLayerPublicationsUseCase: ListPendingPersonalLayerPublicationsUseCase;
+  reviewPersonalLayerPublicationUseCase: ReviewPersonalLayerPublicationUseCase;
+  uploadPersonalLayerQmlStyleUseCase: UploadPersonalLayerQmlStyleUseCase;
   // Adressage
   adressageService: AdressageService;
   getAdresseUseCase: GetAdresseUseCase;
@@ -1111,6 +1138,17 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
         new CreateLayersFromQgisProjectUseCase(c.layerRepository, c.qgisProjectRepository),
       { lifetime: Lifetime.SCOPED },
     ),
+    autoImportQgisProjectUseCase: asFunction(
+      (c: Cradle) =>
+        new AutoImportQgisProjectUseCase(
+          c.groupRepository,
+          c.subGroupRepository,
+          c.qgisProjectRepository,
+          c.qgisProjectService,
+          c.createLayersFromQgisProjectUseCase,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
     exportQgisProjectBundleUseCase: asFunction(
       (c: Cradle) =>
         new ExportQgisProjectBundleUseCase(
@@ -1473,6 +1511,65 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     ),
     updateFeedbackStatusUseCase: asFunction(
       (c: Cradle) => new UpdateFeedbackStatusUseCase(c.feedbackRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+
+    // Personal layers
+    personalLayerRepository: asFunction(() => new PrismaPersonalLayerRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    importPersonalFileUseCase: asFunction(
+      (c: Cradle) =>
+        new ImportPersonalFileUseCase(c.personalLayerRepository, c.postGISService, c.prisma),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    importPersonalQgisProjectUseCase: asFunction(
+      (c: Cradle) =>
+        new ImportPersonalQgisProjectUseCase(c.personalLayerRepository, c.qgisProjectService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    listMyPersonalLayersUseCase: asFunction(
+      (c: Cradle) => new ListMyPersonalLayersUseCase(c.personalLayerRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    deletePersonalLayerUseCase: asFunction(
+      (c: Cradle) => new DeletePersonalLayerUseCase(c.personalLayerRepository, c.prisma),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getPersonalLayerFeaturesUseCase: asFunction(
+      (c: Cradle) =>
+        new GetPersonalLayerFeaturesUseCase(c.personalLayerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    applyPersonalLayerStyleUseCase: asFunction(
+      (c: Cradle) => new ApplyPersonalLayerStyleUseCase(c.personalLayerRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    requestPersonalLayerPublicationUseCase: asFunction(
+      (c: Cradle) =>
+        new RequestPersonalLayerPublicationUseCase(c.personalLayerRepository, c.alertingService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    listPendingPersonalLayerPublicationsUseCase: asFunction(
+      (c: Cradle) => new ListPendingPersonalLayerPublicationsUseCase(c.personalLayerRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    reviewPersonalLayerPublicationUseCase: asFunction(
+      (c: Cradle) =>
+        new ReviewPersonalLayerPublicationUseCase(
+          c.personalLayerRepository,
+          c.layerRepository,
+          c.groupRepository,
+          c.subGroupRepository,
+          c.instanceRepository,
+          c.postGISService,
+          c.qgisProjectService,
+          c.prisma,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    uploadPersonalLayerQmlStyleUseCase: asFunction(
+      (c: Cradle) => new UploadPersonalLayerQmlStyleUseCase(c.personalLayerRepository),
       { lifetime: Lifetime.SCOPED },
     ),
 
