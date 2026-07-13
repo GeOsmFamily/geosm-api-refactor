@@ -11,7 +11,7 @@ jobs:
     name: Linting ESLint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -33,7 +33,7 @@ jobs:
     name: Formatage Prettier
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -45,7 +45,7 @@ jobs:
     name: Vérification TypeScript
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -90,7 +90,7 @@ jobs:
       ENCRYPTION_KEY: 1fd4dd4e826c626c3490401b0a8e6a164c09be5e6eb18d2d274164048f452fea
       NODE_ENV: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -114,7 +114,7 @@ jobs:
     name: Détection de code dupliqué
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
