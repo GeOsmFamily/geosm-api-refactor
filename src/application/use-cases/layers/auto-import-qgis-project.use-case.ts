@@ -88,7 +88,7 @@ export class AutoImportQgisProjectUseCase {
           order: 0,
           isActive: true,
         });
-        logger.info('Groupe créé depuis l\'arborescence QGIS', { groupName, instanceId });
+        logger.info("Groupe créé depuis l'arborescence QGIS", { groupName, instanceId });
       }
 
       const subGroupSlug = Slug.create(subGroupName).value;
@@ -104,7 +104,7 @@ export class AutoImportQgisProjectUseCase {
           order: 0,
           isActive: true,
         });
-        logger.info('Sous-groupe créé depuis l\'arborescence QGIS', {
+        logger.info("Sous-groupe créé depuis l'arborescence QGIS", {
           subGroupName,
           groupId: group.id,
         });

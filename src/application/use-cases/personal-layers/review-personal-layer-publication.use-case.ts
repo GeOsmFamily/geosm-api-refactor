@@ -203,9 +203,11 @@ export class ReviewPersonalLayerPublicationUseCase {
       // plutôt que de laisser QGIS appliquer son style aléatoire par défaut. Les deux chemins sont
       // non-fatals comme addVectorLayer ci-dessus : un échec de style ne doit jamais faire échouer
       // la publication elle-même.
-      const personalStyle = layer.style as
-        | { qmlPath?: string; color?: string; shape?: string }
-        | null;
+      const personalStyle = layer.style as {
+        qmlPath?: string;
+        color?: string;
+        shape?: string;
+      } | null;
       if (personalStyle?.qmlPath) {
         try {
           const styleResult = await this.qgisProjectService.setLayerStyle(
@@ -286,11 +288,7 @@ export class ReviewPersonalLayerPublicationUseCase {
       qgisProjectId: null,
     });
 
-    if (
-      input.overrideName ||
-      input.overrideGroupName ||
-      input.overrideSubGroupName
-    ) {
+    if (input.overrideName || input.overrideGroupName || input.overrideSubGroupName) {
       await this.personalLayerRepository.updateOverrides(input.personalLayerId, {
         name: finalName,
         groupName: finalGroupName,

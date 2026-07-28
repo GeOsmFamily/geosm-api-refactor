@@ -382,9 +382,9 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
     {
       schema: {
         description:
-          "Appliquer un style à une couche : couleur+icône (JSON), ou fichier de style " +
-          "importé en multipart (KML avec style OGR embarqué, ou QML - style QGIS natif, " +
-          "appliqué tel quel).",
+          'Appliquer un style à une couche : couleur+icône (JSON), ou fichier de style ' +
+          'importé en multipart (KML avec style OGR embarqué, ou QML - style QGIS natif, ' +
+          'appliqué tel quel).',
         tags: ['Couches'],
         security: [{ bearerAuth: [] }],
         // Documente les champs non-fichier (mode/color/iconKey/shape) - le champ fichier

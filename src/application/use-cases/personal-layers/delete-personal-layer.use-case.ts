@@ -27,13 +27,15 @@ export class DeletePersonalLayerUseCase {
     const layer = await this.personalLayerRepository.findById(personalLayerId);
     if (!layer) throw new NotFoundError('PersonalLayer', personalLayerId);
     if (layer.userId !== userId) {
-      throw new ForbiddenError("Cette donnée ne vous appartient pas.");
+      throw new ForbiddenError('Cette donnée ne vous appartient pas.');
     }
 
     if (layer.sourceType === 'FILE' && layer.schemaName && layer.tableName) {
       await this.prisma
         .$executeRawUnsafe(`DROP TABLE IF EXISTS "${layer.schemaName}"."${layer.tableName}"`)
-        .catch((err) => logger.warn('Échec de suppression de la table personnelle', { err: String(err) }));
+        .catch((err) =>
+          logger.warn('Échec de suppression de la table personnelle', { err: String(err) }),
+        );
     }
 
     if (layer.sourceType === 'QGIS_PROJECT' && layer.qgisProjectPath) {

@@ -295,7 +295,6 @@ export class QGISProjectService {
     return this.runPythonScript('import_kml_style.py', [projectPath, layerName, kmlPath]);
   }
 
-
   /** Empaquette un projet QGIS connecté à PostGIS en un projet 100% autonome (données copiées
    * dans un unique GeoPackage, styles préservés, chemins relatifs) - voir
    * ExportQgisProjectBundleUseCase pour le zip + téléchargement. */

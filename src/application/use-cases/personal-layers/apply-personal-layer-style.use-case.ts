@@ -28,7 +28,7 @@ export class ApplyPersonalLayerStyleUseCase {
     const layer = await this.personalLayerRepository.findById(input.personalLayerId);
     if (!layer) throw new NotFoundError('PersonalLayer', input.personalLayerId);
     if (layer.userId !== input.userId) {
-      throw new ForbiddenError("Cette donnée ne vous appartient pas.");
+      throw new ForbiddenError('Cette donnée ne vous appartient pas.');
     }
     if (layer.sourceType !== 'FILE') {
       throw new ValidationError(

@@ -1,5 +1,8 @@
 import { PrismaPersonalLayerRepository } from '../../../infrastructure/database/repositories/prisma-personal-layer.repository.js';
-import { PostGISService, GeoJSONFeatureCollection } from '../../../infrastructure/database/postgis.service.js';
+import {
+  PostGISService,
+  GeoJSONFeatureCollection,
+} from '../../../infrastructure/database/postgis.service.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ForbiddenError } from '../../../domain/errors/forbidden.error.js';
 import { ValidationError } from '../../../domain/errors/validation.error.js';
@@ -18,10 +21,13 @@ export class GetPersonalLayerFeaturesUseCase {
     const layer = await this.personalLayerRepository.findById(personalLayerId);
     if (!layer) throw new NotFoundError('PersonalLayer', personalLayerId);
     if (layer.userId !== userId) {
-      throw new ForbiddenError("Cette donnée ne vous appartient pas.");
+      throw new ForbiddenError('Cette donnée ne vous appartient pas.');
     }
     if (layer.sourceType !== 'FILE' || !layer.schemaName || !layer.tableName) {
-      throw new ValidationError("Cette donnée n'a pas de features vectorielles interrogeables.", {});
+      throw new ValidationError(
+        "Cette donnée n'a pas de features vectorielles interrogeables.",
+        {},
+      );
     }
 
     return this.postGISService.queryFeatures({

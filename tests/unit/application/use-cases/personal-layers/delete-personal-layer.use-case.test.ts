@@ -73,6 +73,38 @@ describe('DeletePersonalLayerUseCase', () => {
     expect(repository.delete).toHaveBeenCalledWith('pl-2');
   });
 
+  it('should skip the table drop for a FILE layer without schema/table metadata', async () => {
+    repository.findById.mockResolvedValue({
+      id: 'pl-4',
+      userId: 'user-1',
+      sourceType: 'FILE',
+      schemaName: null,
+      tableName: null,
+      qgisProjectPath: null,
+    });
+
+    await useCase.execute('user-1', 'pl-4');
+
+    expect(prisma.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(repository.delete).toHaveBeenCalledWith('pl-4');
+  });
+
+  it('should skip the project directory cleanup for a QGIS_PROJECT layer without a path', async () => {
+    repository.findById.mockResolvedValue({
+      id: 'pl-5',
+      userId: 'user-1',
+      sourceType: 'QGIS_PROJECT',
+      schemaName: null,
+      tableName: null,
+      qgisProjectPath: null,
+    });
+
+    await useCase.execute('user-1', 'pl-5');
+
+    expect(mockExecAsync).not.toHaveBeenCalledWith(expect.stringContaining('/var/www'));
+    expect(repository.delete).toHaveBeenCalledWith('pl-5');
+  });
+
   it('should not fail the deletion when cleanup commands reject', async () => {
     repository.findById.mockResolvedValue({
       id: 'pl-3',

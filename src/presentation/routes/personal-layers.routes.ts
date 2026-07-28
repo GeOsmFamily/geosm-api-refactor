@@ -97,19 +97,19 @@ export async function personalLayerRoutes(app: FastifyInstance): Promise<void> {
     'importPersonalFileUseCase',
   );
   const importPersonalQgisProjectUseCase =
-    app.diContainer.resolve<ImportPersonalQgisProjectUseCase>(
-      'importPersonalQgisProjectUseCase',
-    );
+    app.diContainer.resolve<ImportPersonalQgisProjectUseCase>('importPersonalQgisProjectUseCase');
   const listMyPersonalLayersUseCase = app.diContainer.resolve<ListMyPersonalLayersUseCase>(
     'listMyPersonalLayersUseCase',
   );
   const deletePersonalLayerUseCase = app.diContainer.resolve<DeletePersonalLayerUseCase>(
     'deletePersonalLayerUseCase',
   );
-  const getPersonalLayerFeaturesUseCase =
-    app.diContainer.resolve<GetPersonalLayerFeaturesUseCase>('getPersonalLayerFeaturesUseCase');
-  const applyPersonalLayerStyleUseCase =
-    app.diContainer.resolve<ApplyPersonalLayerStyleUseCase>('applyPersonalLayerStyleUseCase');
+  const getPersonalLayerFeaturesUseCase = app.diContainer.resolve<GetPersonalLayerFeaturesUseCase>(
+    'getPersonalLayerFeaturesUseCase',
+  );
+  const applyPersonalLayerStyleUseCase = app.diContainer.resolve<ApplyPersonalLayerStyleUseCase>(
+    'applyPersonalLayerStyleUseCase',
+  );
   const requestPersonalLayerPublicationUseCase =
     app.diContainer.resolve<RequestPersonalLayerPublicationUseCase>(
       'requestPersonalLayerPublicationUseCase',
@@ -313,7 +313,7 @@ export async function personalLayerRoutes(app: FastifyInstance): Promise<void> {
     '/:id/style',
     {
       schema: {
-        description: "Appliquer un style couleur+icône à une donnée personnelle",
+        description: 'Appliquer un style couleur+icône à une donnée personnelle',
         tags: ['Données personnelles'],
         security: [{ bearerAuth: [] }],
         body: zodToSwagger(personalStyleSchema),
@@ -338,7 +338,8 @@ export async function personalLayerRoutes(app: FastifyInstance): Promise<void> {
     '/:id/style/qml',
     {
       schema: {
-        description: 'Téléverser un style QML natif pour une donnée personnelle (appliqué à la publication)',
+        description:
+          'Téléverser un style QML natif pour une donnée personnelle (appliqué à la publication)',
         tags: ['Données personnelles'],
         security: [{ bearerAuth: [] }],
         consumes: ['multipart/form-data'],
@@ -399,7 +400,7 @@ export async function personalLayerRoutes(app: FastifyInstance): Promise<void> {
     '/:id/request-publication',
     {
       schema: {
-        description: 'Demander la publication d\'une donnée personnelle sur le catalogue',
+        description: "Demander la publication d'une donnée personnelle sur le catalogue",
         tags: ['Données personnelles'],
         security: [{ bearerAuth: [] }],
         body: zodToSwagger(requestPublicationSchema),
