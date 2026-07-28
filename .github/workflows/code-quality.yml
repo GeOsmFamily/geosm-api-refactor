@@ -22,7 +22,7 @@ jobs:
         run: npx eslint src/ --format json --output-file eslint-report.json || true
       - name: Vérification ESLint
         run: npm run lint
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: eslint-report
@@ -103,7 +103,7 @@ jobs:
         # test-results.json (non exporté en artefact), rendant les échecs de tests invisibles
         # dans les logs du job - vécu lors du diagnostic de ce workflow.
         run: npx vitest run --coverage --reporter=default --reporter=json --outputFile=test-results.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
