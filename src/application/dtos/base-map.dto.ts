@@ -5,7 +5,7 @@ export interface CreateBaseMapDTO {
   slug: string;
   type: BaseMapType;
   url: string;
-  thumbnail?: string;
+  thumbnail?: string | null;
   attribution?: string;
   isDefault?: boolean;
   order?: number;

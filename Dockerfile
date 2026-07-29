@@ -40,6 +40,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# node:26-bookworm-slim embarque npm avec un tar interne vulnérable (CVE-2026-59873, corrigé en
+# tar 7.5.19) - sans lien avec les dépendances du projet (absent de package-lock.json), c'est
+# npm lui-même qui vendorise sa propre copie de tar. npm@12 exige tar@^7.5.19, donc la mettre à
+# jour ici règle la CVE remontée par le scan Trivy sur l'image de production.
+RUN npm install -g npm@12
+
 COPY package*.json ./
 RUN npm ci --omit=dev
 

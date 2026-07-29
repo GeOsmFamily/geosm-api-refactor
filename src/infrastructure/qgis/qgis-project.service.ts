@@ -91,12 +91,40 @@ export class QGISProjectService {
     return this.runPythonScript('reload_project.py', [projectPath]);
   }
 
+  /** Lit l'arborescence réelle (groupes/sous-groupes/couches) du projet QGIS via son
+   * layerTreeRoot() - contrairement à ListQgisProjectLayersUseCase (WMS GetCapabilities, plat
+   * par construction), donne la structure exacte utilisée pour auto-recréer les thématiques
+   * GeOSM à l'import (voir AutoImportQgisProjectUseCase). */
+  async listProjectTree(projectPath: string): Promise<PyQGISResult> {
+    return this.runPythonScript('list_qgis_project_tree.py', [projectPath]);
+  }
+
   async setLayerStyle(
     projectPath: string,
     layerName: string,
     qmlPath: string,
   ): Promise<PyQGISResult> {
     return this.runPythonScript('set_style.py', [projectPath, layerName, qmlPath]);
+  }
+
+  /** Style natif simple (couleur + forme) - utilisé quand une donnée personnelle FILE est publiée
+   * sans style QML téléversé, pour que la couche catalogue reprenne le style couleur/forme déjà
+   * choisi par l'utilisateur au lieu du style aléatoire par défaut de QGIS (voir
+   * ReviewPersonalLayerPublicationUseCase). */
+  async applySimpleStyle(
+    projectPath: string,
+    layerName: string,
+    geometryType: string,
+    color: string,
+    shape: string,
+  ): Promise<PyQGISResult> {
+    return this.runPythonScript('apply_simple_style.py', [
+      projectPath,
+      layerName,
+      geometryType,
+      color,
+      shape,
+    ]);
   }
 
   async saveLayerStyle(

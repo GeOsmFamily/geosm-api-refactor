@@ -19,20 +19,24 @@ const POINT_TYPES = new Set([GeometryType.POINT, GeometryType.MULTIPOINT]);
 
 export interface ApplyLayerStyleInput {
   layerId: string;
-  mode: 'color-icon' | 'kml';
+  mode: 'color-icon' | 'kml' | 'qml';
   color?: string;
   iconKey?: string;
   shape?: SvgOptions['shape'];
   kmlFilePath?: string;
+  qmlFilePath?: string;
 }
 
 /**
- * Applique un style réel (couleur + icône, ou style natif d'un KML importé) à une couche : pour
- * les couches ponctuelles, régénère le SVG d'icône et pilote le rendu cluster client via
- * Layer.metadata (voir map-layer.service.ts côté frontend) ET le rendu QGIS (au cas où la
- * couche serait aussi consultée en WMS/impression) ; pour les couches surfaciques/linéaires,
- * seul le style QGIS (QML embarqué dans le projet) compte, puisque leur rendu carte passe
- * exclusivement par des tuiles WMS.
+ * Applique un style réel (couleur + icône, style OGR extrait d'un KML importé, ou fichier de
+ * style QGIS natif .qml appliqué directement) à une couche : pour les couches ponctuelles,
+ * régénère le SVG d'icône et pilote le rendu cluster client via Layer.metadata (voir
+ * map-layer.service.ts côté frontend) ET le rendu QGIS (au cas où la couche serait aussi
+ * consultée en WMS/impression) ; pour les couches surfaciques/linéaires, seul le style QGIS
+ * (QML embarqué dans le projet) compte, puisque leur rendu carte passe exclusivement par des
+ * tuiles WMS. Le mode "qml" est le chemin direct pour un admin qui a déjà stylé sa couche dans
+ * QGIS Desktop et exporté un .qml - "kml" reste utile pour un style OGR embarqué dans un KML,
+ * les deux formats et cas d'usage sont différents malgré la ressemblance des noms.
  */
 export class ApplyLayerStyleUseCase {
   constructor(
@@ -54,6 +58,28 @@ export class ApplyLayerStyleUseCase {
         "Cette couche n'a pas de couche QGIS associée (source sans table ni sourceLayer).",
         {},
       );
+    }
+
+    if (input.mode === 'qml') {
+      if (!input.qmlFilePath) throw new ValidationError('Fichier QML manquant.', {});
+      // setLayerStyle applique déjà un .qml tel quel (aucune conversion) - c'est le même
+      // mécanisme déjà utilisé ailleurs (ex. saveLayerStyle/restauration de style), réutilisé
+      // ici plutôt que dupliqué.
+      const result = await this.qgisProjectService.setLayerStyle(
+        projectPath,
+        wmsLayerName,
+        input.qmlFilePath,
+      );
+      if (!result.success) {
+        throw new ValidationError(`Échec de l'application du style QML: ${result.error}`, {});
+      }
+      return this.layerRepository.update(layer.id, {
+        metadata: {
+          ...(layer.metadata ?? {}),
+          styleSource: 'qml',
+          styledAt: new Date().toISOString(),
+        },
+      });
     }
 
     if (input.mode === 'kml') {
