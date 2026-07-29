@@ -15,6 +15,9 @@ CVE-2026-8376
 CVE-2026-11940
 CVE-2025-7458
 CVE-2023-45853
+CVE-2026-13221
+CVE-2026-57433
+CVE-2026-6653
 
 # Métadonnée linux-libc-dev (en-têtes kernel, pas de code exécuté dans le conteneur - le kernel
 # réel est celui de l'hôte Docker) : non pertinent pour la surface d'attaque de l'image.
