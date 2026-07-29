@@ -187,7 +187,21 @@ services:
           memory: 256M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ows/?service=WMS&request=GetCapabilities || exit 1"]
+      # wget, pas curl : l'image 3liz/qgis-map-server (Ubuntu 24.04) n'embarque pas curl (confirmé
+      # en prod : "curl: not found"), seulement wget/python3/bash - même outil que les healthchecks
+      # api/frontend plus haut dans ce fichier.
+      #
+      # Landing page racine ("/"), pas /ows/?service=WMS&request=GetCapabilities : Py-Qgis-Server
+      # répond 400 "No project defined. For OWS services: please provide a SERVICE and a MAP
+      # parameter" à toute requête OWS sans paramètre MAP - confirmé en prod, ce test échouait
+      # donc TOUJOURS, projet enregistré ou non (un GetCapabilities sans MAP n'est pas censé
+      # fonctionner sur ce serveur). La landing page ne dépend elle d'aucun projet, disponible dès
+      # que le process répond - fonctionne aussi sur un déploiement neuf avant le premier db:seed.
+      #
+      # Pas --spider : ce mode envoie une requête HEAD, que Py-Qgis-Server gère mal sur "/"
+      # (échoue en pratique alors qu'un GET normal répond 200 - confirmé en prod). On télécharge
+      # donc réellement la réponse (jetée dans /dev/null) plutôt que de faire un simple HEAD.
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 -O /dev/null http://localhost:8080/ || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 30s
