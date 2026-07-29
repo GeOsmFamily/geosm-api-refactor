@@ -187,7 +187,14 @@ services:
           memory: 256M
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ows/?service=WMS&request=GetCapabilities || exit 1"]
+      # L'URL DOIT être citée : passé tel quel à un "&" nu, CMD-SHELL (exécuté via /bin/sh -c)
+      # interprète "&" comme l'opérateur de tâche de fond du shell et découpe la commande en deux
+      # - le curl part en arrière-plan (résultat jamais vérifié, process jamais réapé) pendant que
+      # le reste ("request=GetCapabilities || exit 1", une simple affectation de variable) réussit
+      # toujours trivialement. Le check ne testait donc jamais la vraie réponse HTTP, et
+      # accumulait un curl orphelin à chaque exécution (confirmé en prod : conteneur unhealthy en
+      # continu depuis sa création, avec un FailingStreak de ~38800 après 2 semaines).
+      test: ["CMD-SHELL", "curl -sf 'http://localhost:8080/ows/?service=WMS&request=GetCapabilities' || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 30s
