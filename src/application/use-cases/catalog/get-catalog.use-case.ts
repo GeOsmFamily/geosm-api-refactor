@@ -14,6 +14,7 @@ export interface CatalogLayer {
   url: string | null;
   sourceLayer: string | null;
   tableName: string | null;
+  schemaName: string | null;
   metadata: unknown;
 }
 
@@ -78,6 +79,7 @@ export class GetCatalogUseCase {
                     sourceUrl: true,
                     sourceLayer: true,
                     tableName: true,
+                    schemaName: true,
                     metadata: true,
                   },
                 },
@@ -117,6 +119,7 @@ export class GetCatalogUseCase {
             url: l.sourceUrl,
             sourceLayer: l.sourceLayer,
             tableName: l.tableName,
+            schemaName: l.schemaName,
             metadata: l.metadata,
           })),
         })),
