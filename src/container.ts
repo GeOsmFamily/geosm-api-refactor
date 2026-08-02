@@ -1693,9 +1693,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
         ),
       { lifetime: Lifetime.SCOPED },
     ),
-    purgeOrphanTablesUseCase: asFunction(
-      () => new PurgeOrphanTablesUseCase(prisma),
-      { lifetime: Lifetime.SCOPED },
-    ),
+    purgeOrphanTablesUseCase: asFunction(() => new PurgeOrphanTablesUseCase(prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
   });
 }
