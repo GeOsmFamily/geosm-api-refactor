@@ -191,14 +191,17 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // GET /:id/source-file — get the original source file from MinIO
+  // GET /:id/source-file — stream le contenu GeoJSON de la couche directement depuis MinIO.
+  // On ne renvoie plus une URL pré-signée MinIO : l'endpoint MinIO interne (nom de service
+  // Docker) n'est pas joignable depuis le navigateur ; passer par l'API garantit que le
+  // même hôte/port que le reste de l'app est utilisé, sans contrainte réseau supplémentaire.
   const getSourceFileUseCase =
     app.diContainer.resolve<GetSourceFileUseCase>('getSourceFileUseCase');
   app.get(
     '/:id/source-file',
     {
       schema: {
-        description: "Obtenir le fichier source d'une couche",
+        description: "Télécharger le fichier source GeoJSON d'une couche (stream direct).",
         tags: ['Couches'],
         security: [{ bearerAuth: [] }],
       },
@@ -207,7 +210,13 @@ export async function layerRoutes(app: FastifyInstance): Promise<void> {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = parseBody(layerIdParamSchema, request.params);
       const result = await getSourceFileUseCase.execute(id);
-      return reply.send(successResponse(result));
+
+      const safeName = result.name.replace(/[^a-zA-Z0-9_\-. ]/g, '_');
+      reply.header('Content-Type', 'application/geo+json');
+      reply.header('Content-Disposition', `attachment; filename="${safeName}.geojson"`);
+      if (result.sizeBytes) reply.header('Content-Length', String(result.sizeBytes));
+
+      return reply.send(result.stream);
     },
   );
 

@@ -14,13 +14,19 @@ describe('DeleteInstanceUseCase', () => {
     createdAt: now, updatedAt: now,
   });
 
+  let prisma: any;
+
   beforeEach(() => {
     instanceRepository = {
       findById: vi.fn(), findBySlug: vi.fn(), findAll: vi.fn(), create: vi.fn(),
       update: vi.fn(), delete: vi.fn(), findInstanceUsers: vi.fn(), addInstanceUser: vi.fn(),
       removeInstanceUser: vi.fn(), changeInstanceUserRole: vi.fn(), findInstanceUser: vi.fn(),
     };
-    useCase = new DeleteInstanceUseCase(instanceRepository);
+    prisma = {
+      $queryRawUnsafe: vi.fn().mockResolvedValue([]),
+      $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+    };
+    useCase = new DeleteInstanceUseCase(instanceRepository, prisma);
   });
 
   it('should delete instance when found', async () => {

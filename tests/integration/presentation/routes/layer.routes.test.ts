@@ -34,7 +34,11 @@ function buildApp(): FastifyInstance {
     createLayerUseCase: mockUseCase({ id: LAYER_UUID, name: 'New Layer' }),
     updateLayerUseCase: mockUseCase({ id: LAYER_UUID, name: 'Updated Layer' }),
     deleteLayerUseCase: mockUseCase(null),
-    getSourceFileUseCase: mockUseCase({ url: 'https://example.com/file.geojson' }),
+    getSourceFileUseCase: mockUseCase({
+      name: 'test-layer',
+      stream: Buffer.from('{}'),
+      sizeBytes: 2,
+    }),
   };
 
   app.decorate('diContainer', {

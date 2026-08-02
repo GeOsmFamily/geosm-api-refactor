@@ -232,6 +232,7 @@ import { GenerateIconUseCase } from './application/use-cases/admin/generate-icon
 import { SaveCoordPdfUseCase } from './application/use-cases/maps/save-coord-pdf.use-case.js';
 import { ConfigDbUseCase } from './application/use-cases/admin/config-db.use-case.js';
 import { GetDatabaseOverviewUseCase } from './application/use-cases/admin/get-database-overview.use-case.js';
+import { PurgeOrphanTablesUseCase } from './application/use-cases/admin/purge-orphan-tables.use-case.js';
 import { DockerService } from './infrastructure/docker/docker.service.js';
 import { ListContainersUseCase } from './application/use-cases/docker/list-containers.use-case.js';
 import { GetContainerStatsUseCase } from './application/use-cases/docker/get-container-stats.use-case.js';
@@ -602,6 +603,7 @@ interface Cradle {
   saveCoordPdfUseCase: SaveCoordPdfUseCase;
   configDbUseCase: ConfigDbUseCase;
   getDatabaseOverviewUseCase: GetDatabaseOverviewUseCase;
+  purgeOrphanTablesUseCase: PurgeOrphanTablesUseCase;
   dockerService: DockerService;
   listContainersUseCase: ListContainersUseCase;
   getContainerStatsUseCase: GetContainerStatsUseCase;
@@ -848,7 +850,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       { lifetime: Lifetime.SCOPED },
     ),
     deleteInstanceUseCase: asFunction(
-      (c: Cradle) => new DeleteInstanceUseCase(c.instanceRepository),
+      (c: Cradle) => new DeleteInstanceUseCase(c.instanceRepository, prisma),
       { lifetime: Lifetime.SCOPED },
     ),
     getInstanceUsersUseCase: asFunction(
@@ -1691,5 +1693,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
         ),
       { lifetime: Lifetime.SCOPED },
     ),
+    purgeOrphanTablesUseCase: asFunction(() => new PurgeOrphanTablesUseCase(prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
   });
 }
