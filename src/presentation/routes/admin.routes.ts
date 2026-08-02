@@ -22,6 +22,7 @@ import { ManageSequenceUseCase } from '../../application/use-cases/admin/manage-
 import { ReindexAllLayersUseCase } from '../../application/use-cases/search/reindex-all-layers.use-case.js';
 import { DatabaseBackupUseCase } from '../../application/use-cases/admin/database-backup.use-case.js';
 import { GetDatabaseOverviewUseCase } from '../../application/use-cases/admin/get-database-overview.use-case.js';
+import { PurgeOrphanTablesUseCase } from '../../application/use-cases/admin/purge-orphan-tables.use-case.js';
 
 function parseBody<T>(
   schema: {
@@ -100,6 +101,9 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     app.diContainer.resolve<DatabaseBackupUseCase>('databaseBackupUseCase');
   const getDatabaseOverviewUseCase = app.diContainer.resolve<GetDatabaseOverviewUseCase>(
     'getDatabaseOverviewUseCase',
+  );
+  const purgeOrphanTablesUseCase = app.diContainer.resolve<PurgeOrphanTablesUseCase>(
+    'purgeOrphanTablesUseCase',
   );
 
   // GET /dashboard — returns stats
@@ -412,6 +416,24 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { name } = parseBody(deleteSequenceSchema, request.body);
       const result = await manageSequenceUseCase.dropSequence(name);
+      return reply.send(successResponse(result));
+    },
+  );
+
+  // POST /database/purge-orphan-tables — supprime les tables PostGIS orphelines
+  app.post(
+    '/database/purge-orphan-tables',
+    {
+      schema: {
+        description:
+          'Supprime définitivement les tables PostGIS orphelines non liées à aucune couche ou instance active. Opération irréversible, réservée au super-admin.',
+        tags: ['Administration'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+    },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const result = await purgeOrphanTablesUseCase.execute();
       return reply.send(successResponse(result));
     },
   );
