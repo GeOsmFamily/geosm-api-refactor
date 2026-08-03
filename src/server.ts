@@ -9,6 +9,7 @@ import Fastify from 'fastify';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyRateLimit from '@fastify/rate-limit';
 import { appConfig } from './config/app.config.js';
+import { config } from './config/env.config.js';
 import { logger } from './infrastructure/observability/logger.js';
 import { setupContainer } from './container.js';
 import { swaggerPlugin } from './presentation/plugins/swagger.plugin.js';
@@ -211,12 +212,15 @@ async function bootstrap(): Promise<void> {
   // Route publique pour servir les icônes SVG personnalisées des couches
   app.get('/api/v1/layers/icons/:filename', async (request, reply) => {
     const { filename } = request.params as { filename: string };
-    const iconPath = path.join('/projects/icons', filename);
-    if (!fs.existsSync(iconPath)) {
+    const iconPath = path.join(config.QGIS_PROJECTS_DIR, 'icons', filename);
+    const fallbackPath = path.join('/projects/icons', filename);
+    const finalPath = fs.existsSync(iconPath) ? iconPath : fallbackPath;
+    if (!fs.existsSync(finalPath)) {
       return reply.status(404).send({ error: 'Icon not found' });
     }
-    const content = fs.readFileSync(iconPath);
+    const content = fs.readFileSync(finalPath);
     reply.header('Cross-Origin-Resource-Policy', 'cross-origin');
+    reply.header('Access-Control-Allow-Origin', '*');
     reply.type('image/svg+xml');
     return reply.send(content);
   });
