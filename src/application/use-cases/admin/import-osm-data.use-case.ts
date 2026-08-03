@@ -49,7 +49,7 @@ export class ImportOsmDataUseCase {
       percent: 10,
       step: 1,
       totalSteps: 4,
-      message: 'Initialisation du job d\'import OSM...',
+      message: "Initialisation du job d'import OSM...",
     });
 
     // Si le chemin est une URL (ex: https://download.geofabrik.de/africa/mali-latest.osm.pbf)
@@ -59,7 +59,7 @@ export class ImportOsmDataUseCase {
         percent: 25,
         step: 1,
         totalSteps: 4,
-        message: 'Téléchargement du fichier .osm.pbf depuis l\'URL...',
+        message: "Téléchargement du fichier .osm.pbf depuis l'URL...",
       });
 
       await mkdir(this.dataDir, { recursive: true });

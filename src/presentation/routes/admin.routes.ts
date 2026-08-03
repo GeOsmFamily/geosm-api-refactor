@@ -194,9 +194,9 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const body = parseBody(importOsmSchema, request.body);
-      const queueService = app.diContainer.resolve('queueService') as import(
-        '../../infrastructure/queue/queue.service.js'
-      ).QueueService;
+      const queueService = app.diContainer.resolve(
+        'queueService',
+      ) as import('../../infrastructure/queue/queue.service.js').QueueService;
 
       let job: import('bullmq').Job | null = null;
       if (queueService) {
@@ -221,7 +221,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           }
         })
         .catch((err) => {
-          request.log.error(err, 'Erreur lors de l\'import OSM en arrière-plan');
+          request.log.error(err, "Erreur lors de l'import OSM en arrière-plan");
         });
 
       return reply.send(
