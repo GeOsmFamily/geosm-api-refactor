@@ -29,7 +29,7 @@ export class GetBoundaryUseCase {
 
     const results = await this.prisma.$queryRawUnsafe<BoundaryDetail[]>(
       `SELECT id, name, admin_level AS "adminLevel",
-              ST_AsGeoJSON(ST_SimplifyPreserveTopology("${column}", 0.01))::json AS geojson
+              ST_AsGeoJSON("${column}")::json AS geojson
        FROM "${schema}"."${table}"
        WHERE id = $1`,
       id,
