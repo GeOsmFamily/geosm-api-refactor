@@ -65,12 +65,13 @@ describe('GetDashboardUseCase', () => {
 
     const result = await useCase.execute();
 
-    expect(result).toEqual({
-      instanceCount: 5,
-      userCount: 42,
-      exportCount: 10,
-      themeCount: 3,
-    });
+    expect(result.instanceCount).toBe(5);
+    expect(result.userCount).toBe(42);
+    expect(result.exportCount).toBe(10);
+    expect(result.themeCount).toBe(3);
+    expect(result.layerCount).toBe(0);
+    expect(result.boundaryCount).toBe(0);
+    expect(result.spatialObjectsCount).toEqual({ points: 0, polygons: 0, lines: 0 });
   });
 
   it('should return zeros when no data exists', async () => {
@@ -81,11 +82,9 @@ describe('GetDashboardUseCase', () => {
 
     const result = await useCase.execute();
 
-    expect(result).toEqual({
-      instanceCount: 0,
-      userCount: 0,
-      exportCount: 0,
-      themeCount: 0,
-    });
+    expect(result.instanceCount).toBe(0);
+    expect(result.userCount).toBe(0);
+    expect(result.exportCount).toBe(0);
+    expect(result.themeCount).toBe(0);
   });
 });
