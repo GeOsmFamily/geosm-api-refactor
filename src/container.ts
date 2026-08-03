@@ -1224,7 +1224,13 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       lifetime: Lifetime.SCOPED,
     }),
     importOsmDataUseCase: asFunction(
-      (c: Cradle) => new ImportOsmDataUseCase(c.osm2pgsqlService, c.prisma),
+      (c: Cradle) =>
+        new ImportOsmDataUseCase(
+          c.osm2pgsqlService,
+          c.prisma,
+          config.DATA_DIR,
+          config.OSM_POST_IMPORT_SCRIPT,
+        ),
       { lifetime: Lifetime.SCOPED },
     ),
     scheduledOsmImportUseCase: asFunction(

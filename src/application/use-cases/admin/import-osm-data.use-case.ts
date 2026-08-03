@@ -4,7 +4,12 @@ import {
   type Osm2pgsqlOptions,
 } from '../../../infrastructure/osm/osm2pgsql.service.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 
+const execAsync = promisify(exec);
 const logger = createChildLogger('ImportOsmDataUseCase');
 
 export interface ImportOsmDataInput {
@@ -15,16 +20,72 @@ export interface ImportOsmDataInput {
   cache?: number;
 }
 
+export type ImportOsmProgressCallback = (progress: {
+  percent: number;
+  step: number;
+  totalSteps: number;
+  message: string;
+}) => Promise<void> | void;
+
 export class ImportOsmDataUseCase {
   constructor(
     private readonly osm2pgsqlService: Osm2pgsqlService,
     private readonly prisma: PrismaClient,
+    private readonly dataDir: string = '/tmp/geosm-data',
+    private readonly postImportScript?: string,
   ) {}
 
-  async execute(input: ImportOsmDataInput): Promise<{ success: boolean; message: string }> {
+  async execute(
+    input: ImportOsmDataInput,
+    onProgress?: ImportOsmProgressCallback,
+  ): Promise<{ success: boolean; message: string }> {
     if (!input.pbfPath) {
-      throw new Error('PBF file path is required');
+      throw new Error('PBF file path or URL is required');
     }
+
+    let localPbfPath = input.pbfPath;
+
+    await onProgress?.({
+      percent: 10,
+      step: 1,
+      totalSteps: 4,
+      message: 'Initialisation du job d\'import OSM...',
+    });
+
+    // Si le chemin est une URL (ex: https://download.geofabrik.de/africa/mali-latest.osm.pbf)
+    if (input.pbfPath.startsWith('http://') || input.pbfPath.startsWith('https://')) {
+      logger.info('Downloading PBF file from URL', { url: input.pbfPath });
+      await onProgress?.({
+        percent: 25,
+        step: 1,
+        totalSteps: 4,
+        message: 'Téléchargement du fichier .osm.pbf depuis l\'URL...',
+      });
+
+      await mkdir(this.dataDir, { recursive: true });
+
+      const urlObj = new URL(input.pbfPath);
+      const fileName = path.basename(urlObj.pathname) || 'osm-data.osm.pbf';
+      localPbfPath = path.join(this.dataDir, fileName);
+
+      const response = await fetch(input.pbfPath);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to download PBF file from ${input.pbfPath}: ${response.statusText}`,
+        );
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      await writeFile(localPbfPath, Buffer.from(arrayBuffer));
+      logger.info('PBF file downloaded successfully', { localPbfPath });
+    }
+
+    await onProgress?.({
+      percent: 40,
+      step: 2,
+      totalSteps: 4,
+      message: 'Importation des données spatiales dans PostGIS via osm2pgsql...',
+    });
 
     const options: Osm2pgsqlOptions = {
       slim: input.slim ?? true,
@@ -33,18 +94,53 @@ export class ImportOsmDataUseCase {
       cache: input.cache ?? 800,
     };
 
+    let result: { success: boolean; message: string };
+
     if (input.append) {
-      logger.info('OSM data update starting', { pbfPath: input.pbfPath, slim: options.slim });
-      const result = await this.osm2pgsqlService.updateData(input.pbfPath, options);
-      await this.moveTablesToOsmSchema();
-      logger.info('OSM data update completed', { pbfPath: input.pbfPath, success: result.success });
-      return result;
+      logger.info('OSM data update starting', { pbfPath: localPbfPath, slim: options.slim });
+      result = await this.osm2pgsqlService.updateData(localPbfPath, options);
+    } else {
+      logger.info('OSM data import starting', { pbfPath: localPbfPath, slim: options.slim });
+      result = await this.osm2pgsqlService.importFile(localPbfPath, options);
     }
 
-    logger.info('OSM data import starting', { pbfPath: input.pbfPath, slim: options.slim });
-    const result = await this.osm2pgsqlService.importFile(input.pbfPath, options);
+    await onProgress?.({
+      percent: 75,
+      step: 3,
+      totalSteps: 4,
+      message: 'Extraction automatique des limites administratives...',
+    });
+
     await this.moveTablesToOsmSchema();
-    logger.info('OSM data import completed', { pbfPath: input.pbfPath, success: result.success });
+
+    await onProgress?.({
+      percent: 90,
+      step: 4,
+      totalSteps: 4,
+      message: 'Mise à jour des conteneurs Nominatim & OSRM...',
+    });
+
+    // Déclenchement facultatif du script d'action post-import (mise à jour Nominatim / OSRM)
+    if (this.postImportScript) {
+      try {
+        logger.info('Running post-import script for Nominatim/OSRM', {
+          script: this.postImportScript,
+        });
+        await execAsync(`${this.postImportScript} "${localPbfPath}" "${this.dataDir}"`);
+        logger.info('Post-import script completed successfully');
+      } catch (scriptErr) {
+        logger.warn('Post-import script failed', { error: scriptErr });
+      }
+    }
+
+    await onProgress?.({
+      percent: 100,
+      step: 4,
+      totalSteps: 4,
+      message: 'Importation et synchronisation terminées avec succès !',
+    });
+
+    logger.info('OSM data import completed', { pbfPath: localPbfPath, success: result.success });
     return result;
   }
 
@@ -54,6 +150,40 @@ export class ImportOsmDataUseCase {
       await this.prisma.$executeRawUnsafe(
         `ALTER TABLE IF EXISTS public.planet_osm_${t} SET SCHEMA osm`,
       );
+    }
+    await this.populateAdminBoundariesFromOsmPolygons();
+  }
+
+  /**
+   * Extrait automatiquement les limites administratives depuis osm.planet_osm_polygon
+   * vers la table public.admin_boundaries pour que le sélecteur de limites d'instances
+   * (ex. Bamako, régions du Mali) contienne immédiatement toutes les géométries sans
+   * nécessiter d'upload de shapefile séparé.
+   */
+  private async populateAdminBoundariesFromOsmPolygons(): Promise<void> {
+    try {
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.admin_boundaries (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          admin_level INTEGER,
+          geom geometry(MultiPolygon, 4326)
+        );
+      `);
+      await this.prisma.$executeRawUnsafe(`
+        INSERT INTO public.admin_boundaries (name, admin_level, geom)
+        SELECT 
+          name, 
+          CASE WHEN admin_level ~ '^[0-9]+$' THEN admin_level::integer ELSE NULL END,
+          ST_Multi(ST_Transform(way, 4326))
+        FROM osm.planet_osm_polygon
+        WHERE boundary = 'administrative' 
+          AND name IS NOT NULL
+          AND ST_IsValid(way);
+      `);
+      logger.info('Extracted administrative boundaries into public.admin_boundaries');
+    } catch (err) {
+      logger.warn('Failed to extract boundaries from OSM polygons', { error: err });
     }
   }
 }
