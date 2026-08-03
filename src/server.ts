@@ -209,6 +209,24 @@ async function bootstrap(): Promise<void> {
   );
   await queueService.addRepeatableJob('database-backup', 'daily-backup', {}, envConfig.BACKUP_CRON);
 
+  // Register activity report workers (Rapports Hebdomadaire & Mensuel par email à ALERT_EMAIL_TO)
+  queueService.createQueue('activity-reports');
+  queueService.registerWorker('activity-reports', async (job) => {
+    if (job.name === 'weekly-report') {
+      const sendWeeklyReportUseCase = app.diContainer.resolve(
+        'sendWeeklyReportUseCase',
+      ) as import('./application/use-cases/admin/send-weekly-report.use-case.js').SendWeeklyReportUseCase;
+      await sendWeeklyReportUseCase.execute();
+    } else if (job.name === 'monthly-report') {
+      const sendMonthlyReportUseCase = app.diContainer.resolve(
+        'sendMonthlyReportUseCase',
+      ) as import('./application/use-cases/admin/send-monthly-report.use-case.js').SendMonthlyReportUseCase;
+      await sendMonthlyReportUseCase.execute();
+    }
+  });
+  await queueService.addRepeatableJob('activity-reports', 'weekly-report', {}, '0 8 * * 1');
+  await queueService.addRepeatableJob('activity-reports', 'monthly-report', {}, '0 8 1 * *');
+
   // Route publique pour servir les icônes SVG personnalisées des couches
   app.get('/api/v1/layers/icons/:filename', async (request, reply) => {
     const { filename } = request.params as { filename: string };

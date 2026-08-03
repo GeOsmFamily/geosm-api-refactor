@@ -206,6 +206,8 @@ import { SeedDefaultThemesUseCase } from './application/use-cases/default-themes
 import { GetDashboardUseCase } from './application/use-cases/admin/get-dashboard.use-case.js';
 import { ListJobsUseCase } from './application/use-cases/admin/list-jobs.use-case.js';
 import { GetSystemHealthUseCase } from './application/use-cases/admin/get-system-health.use-case.js';
+import { SendMonthlyReportUseCase } from './application/use-cases/admin/send-monthly-report.use-case.js';
+import { SendWeeklyReportUseCase } from './application/use-cases/admin/send-weekly-report.use-case.js';
 
 // Adressage
 import { AdressageService } from './infrastructure/database/adressage.service.js';
@@ -1211,6 +1213,9 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
           c.userRepository,
           c.exportRepository,
           c.defaultThemeRepository,
+          c.prisma,
+          c.storageService,
+          c.redisService,
         ),
       { lifetime: Lifetime.SCOPED },
     ),
@@ -1230,6 +1235,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
           c.prisma,
           config.DATA_DIR,
           config.OSM_POST_IMPORT_SCRIPT,
+          c.emailService,
+          config.ALERT_EMAIL_TO || config.SUPER_ADMIN_EMAIL,
         ),
       { lifetime: Lifetime.SCOPED },
     ),
@@ -1250,6 +1257,28 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
           c.storageService,
           config.DATABASE_URL,
           config.BACKUP_RETENTION_DAYS,
+          c.emailService,
+          config.ALERT_EMAIL_TO || config.SUPER_ADMIN_EMAIL,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    sendMonthlyReportUseCase: asFunction(
+      (c: Cradle) =>
+        new SendMonthlyReportUseCase(
+          c.prisma,
+          c.storageService,
+          c.emailService,
+          config.ALERT_EMAIL_TO || config.SUPER_ADMIN_EMAIL,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    sendWeeklyReportUseCase: asFunction(
+      (c: Cradle) =>
+        new SendWeeklyReportUseCase(
+          c.prisma,
+          c.storageService,
+          c.emailService,
+          config.ALERT_EMAIL_TO || config.SUPER_ADMIN_EMAIL,
         ),
       { lifetime: Lifetime.SCOPED },
     ),
