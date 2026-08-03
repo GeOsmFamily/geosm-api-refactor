@@ -49,6 +49,10 @@ export class Osm2pgsqlService {
   ): Promise<{ success: boolean; message: string }> {
     const args: string[] = ['osm2pgsql'];
 
+    if (!options.extraArgs?.some((a) => a.startsWith('--schema'))) {
+      args.push('--schema=osm');
+    }
+
     if (options.append) {
       args.push('--append');
     } else {
