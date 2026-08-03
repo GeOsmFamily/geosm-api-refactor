@@ -194,8 +194,43 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const body = parseBody(importOsmSchema, request.body);
-      const result = await importOsmDataUseCase.execute(body);
-      return reply.send(successResponse(result));
+      const queueService = app.diContainer.resolve(
+        'queueService',
+      ) as import('../../infrastructure/queue/queue.service.js').QueueService;
+
+      let job: import('bullmq').Job | null = null;
+      if (queueService) {
+        try {
+          job = await queueService.addJob(
+            'scheduled-osm-import',
+            'manual-osm-import',
+            body as Record<string, unknown>,
+          );
+        } catch (err) {
+          request.log.warn({ error: err }, 'Could not enqueue BullMQ job for OSM import');
+        }
+      }
+
+      const jobId = job?.id ?? `osm-import-${Date.now()}`;
+
+      // Lancement asynchrone en arrière-plan avec rapport de progression
+      importOsmDataUseCase
+        .execute(body, async (progress) => {
+          if (job) {
+            await job.updateProgress(progress);
+          }
+        })
+        .catch((err) => {
+          request.log.error(err, "Erreur lors de l'import OSM en arrière-plan");
+        });
+
+      return reply.send(
+        successResponse({
+          success: true,
+          jobId,
+          message: 'Import OSM démarré en arrière-plan.',
+        }),
+      );
     },
   );
 

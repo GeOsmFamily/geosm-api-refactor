@@ -79,6 +79,7 @@ const envSchema = z.object({
   // n'existe pas de téléchargement automatique depuis Geofabrik ou l'API OSM dans ce code).
   // Non défini = le job planifié se déclenche mais ne fait rien (no-op silencieux, loggé).
   OSM_IMPORT_PBF_PATH: z.string().optional(),
+  OSM_POST_IMPORT_SCRIPT: z.string().optional(),
   OSM_IMPORT_CRON: z.string().default('0 2 1 * *'),
 
   // Backup Postgres programmé (voir DatabaseBackupUseCase) - actif par défaut (contrairement
