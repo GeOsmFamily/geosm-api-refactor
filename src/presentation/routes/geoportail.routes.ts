@@ -291,16 +291,14 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // GET /api/v1/geoportail/admin-boundaries/:table/:id - apercu geometrique (utilise apres
-  // selection d'un resultat de recherche ci-dessus, pas pour lister/parcourir).
+  // selection d'un resultat de recherche ou chargement de la limite d'instance sur la carte).
   app.get(
     '/admin-boundaries/:table/:id',
     {
       schema: {
         description: "Obtenir le detail (geometrie incluse) d'une limite administrative",
         tags: ['Geoportail'],
-        security: [{ bearerAuth: [] }],
       },
-      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { table, id } = parseBody(getBoundaryParamsSchema, request.params);
