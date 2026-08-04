@@ -86,10 +86,9 @@ export class RasterService {
     let postgisWarning: string | null = null;
     try {
       const psqlUrl = this.dbUrl.split('?')[0];
-      await execAsync(
-        `psql "${psqlUrl}" -c "CREATE SCHEMA IF NOT EXISTS ${RASTER_SCHEMA}"`,
-        { timeout: 30000 },
-      );
+      await execAsync(`psql "${psqlUrl}" -c "CREATE SCHEMA IF NOT EXISTS ${RASTER_SCHEMA}"`, {
+        timeout: 30000,
+      });
       await execAsync(
         `raster2pgsql -s ${srid} -t ${tileSize}x${tileSize} -I -C -M "${warpedPath}" ${RASTER_SCHEMA}."${safeTable}" | psql "${psqlUrl}"`,
         { timeout: 600000 },
@@ -102,7 +101,13 @@ export class RasterService {
 
     const info = await this.getRasterInfo(warpedPath);
 
-    return { tableName: safeTable, schemaName: RASTER_SCHEMA, outputPath: warpedPath, info, postgisWarning };
+    return {
+      tableName: safeTable,
+      schemaName: RASTER_SCHEMA,
+      outputPath: warpedPath,
+      info,
+      postgisWarning,
+    };
   }
 
   async downloadRaster(
