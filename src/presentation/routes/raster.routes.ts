@@ -15,6 +15,12 @@ import { config } from '../../config/env.config.js';
 import { UploadRasterUseCase } from '../../application/use-cases/rasters/upload-raster.use-case.js';
 import { DownloadRasterUseCase } from '../../application/use-cases/rasters/download-raster.use-case.js';
 import { RasterService } from '../../infrastructure/gdal/raster.service.js';
+import {
+  RunRasterAnalysisUseCase,
+  type RasterAnalysisType,
+} from '../../application/use-cases/rasters/run-raster-analysis.use-case.js';
+import { GetRasterAnalysisResultUseCase } from '../../application/use-cases/rasters/get-raster-analysis-result.use-case.js';
+import { GetPixelValueUseCase } from '../../application/use-cases/rasters/get-pixel-value.use-case.js';
 
 function parseBody<T>(
   schema: {
@@ -36,11 +42,28 @@ const downloadSchema = z.object({
   format: z.string().default('GTiff'),
 });
 
+const analyzeBodySchema = z.object({
+  type: z.enum(['global', 'zonal']),
+});
+
+const pixelValueQuerySchema = z.object({
+  lon: z.coerce.number(),
+  lat: z.coerce.number(),
+});
+
 export async function rasterRoutes(app: FastifyInstance): Promise<void> {
   const uploadRasterUseCase = app.diContainer.resolve<UploadRasterUseCase>('uploadRasterUseCase');
   const downloadRasterUseCase =
     app.diContainer.resolve<DownloadRasterUseCase>('downloadRasterUseCase');
   const rasterService = app.diContainer.resolve<RasterService>('rasterService');
+  const runRasterAnalysisUseCase = app.diContainer.resolve<RunRasterAnalysisUseCase>(
+    'runRasterAnalysisUseCase',
+  );
+  const getRasterAnalysisResultUseCase = app.diContainer.resolve<GetRasterAnalysisResultUseCase>(
+    'getRasterAnalysisResultUseCase',
+  );
+  const getPixelValueUseCase =
+    app.diContainer.resolve<GetPixelValueUseCase>('getPixelValueUseCase');
 
   // POST /rasters/upload — importe un raster ET le rend visible sur le portail (voir
   // UploadRasterUseCase : enregistrement dans le projet QGIS + création d'une couche).
@@ -146,6 +169,66 @@ export async function rasterRoutes(app: FastifyInstance): Promise<void> {
       const { filePath } = parseBody(z.object({ filePath: z.string().min(1) }), request.body);
       const info = await rasterService.getRasterInfo(filePath);
       return reply.send(successResponse(info));
+    },
+  );
+
+  // POST /rasters/:layerId/analyze — déclenche une analyse asynchrone (statistiques globales ou
+  // zonales, voir plan "Analyse raster"). Retourne un resultId à interroger via
+  // GET /rasters/analysis/:resultId (polling côté frontend).
+  app.post(
+    '/:layerId/analyze',
+    {
+      schema: {
+        description: 'Déclencher une analyse raster (job asynchrone)',
+        tags: ['Rasters'],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(analyzeBodySchema),
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { layerId } = parseBody(z.object({ layerId: z.string().uuid() }), request.params);
+      const { type } = parseBody(analyzeBodySchema, request.body);
+      const result = await runRasterAnalysisUseCase.execute(layerId, type as RasterAnalysisType);
+      return reply.status(202).send(successResponse(result));
+    },
+  );
+
+  // GET /rasters/analysis/:resultId — statut/résultat d'un job d'analyse (polling).
+  app.get(
+    '/analysis/:resultId',
+    {
+      schema: {
+        description: "Obtenir le statut/résultat d'une analyse raster",
+        tags: ['Rasters'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { resultId } = parseBody(z.object({ resultId: z.string().uuid() }), request.params);
+      const result = await getRasterAnalysisResultUseCase.execute(resultId);
+      return reply.send(successResponse(result));
+    },
+  );
+
+  // GET /rasters/:layerId/value?lon=&lat= — valeur du pixel au clic, synchrone.
+  app.get(
+    '/:layerId/value',
+    {
+      schema: {
+        description: "Obtenir la valeur d'un pixel raster à un point donné",
+        tags: ['Rasters'],
+        security: [{ bearerAuth: [] }],
+        querystring: zodToSwagger(pixelValueQuerySchema),
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { layerId } = parseBody(z.object({ layerId: z.string().uuid() }), request.params);
+      const { lon, lat } = parseBody(pixelValueQuerySchema, request.query);
+      const result = await getPixelValueUseCase.execute(layerId, lon, lat);
+      return reply.send(successResponse(result));
     },
   );
 }

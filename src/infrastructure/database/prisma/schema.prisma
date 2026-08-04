@@ -309,9 +309,10 @@ model Layer {
   subGroup    SubGroup      @relation(fields: [subGroupId], references: [id], onDelete: Cascade)
   instance    Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   qgisProject QgisProject?  @relation(fields: [qgisProjectId], references: [id], onDelete: SetNull)
-  styles      LayerStyle[]
-  actions     LayerAction[]
-  exports     Export[]
+  styles                LayerStyle[]
+  actions               LayerAction[]
+  exports               Export[]
+  rasterAnalysisResults RasterAnalysisResult[]
 
   @@unique([slug, instanceId])
   @@index([instanceId])
@@ -452,6 +453,27 @@ model Export {
   @@index([userId])
   @@index([layerId])
   @@map("exports")
+}
+
+// Résultat d'une analyse raster asynchrone (statistiques globales ou zonales, voir plan
+// "Analyse raster" - RasterAnalysisUseCase/raster-analysis.worker.ts). Contrairement aux tables
+// admin_boundaries/rasters.* (créées hors Prisma pour éviter les conflits avec "prisma db push",
+// voir RASTER_SCHEMA dans raster.service.ts), cette table EST créée/gérée par notre propre code
+// applicatif - pas de risque de dérive de schéma, donc pas besoin de l'exclure via @@ignore.
+model RasterAnalysisResult {
+  id        String    @id @default(uuid()) @db.Uuid
+  layerId   String    @map("layer_id") @db.Uuid
+  type      String // 'global' | 'zonal'
+  status    JobStatus @default(PENDING)
+  result    Json?
+  error     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  layer Layer @relation(fields: [layerId], references: [id], onDelete: Cascade)
+
+  @@index([layerId])
+  @@map("raster_analysis_results")
 }
 
 enum PaperSize {

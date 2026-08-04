@@ -34,6 +34,31 @@ export interface LayerStats {
   bbox: [number, number, number, number] | null;
 }
 
+export interface RasterStats {
+  min: number | null;
+  max: number | null;
+  mean: number | null;
+  stddev: number | null;
+  count: number;
+}
+
+export interface ZonalStatZone {
+  id: number;
+  name: string;
+  /** Géométrie de la zone en GeoJSON (WGS84/EPSG:4326), sérialisée en string. */
+  geojson: string;
+}
+
+export interface ZonalStat {
+  zoneId: number;
+  zoneName: string;
+  sum: number | null;
+  mean: number | null;
+  min: number | null;
+  max: number | null;
+  count: number;
+}
+
 export class PostGISService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -424,6 +449,108 @@ export class PostGISService {
           ? [Number(row.xmin), Number(row.ymin), Number(row.xmax), Number(row.ymax)]
           : null,
     };
+  }
+
+  // Valeur du pixel d'un raster à un point donné - même forme que getAltitude() (raster SRTM
+  // fixe) ci-dessus, mais paramétrée sur un schema/table quelconque (voir schéma "rasters").
+  async getPixelValue(
+    schema: string,
+    table: string,
+    lon: number,
+    lat: number,
+  ): Promise<number | null> {
+    const s = this.sanitizeIdentifier(schema);
+    const t = this.sanitizeIdentifier(table);
+    const point = `ST_SetSRID(ST_MakePoint(${Number(lon)}, ${Number(lat)}), 4326)`;
+    const rows = await this.prisma.$queryRawUnsafe<{ value: number | null }[]>(`
+      SELECT ST_Value(rast, ${point}) as value
+      FROM "${s}"."${t}"
+      WHERE ST_Intersects(rast, ${point})
+      LIMIT 1
+    `);
+    const value = rows[0]?.value;
+    return value != null ? Number(value) : null;
+  }
+
+  // Statistiques globales d'un raster (min/max/moyenne/écart-type sur l'ensemble des tuiles) -
+  // ST_SummaryStatsAgg agrège correctement across toutes les lignes/tuiles de la table en un
+  // seul résultat (contrairement à ST_SummaryStats qui opère ligne par ligne).
+  async getRasterStats(schema: string, table: string): Promise<RasterStats> {
+    const s = this.sanitizeIdentifier(schema);
+    const t = this.sanitizeIdentifier(table);
+    const rows = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
+      SELECT (stats).min, (stats).max, (stats).mean, (stats).stddev, (stats).count
+      FROM (SELECT ST_SummaryStatsAgg(rast, 1, true) as stats FROM "${s}"."${t}") sub
+    `);
+    const row = rows[0] || {};
+    return {
+      min: row.min != null ? Number(row.min) : null,
+      max: row.max != null ? Number(row.max) : null,
+      mean: row.mean != null ? Number(row.mean) : null,
+      stddev: row.stddev != null ? Number(row.stddev) : null,
+      count: row.count != null ? Number(row.count) : 0,
+    };
+  }
+
+  // Statistiques par zone (agrégation raster/vecteur) - une seule requête pour toutes les zones
+  // (UNNEST + jointure spatiale) plutôt que N allers-retours. ST_Clip découpe le raster à la
+  // géométrie de chaque zone, ST_Union fusionne les tuiles concernées avant ST_SummaryStats.
+  async getZonalStats(
+    rasterSchema: string,
+    rasterTable: string,
+    zones: ZonalStatZone[],
+  ): Promise<ZonalStat[]> {
+    if (zones.length === 0) return [];
+    const s = this.sanitizeIdentifier(rasterSchema);
+    const t = this.sanitizeIdentifier(rasterTable);
+
+    const ids = zones.map((z) => Number(z.id)).join(',');
+    const names = zones.map((z) => `'${z.name.replace(/'/g, "''")}'`).join(',');
+    const geojsons = zones.map((z) => `'${z.geojson.replace(/'/g, "''")}'`).join(',');
+
+    const sql = `
+      WITH zones AS (
+        SELECT * FROM UNNEST(
+          ARRAY[${ids}]::int[],
+          ARRAY[${names}]::text[],
+          ARRAY[${geojsons}]::text[]
+        ) AS z(id, name, geojson)
+      ),
+      clipped AS (
+        SELECT
+          z.id,
+          z.name,
+          ST_Union(ST_Clip(r.rast, ST_SetSRID(ST_GeomFromGeoJSON(z.geojson), 4326), true)) as clipped_rast
+        FROM zones z
+        JOIN "${s}"."${t}" r
+          ON ST_Intersects(r.rast, ST_SetSRID(ST_GeomFromGeoJSON(z.geojson), 4326))
+        GROUP BY z.id, z.name
+      )
+      SELECT
+        id as zone_id,
+        name as zone_name,
+        (stats).sum,
+        (stats).mean,
+        (stats).min,
+        (stats).max,
+        (stats).count
+      FROM (
+        SELECT id, name, ST_SummaryStats(clipped_rast) as stats
+        FROM clipped
+        WHERE clipped_rast IS NOT NULL
+      ) sub
+    `;
+
+    const rows = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(sql);
+    return rows.map((row) => ({
+      zoneId: Number(row.zone_id),
+      zoneName: String(row.zone_name),
+      sum: row.sum != null ? Number(row.sum) : null,
+      mean: row.mean != null ? Number(row.mean) : null,
+      min: row.min != null ? Number(row.min) : null,
+      max: row.max != null ? Number(row.max) : null,
+      count: row.count != null ? Number(row.count) : 0,
+    }));
   }
 
   // Spatial query: find features within a boundary
