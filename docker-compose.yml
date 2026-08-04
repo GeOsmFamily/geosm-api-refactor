@@ -19,7 +19,12 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 1024M
+          # 1024M tuait gdalwarp au premier import raster un peu consistant (OOM killer côté
+          # cgroup, confirmé via dmesg - "Memory cgroup out of memory: Killed process gdalwarp") :
+          # reprojeter même un raster compressé de 24MB peut faire grimper gdalwarp à ~850MB de
+          # RSS, avant même gdaladdo/raster2pgsql qui tournent ensuite. Le serveur a largement la
+          # marge (15GB, ~5GB dispo).
+          memory: 4096M
         reservations:
           cpus: '0.5'
           memory: 256M
