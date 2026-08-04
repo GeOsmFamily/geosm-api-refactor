@@ -53,4 +53,7 @@ export interface IEmailService {
   sendFeedbackNotificationEmail(email: string, data: FeedbackNotificationData): Promise<void>;
   sendMonthlyReportEmail(email: string, report: ActivityReportData): Promise<void>;
   sendWeeklyReportEmail(email: string, report: ActivityReportData): Promise<void>;
+  /** Utilisé par AlertingService pour le volet email des alertes CRITICAL (Slack couvre déjà
+   * WARNING+CRITICAL) - sujet/corps déjà formés par l'appelant, pas de template dédié ici. */
+  sendAlertEmail(email: string, subject: string, html: string): Promise<void>;
 }
