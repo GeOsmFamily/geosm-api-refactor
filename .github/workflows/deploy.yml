@@ -131,11 +131,30 @@ jobs:
           script: |
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
+            # "docker compose pull/up" ne synchronise QUE l'image - docker-compose.yml et
+            # docker-compose.prod.yml sont lus depuis le disque LOCAL du VPS, jamais mis à jour
+            # tout seuls. Un changement qui vit dans ces fichiers (limites de ressources,
+            # healthcheck, variables...) n'a donc jamais d'effet tant que ce checkout n'est pas
+            # explicitement resynchronisé sur le commit qui vient d'être buildé - vécu en
+            # conditions réelles avec une limite mémoire relevée dans le code mais restée à
+            # l'ancienne valeur sur le VPS après plusieurs déploiements.
+            git fetch origin
+            git reset --hard "${{ github.sha }}"
+            # Capturé AVANT de toucher au conteneur - filet de secours réel ("ce qui tournait
+            # juste avant"), pas une supposition. L'ancien code retombait sur ":latest" en cas
+            # d'échec du healthcheck, mais rien dans ce script ne le "pull" avant de l'utiliser :
+            # Docker sert alors le tag ":latest" déjà en cache LOCAL sur le VPS, qui peut être
+            # arbitrairement ancien s'il n'a pas été retiré depuis un moment (vécu en conditions
+            # réelles : un rollback est retombé sur une image vieille d'un mois lors d'un simple
+            # aléa de timing du healthcheck, alors que le déploiement suivant démarrait sans le
+            # moindre souci une fois relancé manuellement).
+            PREVIOUS_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$(docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q api)" 2>/dev/null || echo "ghcr.io/${REPO_LC}:latest")
+            echo "Image de secours en cas d'échec : ${PREVIOUS_IMAGE}"
             export API_IMAGE="ghcr.io/${REPO_LC}:${{ needs.version-tag.outputs.version }}"
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull api
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
-            echo "Attente du healthcheck (jusqu'à 60s)..."
-            for i in $(seq 1 15); do
+            echo "Attente du healthcheck (jusqu'à 120s)..."
+            for i in $(seq 1 30); do
               STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$(docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q api)" 2>/dev/null || echo "starting")
               if [ "$STATUS" = "healthy" ]; then
                 echo "✅ Déploiement réussi (${API_IMAGE})"
@@ -143,8 +162,9 @@ jobs:
               fi
               sleep 4
             done
-            echo "❌ Healthcheck échoué après déploiement - revert vers :latest précédent"
-            export API_IMAGE="ghcr.io/${REPO_LC}:latest"
+            echo "❌ Healthcheck échoué après déploiement - retour à la version précédente (${PREVIOUS_IMAGE}), re-téléchargée pour garantir sa fraîcheur"
+            export API_IMAGE="${PREVIOUS_IMAGE}"
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull api
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
             exit 1
 

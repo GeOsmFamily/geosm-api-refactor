@@ -205,6 +205,9 @@ async function bootstrap(): Promise<void> {
       databaseBackupUseCase: app.diContainer.resolve(
         'databaseBackupUseCase',
       ) as import('./application/use-cases/admin/database-backup.use-case.js').DatabaseBackupUseCase,
+      alertingService: app.diContainer.resolve(
+        'alertingService',
+      ) as import('./infrastructure/observability/alerting.service.js').AlertingService,
     }),
   );
   await queueService.addRepeatableJob('database-backup', 'daily-backup', {}, envConfig.BACKUP_CRON);

@@ -56,6 +56,10 @@ export class SmtpEmailService implements IEmailService {
     }
   }
 
+  async sendAlertEmail(email: string, subject: string, html: string): Promise<void> {
+    await this.send(email, subject, html);
+  }
+
   async sendVerificationEmail(email: string, token: string): Promise<void> {
     const link = `${this.appUrl}/verify-email?token=${token}`;
     await this.send(

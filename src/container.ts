@@ -1545,7 +1545,12 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     feedbackRepository: asFunction(() => new PrismaFeedbackRepository(prisma), {
       lifetime: Lifetime.SINGLETON,
     }),
-    alertingService: asFunction(() => new AlertingService(), { lifetime: Lifetime.SINGLETON }),
+    // Sans emailService ici, le volet email des alertes CRITICAL ne partait jamais - AlertingService
+    // se rabattait silencieusement sur this.emailService === null (constructeur appelé sans
+    // argument), alors que Slack (WARNING+CRITICAL) fonctionnait très bien de son côté.
+    alertingService: asFunction((c: Cradle) => new AlertingService(c.emailService), {
+      lifetime: Lifetime.SINGLETON,
+    }),
     submitFeedbackUseCase: asFunction(
       (c: Cradle) => new SubmitFeedbackUseCase(c.feedbackRepository, c.alertingService),
       { lifetime: Lifetime.SCOPED },
