@@ -138,6 +138,7 @@ jobs:
             # explicitement resynchronisé sur le commit qui vient d'être buildé - vécu en
             # conditions réelles avec une limite mémoire relevée dans le code mais restée à
             # l'ancienne valeur sur le VPS après plusieurs déploiements.
+            git config --global --add safe.directory "${{ secrets.DEPLOY_PATH }}"
             git fetch origin
             git reset --hard "${{ github.sha }}"
             # Capturé AVANT de toucher au conteneur - filet de secours réel ("ce qui tournait
