@@ -109,7 +109,7 @@ export class UploadRasterUseCase {
       sourceUrl: `${config.QGIS_PUBLIC_URL}?map=${projectPath}`,
       sourceLayer: finalTable,
       tableName: importResult.tableName,
-      schemaName: 'public',
+      schemaName: importResult.schemaName,
       minZoom: 0,
       maxZoom: 22,
       isVisible: false,

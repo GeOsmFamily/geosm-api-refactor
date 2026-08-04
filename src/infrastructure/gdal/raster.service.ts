@@ -8,6 +8,18 @@ import { config } from '../../config/env.config.js';
 
 const execAsync = promisify(exec);
 
+// Schéma PostgreSQL dédié aux tables raster (raster2pgsql), séparé de "public" - "public" est
+// entièrement synchronisé par Prisma (db push, exécuté à chaque démarrage du conteneur api, voir
+// docker/entrypoint.sh) : une table raster2pgsql y créée avec un nom imprévisible (choisi par
+// l'admin à l'import) est vue comme une dérive de schéma et Prisma propose de la DROP au
+// redémarrage suivant - bloquant carrément le démarrage de l'API tant que la table contient des
+// données (confirmé en conditions réelles : "You are about to drop the `xxx` table ... Use the
+// --accept-data-loss flag"). Impossible d'exclure ces tables une par une via "@@ignore" comme
+// admin_boundaries (nom fixe, connu à l'avance) puisqu'un nom différent est créé à chaque import.
+// Un schéma séparé, hors du périmètre de Prisma (DATABASE_URL cible "public"), règle le problème
+// une fois pour toutes quel que soit le nombre/nom des rasters importés.
+const RASTER_SCHEMA = 'rasters';
+
 export interface RasterInfo {
   width: number;
   height: number;
@@ -18,6 +30,7 @@ export interface RasterInfo {
 
 export interface ImportRasterResult {
   tableName: string;
+  schemaName: string;
   outputPath: string;
   info: RasterInfo;
   /** Non-null si l'import PostGIS (raster2pgsql) a échoué - le raster reste malgré tout
@@ -73,8 +86,11 @@ export class RasterService {
     let postgisWarning: string | null = null;
     try {
       const psqlUrl = this.dbUrl.split('?')[0];
+      await execAsync(`psql "${psqlUrl}" -c "CREATE SCHEMA IF NOT EXISTS ${RASTER_SCHEMA}"`, {
+        timeout: 30000,
+      });
       await execAsync(
-        `raster2pgsql -s ${srid} -t ${tileSize}x${tileSize} -I -C -M "${warpedPath}" public."${safeTable}" | psql "${psqlUrl}"`,
+        `raster2pgsql -s ${srid} -t ${tileSize}x${tileSize} -I -C -M "${warpedPath}" ${RASTER_SCHEMA}."${safeTable}" | psql "${psqlUrl}"`,
         { timeout: 600000 },
       );
     } catch (error) {
@@ -85,7 +101,13 @@ export class RasterService {
 
     const info = await this.getRasterInfo(warpedPath);
 
-    return { tableName: safeTable, outputPath: warpedPath, info, postgisWarning };
+    return {
+      tableName: safeTable,
+      schemaName: RASTER_SCHEMA,
+      outputPath: warpedPath,
+      info,
+      postgisWarning,
+    };
   }
 
   async downloadRaster(
@@ -102,7 +124,7 @@ export class RasterService {
     }
 
     await execAsync(
-      `gdal_translate -of ${format} "${pgConn}" -sql "SELECT rast FROM public.\\"${safeTable}\\"" "${outputPath}"`,
+      `gdal_translate -of ${format} "${pgConn}" -sql "SELECT rast FROM ${RASTER_SCHEMA}.\\"${safeTable}\\"" "${outputPath}"`,
       { timeout: 300000 },
     );
 

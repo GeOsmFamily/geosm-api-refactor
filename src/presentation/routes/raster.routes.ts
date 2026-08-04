@@ -1,8 +1,9 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { mkdir, unlink } from 'node:fs/promises';
+import { createWriteStream, existsSync } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 import path from 'node:path';
 import { successResponse } from '../schemas/common.schema.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
@@ -62,24 +63,37 @@ export async function rasterRoutes(app: FastifyInstance): Promise<void> {
       preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const file = await request.file();
-      if (!file) throw new ValidationError('No file uploaded', {});
+      // request.file() ne renvoie que les champs déjà lus dans le flux multipart AVANT le
+      // fichier (file.fields ne contient jamais ceux qui suivent) - le frontend (RasterService)
+      // envoie justement 'file' en premier dans le FormData, donc tableName/name/instanceId/
+      // subGroupId remontaient systématiquement comme "Required" (vérifié en conditions réelles :
+      // l'upload échouait toujours, quel que soit le raster). request.parts() itère tout le
+      // flux sans cette dépendance à l'ordre d'envoi.
+      const tmpDir = config.DATA_DIR;
+      if (!existsSync(tmpDir)) await mkdir(tmpDir, { recursive: true });
 
-      const rawFields = Object.fromEntries(
-        Object.entries(file.fields)
-          .filter(([, v]) => v && typeof v === 'object' && 'value' in v)
-          .map(([k, v]) => [k, (v as { value: unknown }).value]),
-      );
+      let tmpPath: string | null = null;
+      const rawFields: Record<string, unknown> = {};
+
+      for await (const part of request.parts()) {
+        if (part.type === 'file') {
+          tmpPath = path.join(tmpDir, `upload_${randomUUID()}_${part.filename}`);
+          // Flux directement vers le disque plutôt que file.toBuffer() - un raster peut
+          // atteindre plusieurs centaines de Mo (voir la limite de 2GB dans multipart.plugin.ts),
+          // le bufferiser entièrement en mémoire avant écriture aggraverait la pression mémoire
+          // qui a déjà fait tuer gdalwarp par l'OOM killer du conteneur (voir docker-compose.yml).
+          await pipeline(part.file, createWriteStream(tmpPath));
+        } else {
+          rawFields[part.fieldname] = part.value;
+        }
+      }
+
+      if (!tmpPath) throw new ValidationError('No file uploaded', {});
+
       const { tableName, name, description, instanceId, subGroupId, srid } = parseBody(
         uploadFieldsSchema,
         rawFields,
       );
-
-      const tmpDir = config.DATA_DIR;
-      if (!existsSync(tmpDir)) await mkdir(tmpDir, { recursive: true });
-      const tmpPath = path.join(tmpDir, `upload_${randomUUID()}_${file.filename}`);
-      const buffer = await file.toBuffer();
-      await writeFile(tmpPath, buffer);
 
       try {
         const result = await uploadRasterUseCase.execute({
