@@ -61,7 +61,7 @@ else
 fi
 
 # 2. Mise à jour d'OSRM (Moteur de routage unique)
-echo "=== 1/2 : Mise à jour du conteneur OSRM ==="
+echo "=== 1/3 : Mise à jour du conteneur OSRM ==="
 if [ -f "./scripts/setup-osrm-data.sh" ]; then
   PBF_PATH="$TARGET_PBF" ./scripts/setup-osrm-data.sh || echo "Avertissement: échec partiel de setup-osrm-data.sh"
 fi
@@ -72,7 +72,7 @@ if docker ps --format '{{.Names}}' | grep -q "^osrm$"; then
 fi
 
 # 3. Mise à jour de Nominatim (Moteur de géocodage unique)
-echo "=== 2/2 : Mise à jour du conteneur Nominatim ==="
+echo "=== 2/3 : Mise à jour du conteneur Nominatim ==="
 if docker ps --format '{{.Names}}' | grep -q "^nominatim$"; then
   TARGET_FILENAME="$(basename "$TARGET_PBF")"
   echo "Ajout incrémental des données dans Nominatim via add-data..."
@@ -83,6 +83,19 @@ if docker ps --format '{{.Names}}' | grep -q "^nominatim$"; then
   fi
   docker exec -i nominatim nominatim index || true
   docker restart nominatim || true
+fi
+
+# 4. Rafraîchissement de public.admin_boundaries (limites administratives affichées sur la
+# carte/le sélecteur admin) - $TARGET_PBF est ici TOUJOURS le .pbf pays/fusionné (jamais un
+# extract découpé sur la bbox d'une seule instance), condition nécessaire pour que les relations
+# de limite administrative restent complètes (voir avertissement dans seed-admin-boundaries.sh -
+# une géométrie tronquée par découpe produit des bordures rectilignes au lieu du contour réel).
+echo "=== 3/3 : Rafraîchissement des limites administratives (admin_boundaries) ==="
+if [ -f "./scripts/seed-admin-boundaries.sh" ] && [ -n "${DATABASE_URL:-}" ]; then
+  PBF_PATH="$TARGET_PBF" DATABASE_URL="$DATABASE_URL" ./scripts/seed-admin-boundaries.sh \
+    || echo "Avertissement: échec du rafraîchissement de admin_boundaries"
+else
+  echo "Ignoré (script absent ou DATABASE_URL non défini)"
 fi
 
 echo "=== Mise à jour Nominatim & OSRM terminée avec succès ==="

@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
-# Pré-remplit la table de référence public.admin_boundaries (limites administratives - pays,
-# régions, communes) à partir du MÊME extract .osm.pbf déjà utilisé pour Nominatim/OSRM (voir
-# docs/deploiement.md - Auto-hébergement Nominatim et OSRM) : réutilise le pilote OSM de GDAL
+# Pré-remplit/rafraîchit la table de référence public.admin_boundaries (limites administratives -
+# pays, régions, communes) à partir d'un extract .osm.pbf : réutilise le pilote OSM de GDAL
 # (ogr2ogr) pour extraire les polygones tagués boundary=administrative, plutôt que d'introduire
 # une nouvelle source de données externe (GADM ou autre).
+#
+# IMPORTANT - ne JAMAIS passer un .pbf découpé (osmium extract) sur la petite bbox d'une seule
+# instance/ville : les relations de limite administrative qui traversent le bord de découpe sont
+# tronquées, et GDAL referme l'anneau avec des segments droits - la limite affichée a alors des
+# bordures rectilignes au lieu du contour réel (bug vécu le 2026-08-04 avec Yaoundé/Douala 5).
+# Toujours utiliser un .pbf qui couvre largement la zone (le .pbf pays complet, ou le
+# combined-region.osm.pbf déjà maintenu par update-nominatim-osrm.sh qui fusionne - sans jamais
+# découper - toutes les instances importées à ce jour).
 #
 # admin_boundaries est un modèle Prisma "@@ignore" (voir schema.prisma) - jamais géré par
 # "prisma db push" (voir docker/entrypoint.sh), donc ce script est seul responsable de créer la
 # table si elle n'existe pas encore.
 #
-# Idempotent : peut être relancé après une mise à jour de l'extract OSM (les anciennes limites du
-# même import ne sont PAS automatiquement supprimées - utiliser TRUNCATE manuellement avant un
-# nouvel appel si un remplacement complet est voulu, comme documenté dans le sélecteur admin qui
-# propose un mode "remplacer" par niveau administratif pour les imports via l'UI).
+# Idempotent et sûr à rejouer automatiquement après chaque mise à jour OSM (voir
+# update-nominatim-osrm.sh) : les entités déjà présentes (matchées par name+admin_level) sont
+# mises à jour EN PLACE (UPDATE, id préservé - important car Instance.boundaryId référence cet id)
+# plutôt que supprimées/réinsérées ; seules les entités nouvelles sont insérées.
 #
 # Usage: PBF_PATH=/chemin/vers/cameroon-latest.osm.pbf ./scripts/seed-admin-boundaries.sh
 set -euo pipefail
@@ -68,14 +75,30 @@ ogr2ogr \
   -lco FID=id \
   -progress
 
-echo "Import dans public.admin_boundaries (normalisation MultiPolygon + filtre admin_level numérique)..."
+echo "Mise à jour des limites existantes (match name+admin_level, id préservé)..."
+psql "$PSQL_URL" -v ON_ERROR_STOP=1 -c "
+  UPDATE public.admin_boundaries ab
+  SET geom = ST_Multi(ST_MakeValid(s.geom))
+  FROM public.$STAGING_TABLE s
+  WHERE ab.name = s.name
+    AND ab.admin_level = s.admin_level::int
+    AND s.name IS NOT NULL
+    AND s.admin_level ~ '^[0-9]+\$'
+    AND s.geom IS NOT NULL;
+"
+
+echo "Insertion des nouvelles limites (normalisation MultiPolygon + filtre admin_level numérique)..."
 psql "$PSQL_URL" -v ON_ERROR_STOP=1 -c "
   INSERT INTO public.admin_boundaries (name, admin_level, geom)
-  SELECT name, admin_level::int, ST_Multi(ST_MakeValid(geom))
-  FROM public.$STAGING_TABLE
-  WHERE name IS NOT NULL
-    AND admin_level ~ '^[0-9]+\$'
-    AND geom IS NOT NULL;
+  SELECT s.name, s.admin_level::int, ST_Multi(ST_MakeValid(s.geom))
+  FROM public.$STAGING_TABLE s
+  WHERE s.name IS NOT NULL
+    AND s.admin_level ~ '^[0-9]+\$'
+    AND s.geom IS NOT NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM public.admin_boundaries ab
+      WHERE ab.name = s.name AND ab.admin_level = s.admin_level::int
+    );
 "
 
 IMPORTED_COUNT=$(psql "$PSQL_URL" -tAc "SELECT COUNT(*) FROM public.admin_boundaries;")
