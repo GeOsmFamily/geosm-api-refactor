@@ -419,10 +419,19 @@ export class PostGISService {
     }));
   }
 
-  // Get layer statistics (count, area, length, bbox)
-  async getLayerStats(schema: string, table: string): Promise<LayerStats> {
+  // Get layer statistics (count, area, length, bbox) - `bbox` optionnel restreint le calcul à
+  // l'emprise visible sur la carte au lieu de toute la couche (voir plan "refonte Statistiques"
+  // du 2026-08-05, GetLayerStatsUseCase l'utilise pour comparer zone visible vs couche entière).
+  async getLayerStats(
+    schema: string,
+    table: string,
+    bbox?: [number, number, number, number],
+  ): Promise<LayerStats> {
     const s = this.sanitizeIdentifier(schema);
     const t = this.sanitizeIdentifier(table);
+    const bboxFilter = bbox
+      ? `AND ST_Intersects(geom, ST_MakeEnvelope(${bbox[0]}, ${bbox[1]}, ${bbox[2]}, ${bbox[3]}, 4326))`
+      : '';
 
     const result = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
       SELECT
@@ -436,7 +445,7 @@ export class PostGISService {
         ST_XMax(ST_Extent(geom)) as xmax,
         ST_YMax(ST_Extent(geom)) as ymax
       FROM "${s}"."${t}"
-      WHERE geom IS NOT NULL
+      WHERE geom IS NOT NULL ${bboxFilter}
     `);
 
     const row = result[0] || {};

@@ -5,6 +5,10 @@ import { ValidationError } from '../../../domain/errors/validation.error.js';
 
 export interface PixelValueResult {
   value: number | null;
+  /** Surface réelle de la cellule en m² (calculée à l'import, voir RasterService.getRasterInfo)
+   * - absent pour les rasters importés avant ce champ, le frontend affiche alors la valeur brute
+   * sans contexte de surface plutôt que d'échouer. */
+  cellAreaM2: number | null;
 }
 
 /** Valeur au clic (synchrone, pas de job) - voir plan "Analyse raster". */
@@ -29,6 +33,7 @@ export class GetPixelValueUseCase {
       lon,
       lat,
     );
-    return { value };
+    const rasterInfo = layer.metadata?.['rasterInfo'] as { cellAreaM2?: number | null } | undefined;
+    return { value, cellAreaM2: rasterInfo?.cellAreaM2 ?? null };
   }
 }

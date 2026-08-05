@@ -463,9 +463,14 @@ model Export {
 model RasterAnalysisResult {
   id        String    @id @default(uuid()) @db.Uuid
   layerId   String    @map("layer_id") @db.Uuid
-  type      String // 'global' | 'zonal'
+  type      String // 'global' | 'zonal' | 'custom'
   status    JobStatus @default(PENDING)
   result    Json?
+  // Synthèse IA (Gemini) comparative/conclusive générée en même temps que `result` - voir
+  // raster-analysis.worker.ts et le prompt-builder partagé avec les stats vectorielles
+  // (GetLayerStatsUseCase), plan "refonte Statistiques" du 2026-08-05. Séparée de `result` (qui
+  // reste un RasterStats/ZonalStat[] typé côté frontend) plutôt qu'imbriquée dedans.
+  narrative String?
   error     String?
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

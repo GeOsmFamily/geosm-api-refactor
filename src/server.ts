@@ -228,6 +228,9 @@ async function bootstrap(): Promise<void> {
       findAdminBoundariesByLevelUseCase: app.diContainer.resolve(
         'findAdminBoundariesByLevelUseCase',
       ) as import('./application/use-cases/geoportail/find-admin-boundaries-by-level.use-case.js').FindAdminBoundariesByLevelUseCase,
+      geminiService: app.diContainer.resolve(
+        'geminiService',
+      ) as import('./infrastructure/external-apis/gemini.service.js').GeminiService,
     }),
   );
   await queueService.addRepeatableJob('database-backup', 'daily-backup', {}, envConfig.BACKUP_CRON);

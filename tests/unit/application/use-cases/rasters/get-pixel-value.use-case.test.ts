@@ -53,13 +53,23 @@ describe('GetPixelValueUseCase', () => {
     useCase = new GetPixelValueUseCase(layerRepository, postGISService);
   });
 
-  it('should return the pixel value for a raster layer', async () => {
+  it('should return the pixel value and cell area for a raster layer', async () => {
+    vi.mocked(layerRepository.findById).mockResolvedValue(
+      makeLayer({ source: 'raster', rasterInfo: { cellAreaM2: 9801.2 } }),
+    );
+
+    const result = await useCase.execute('layer-1', 11.5174, 3.848);
+
+    expect(result).toEqual({ value: 267.47, cellAreaM2: 9801.2 });
+    expect(postGISService.getPixelValue).toHaveBeenCalledWith('rasters', 'population', 11.5174, 3.848);
+  });
+
+  it('should return a null cell area when the raster was imported before this field existed', async () => {
     vi.mocked(layerRepository.findById).mockResolvedValue(makeLayer());
 
     const result = await useCase.execute('layer-1', 11.5174, 3.848);
 
-    expect(result).toEqual({ value: 267.47 });
-    expect(postGISService.getPixelValue).toHaveBeenCalledWith('rasters', 'population', 11.5174, 3.848);
+    expect(result).toEqual({ value: 267.47, cellAreaM2: null });
   });
 
   it('should throw NotFoundError when the layer does not exist', async () => {
