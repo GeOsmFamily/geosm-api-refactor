@@ -592,6 +592,14 @@ model AssistantConversation {
   // séparée : le volume par conversation reste faible (quelques dizaines de messages max),
   // même pattern que MapComposition.layers/SharedMap.mapState pour ce type de données.
   messages   Json
+  // Géométries nommées calculées par compute_geometry (voir assistant-chat.use-case.ts),
+  // {[label]: {geometry, summary}} - persistées ici pour survivre d'un message à l'autre : sans
+  // ça, "dessine un cercle" puis, dans un message SÉPARÉ, "analyse cette zone" ne retrouvait pas
+  // le cercle (le cache vivait seulement le temps d'un execute(), donc d'une seule requête HTTP).
+  // Vécu en conditions réelles le 2026-08-06 : un enchaînement en une seule phrase (2 cercles +
+  // intersection) s'est arrêté après le premier outil, sans persistance ce premier résultat
+  // aurait aussi été perdu au message suivant.
+  geometryCache Json?
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 

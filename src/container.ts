@@ -269,6 +269,8 @@ import { GetFeatureUseCase } from './application/use-cases/features/get-feature.
 import { AddFeatureUseCase } from './application/use-cases/features/add-feature.use-case.js';
 import { UpdateFeatureUseCase } from './application/use-cases/features/update-feature.use-case.js';
 import { DeleteFeatureUseCase } from './application/use-cases/features/delete-feature.use-case.js';
+import { CountFeaturesInGeometryUseCase } from './application/use-cases/features/count-features-in-geometry.use-case.js';
+import { GetRasterStatsInGeometryUseCase } from './application/use-cases/rasters/get-raster-stats-in-geometry.use-case.js';
 import { GetLayerStatsUseCase } from './application/use-cases/layers/get-layer-stats.use-case.js';
 import { SummarizeViewportUseCase } from './application/use-cases/geoportail/summarize-viewport.use-case.js';
 
@@ -510,6 +512,8 @@ interface Cradle {
   addFeatureUseCase: AddFeatureUseCase;
   updateFeatureUseCase: UpdateFeatureUseCase;
   deleteFeatureUseCase: DeleteFeatureUseCase;
+  countFeaturesInGeometryUseCase: CountFeaturesInGeometryUseCase;
+  getRasterStatsInGeometryUseCase: GetRasterStatsInGeometryUseCase;
   getLayerStatsUseCase: GetLayerStatsUseCase;
   summarizeViewportUseCase: SummarizeViewportUseCase;
   // Search indexing
@@ -1111,6 +1115,9 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
           c.spatialAnalysisUseCase,
           c.findNearestFeatureUseCase,
           c.createLocationPlanUseCase,
+          c.countFeaturesInGeometryUseCase,
+          c.getRasterStatsInGeometryUseCase,
+          c.summarizeViewportUseCase,
         ),
       { lifetime: Lifetime.SCOPED },
     ),
@@ -1356,6 +1363,14 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     ),
     deleteFeatureUseCase: asFunction(
       (c: Cradle) => new DeleteFeatureUseCase(c.layerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    countFeaturesInGeometryUseCase: asFunction(
+      (c: Cradle) => new CountFeaturesInGeometryUseCase(c.layerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getRasterStatsInGeometryUseCase: asFunction(
+      (c: Cradle) => new GetRasterStatsInGeometryUseCase(c.layerRepository, c.postGISService),
       { lifetime: Lifetime.SCOPED },
     ),
     getLayerStatsUseCase: asFunction(

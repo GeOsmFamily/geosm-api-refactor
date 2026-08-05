@@ -318,6 +318,31 @@ export class PostGISService {
   }
 
   /**
+   * Compte les entités d'une couche qui intersectent une géométrie GeoJSON arbitraire (pas
+   * seulement un rectangle bbox comme queryFeatures) - sert l'outil `count_features_in_geometry`
+   * de l'assistant IA (voir plan "refonte Statistiques" du 2026-08-05), typiquement enchaîné
+   * après un `compute_geometry` (buffer/intersection) pour répondre à des questions comme
+   * "combien d'hôpitaux dans cette zone ?".
+   */
+  async countFeaturesInGeometry(
+    schema: string,
+    table: string,
+    geometry: Record<string, unknown>,
+  ): Promise<number> {
+    const s = this.sanitizeIdentifier(schema);
+    const t = this.sanitizeIdentifier(table);
+    const geomJson = JSON.stringify(geometry).replace(/'/g, "''");
+
+    const rows = await this.prisma.$queryRawUnsafe<{ count: bigint }[]>(
+      `SELECT COUNT(*)::bigint AS count
+       FROM "${s}"."${t}"
+       WHERE geom IS NOT NULL
+         AND ST_Intersects(geom, ST_SetSRID(ST_GeomFromGeoJSON('${geomJson}'), 4326))`,
+    );
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  /**
    * Pré-sélectionne les N features d'une couche les plus proches à vol d'oiseau d'un point
    * (opérateur KNN "<->" exploitant l'index GiST, donc rapide même sur une grande table) -
    * point de départ pour un classement par distance ROUTIÈRE réelle (voir

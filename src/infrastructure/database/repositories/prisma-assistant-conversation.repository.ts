@@ -12,6 +12,7 @@ export interface AssistantConversationRecord {
   instanceId: string;
   title: string;
   messages: Prisma.JsonValue;
+  geometryCache: Prisma.JsonValue;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,7 +49,11 @@ export class PrismaAssistantConversationRepository {
 
   async update(
     id: string,
-    data: { title?: string; messages?: Prisma.InputJsonValue },
+    data: {
+      title?: string;
+      messages?: Prisma.InputJsonValue;
+      geometryCache?: Prisma.InputJsonValue;
+    },
   ): Promise<AssistantConversationRecord> {
     return this.prisma.assistantConversation.update({
       where: { id },

@@ -9,6 +9,9 @@ import type { GetLayerStatsUseCase } from '../layers/get-layer-stats.use-case.js
 import type { SpatialAnalysisUseCase } from '../analysis/spatial-analysis.use-case.js';
 import type { FindNearestFeatureUseCase } from '../routing/find-nearest-feature.use-case.js';
 import type { CreateLocationPlanUseCase } from '../location-plans/create-location-plan.use-case.js';
+import type { CountFeaturesInGeometryUseCase } from '../features/count-features-in-geometry.use-case.js';
+import type { GetRasterStatsInGeometryUseCase } from '../rasters/get-raster-stats-in-geometry.use-case.js';
+import type { SummarizeViewportUseCase } from '../geoportail/summarize-viewport.use-case.js';
 import type {
   PrismaAssistantConversationRepository,
   AssistantMessageRecord,
@@ -16,6 +19,23 @@ import type {
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ForbiddenError } from '../../../domain/errors/forbidden.error.js';
 import { logger } from '../../../infrastructure/observability/logger.js';
+
+/** Contexte carte ambiant, envoyé par le frontend à CHAQUE message (pas un paramètre que
+ * Gemini remplit - il ne connaît pas la vue courante) - voir plan "refonte Statistiques" du
+ * 2026-08-05, section agent IA. Consommé par l'outil `analyze_map_context`. */
+export interface AssistantMapContext {
+  extent?: [number, number, number, number];
+  activeLayers?: { id: string; name: string }[];
+}
+
+/** Résultat compact d'un `compute_geometry` mis en cache le temps de la requête (pas de
+ * persistance) - évite de faire recopier par Gemini des coordonnées complètes d'un appel à
+ * l'autre (coûteux en tokens, source d'erreurs de recopie sur une géométrie complexe) : les
+ * outils suivants référencent juste le label. */
+interface CachedGeometry {
+  geometry: Record<string, unknown>;
+  summary: string;
+}
 
 export interface AssistantClientAction {
   action: 'activateLayer' | 'deactivateLayer' | 'zoomTo' | 'displayGeometry';
@@ -177,10 +197,83 @@ const TOOLS: GeminiFunctionDeclaration[] = [
       required: ['lon', 'lat'],
     },
   },
+  {
+    name: 'compute_geometry',
+    description:
+      'Calcule une géométrie (buffer/intersection/union/différence) et l\'affiche sur la carte. ' +
+      'Pour buffer : geometryA = {type:"Point", coordinates:[lon,lat]}, distanceMeters requis. ' +
+      'Pour intersection/union/difference : geometryA ET geometryB requis, chacun soit une ' +
+      'géométrie GeoJSON directe, soit - pour réutiliser le résultat d\'un compute_geometry ' +
+      'précédent dans CETTE conversation sans le recopier - geometryARef/geometryBRef avec le ' +
+      '"label" retourné par cet appel précédent. Donne toujours un "label" court et mémorable ' +
+      '(ex: "buffer_douala5") pour permettre de réutiliser ce résultat dans un appel suivant.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        operation: { type: 'STRING', description: "'buffer' | 'intersection' | 'union' | 'difference'" },
+        label: { type: 'STRING', description: 'Nom court pour référencer ce résultat plus tard' },
+        geometryA: { type: 'OBJECT', description: 'Géométrie GeoJSON directe (point/polygone...)' },
+        geometryARef: { type: 'STRING', description: "Label d'un compute_geometry précédent à réutiliser" },
+        geometryB: { type: 'OBJECT', description: 'Géométrie GeoJSON directe (intersection/union/difference)' },
+        geometryBRef: { type: 'STRING', description: "Label d'un compute_geometry précédent à réutiliser" },
+        distanceMeters: { type: 'NUMBER', description: 'Rayon en mètres (opération buffer uniquement)' },
+      },
+      required: ['operation', 'label'],
+    },
+  },
+  {
+    name: 'count_features_in_geometry',
+    description:
+      'Compte les entités d\'une couche VECTORIELLE (obtenue via search_layers) qui se trouvent ' +
+      "dans une géométrie - typiquement le résultat d'un compute_geometry précédent (via " +
+      'geometryRef). Pour des questions comme "combien d\'hôpitaux dans cette zone/intersection ?".',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        layerId: { type: 'STRING', description: 'Identifiant UUID de la couche vectorielle' },
+        geometryRef: { type: 'STRING', description: "Label d'un compute_geometry précédent" },
+        geometry: { type: 'OBJECT', description: 'Géométrie GeoJSON directe (si pas de geometryRef)' },
+      },
+      required: ['layerId'],
+    },
+  },
+  {
+    name: 'get_raster_stats_in_geometry',
+    description:
+      "Statistiques (min/max/moyenne/somme) d'une couche RASTER (ex: population) sur une " +
+      "géométrie - typiquement le résultat d'un compute_geometry précédent (via geometryRef). " +
+      'Pour une couche de population, la "somme" est une estimation du nombre d\'habitants ' +
+      'dans cette géométrie.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        layerId: { type: 'STRING', description: 'Identifiant UUID de la couche raster' },
+        geometryRef: { type: 'STRING', description: "Label d'un compute_geometry précédent" },
+        geometry: { type: 'OBJECT', description: 'Géométrie GeoJSON directe (si pas de geometryRef)' },
+      },
+      required: ['layerId'],
+    },
+  },
+  {
+    name: 'analyze_map_context',
+    description:
+      "Analyse CROISÉE de toutes les couches actuellement actives sur la carte, restreinte à la " +
+      "zone actuellement affichée à l'écran (extent) - pas besoin de préciser quelles couches ni " +
+      "quelle zone, c'est déjà connu du contexte de la conversation. Utilise cet outil pour des " +
+      'demandes du type "analyse cette zone", "que peux-tu me dire sur ce qui est affiché ?", ou ' +
+      'pour croiser plusieurs couches actives entre elles (ex: densité de population et nombre ' +
+      "d'écoles). Ne fonctionne que si l'utilisateur a des couches actives - sinon demande-lui " +
+      "d'en activer via activate_layer/search_layers d'abord.",
+    parameters: { type: 'OBJECT', properties: {} },
+  },
 ];
 
 const CLIENT_ACTION_TOOLS = new Set(['activate_layer', 'deactivate_layer', 'zoom_to']);
-const MAX_ITERATIONS = 5;
+// 5 -> 9 : les chaînes d'outils multi-couches (ex: dessiner une zone, compter des entités
+// dedans, croiser avec un raster) peuvent légitimement enchaîner 4-6 appels avant de conclure -
+// voir plan "refonte Statistiques" du 2026-08-05, section agent IA.
+const MAX_ITERATIONS = 9;
+const MAX_CACHED_GEOMETRIES = 20;
 
 // Base de connaissances condensée du géoportail (menu Outils + panneaux principaux) pour que
 // l'assistant puisse répondre à des questions du type "comment fait-on X ?" même quand X
@@ -213,6 +306,18 @@ Connaissance de l'interface GeOSM (pour répondre aux questions "comment faire X
 - Bouton de partage : génère un lien court reproduisant l'état actuel de la carte.
 `;
 
+// Repères chiffrés APPROXIMATIFS (ordres de grandeur généraux, pas des statistiques officielles
+// vérifiées pour un pays précis) pour ancrer les réponses de type "est-ce qu'il y a assez de
+// X ?" sur une référence plutôt que sur une impression du modèle - voir plan "refonte
+// Statistiques" du 2026-08-05. Toujours présentés comme indicatifs dans la consigne ci-dessous.
+const BENCHMARK_REFERENCES = `
+Repères indicatifs (ordres de grandeur généraux, PAS des statistiques officielles vérifiées - à ` +
+  `présenter explicitement comme approximatifs si tu les utilises, jamais comme une vérité chiffrée) :
+- Lits d'hôpital : un repère souvent cité (OMS/Banque mondiale, moyenne mondiale) est de l'ordre de 1 lit pour 1000 habitants ; très variable selon les pays et contextes.
+- Écoles primaires : pas de ratio universel fiable - juge plutôt par comparaison relative entre zones de la même carte (densité de population similaire, nombre d'écoles très différent = signal pertinent) que par un chiffre absolu.
+- Centres de santé de proximité : un repère parfois utilisé est un centre pour environ 10 000 habitants en zone urbaine dense, mais varie énormément.
+`;
+
 // Langue de réponse paramétrable (voir assistant.routes.ts, lu depuis Accept-Language) - avant
 // ce changement, l'assistant répondait toujours en français quelle que soit la langue de
 // l'interface, y compris pour un utilisateur ayant choisi l'anglais.
@@ -222,18 +327,63 @@ const RESPONSE_LANGUAGE_INSTRUCTION: Record<string, string> = {
   es: 'Responde siempre en español, de forma concisa.',
 };
 
-function buildSystemInstruction(lang: string): string {
+function buildMapContextBlock(mapContext?: AssistantMapContext): string {
+  if (!mapContext || (!mapContext.extent && !mapContext.activeLayers?.length)) return '';
+  const layersLine = mapContext.activeLayers?.length
+    ? mapContext.activeLayers.map((l) => `${l.name} (id: ${l.id})`).join(', ')
+    : 'aucune';
+  const extentLine = mapContext.extent
+    ? `[${mapContext.extent.map((n) => n.toFixed(4)).join(', ')}] (minLon, minLat, maxLon, maxLat)`
+    : 'inconnue';
+  return (
+    `\nContexte carte actuel (mis à jour à chaque message, ne le redemande jamais à l'utilisateur) :\n` +
+    `- Couches actuellement actives sur la carte : ${layersLine} - utilise ces IDs directement (pas ` +
+    `besoin de search_layers si la couche voulue y figure déjà).\n` +
+    `- Emprise actuellement visible à l'écran : ${extentLine} - c'est la "zone actuelle" implicite ` +
+    `pour analyze_map_context et pour toute question sans zone explicitement précisée.\n`
+  );
+}
+
+function buildCachedGeometriesBlock(geometryCache: Map<string, CachedGeometry>): string {
+  if (geometryCache.size === 0) return '';
+  const lines = [...geometryCache.entries()]
+    .map(([label, entry]) => `${label} (${entry.summary})`)
+    .join(', ');
+  return (
+    `\nGéométries déjà calculées dans cette conversation (y compris lors de messages précédents), ` +
+    `réutilisables via geometryARef/geometryBRef/geometryRef SANS refaire le calcul : ${lines}.\n`
+  );
+}
+
+function buildSystemInstruction(
+  lang: string,
+  mapContext?: AssistantMapContext,
+  geometryCache?: Map<string, CachedGeometry>,
+): string {
   const languageInstruction =
     RESPONSE_LANGUAGE_INSTRUCTION[lang] ?? RESPONSE_LANGUAGE_INSTRUCTION['fr'];
   return (
     `Tu es l'assistant du géoportail GeOSM (plateforme cartographique open-source basée sur OpenStreetMap). ` +
-    `Tu as deux rôles : (1) agir sur la carte pour l'utilisateur en pilotant les outils disponibles, et (2) servir de guide ` +
-    `utilisateur quand on te demande comment faire quelque chose dans l'interface (utilise la connaissance ci-dessous, sans ` +
-    `inventer de fonctionnalité qui n'y figure pas). ${languageInstruction} Pour une demande comme ` +
-    `"montre-moi les hôpitaux à Douala", enchaîne : geocode("Douala") pour situer la ville, search_layers("hôpitaux") pour ` +
-    `trouver la couche, puis activate_layer et zoom_to pour l'afficher. N'invente jamais d'identifiant de couche : utilise ` +
-    `toujours un layerId obtenu via search_layers. Si un outil échoue ou ne trouve rien, explique-le clairement à l'utilisateur ` +
-    `plutôt que d'inventer une réponse.\n${GEOPORTAL_GUIDE}`
+    `Tu as trois rôles : (1) agir sur la carte pour l'utilisateur en pilotant les outils disponibles, ` +
+    `(2) analyser les données géographiques disponibles (une ou plusieurs couches, éventuellement croisées) ` +
+    `pour produire de vraies déductions plutôt que de simples lectures de base de données, et (3) servir de ` +
+    `guide utilisateur quand on te demande comment faire quelque chose dans l'interface (utilise la ` +
+    `connaissance ci-dessous, sans inventer de fonctionnalité qui n'y figure pas). ${languageInstruction} ` +
+    `Pour une demande comme "montre-moi les hôpitaux à Douala", enchaîne : geocode("Douala") pour situer la ` +
+    `ville, search_layers("hôpitaux") pour trouver la couche, puis activate_layer et zoom_to pour l'afficher. ` +
+    `Pour une demande d'analyse composée (ex: "dessine un cercle autour de X et Y, active les hôpitaux et ` +
+    `analyse l'intersection"), enchaîne les outils dans l'ordre logique (compute_geometry, activate_layer, ` +
+    `count_features_in_geometry/get_raster_stats_in_geometry) sans redemander confirmation à chaque étape - ` +
+    `tu as jusqu'à ${MAX_ITERATIONS} appels d'outils avant de devoir conclure. RÈGLE IMPORTANTE : quand une ` +
+    `demande contient PLUSIEURS étapes dans une même phrase (ex: "dessine X puis calcule Y puis dis-moi Z"), ` +
+    `ne réponds JAMAIS en texte après une seule étape intermédiaire (ex: juste après avoir dessiné une ` +
+    `géométrie) - continue d'appeler les outils suivants jusqu'à avoir traité TOUTE la demande, et ne rédige ` +
+    `ta réponse texte finale qu'une fois la dernière étape terminée (ou si un outil échoue et bloque la ` +
+    `suite, auquel cas explique clairement ce qui a été fait et ce qui a échoué). N'invente jamais d'identifiant ` +
+    `de couche : utilise toujours un layerId obtenu via search_layers ou déjà connu du contexte carte ` +
+    `ci-dessous. Si un outil échoue ou ne trouve rien, explique-le clairement à l'utilisateur plutôt que ` +
+    `d'inventer une réponse.\n${GEOPORTAL_GUIDE}${BENCHMARK_REFERENCES}${buildMapContextBlock(mapContext)}` +
+    `${buildCachedGeometriesBlock(geometryCache ?? new Map())}`
   );
 }
 
@@ -247,6 +397,9 @@ export class AssistantChatUseCase {
     private readonly spatialAnalysisUseCase: SpatialAnalysisUseCase,
     private readonly findNearestFeatureUseCase: FindNearestFeatureUseCase,
     private readonly createLocationPlanUseCase: CreateLocationPlanUseCase,
+    private readonly countFeaturesInGeometryUseCase: CountFeaturesInGeometryUseCase,
+    private readonly getRasterStatsInGeometryUseCase: GetRasterStatsInGeometryUseCase,
+    private readonly summarizeViewportUseCase: SummarizeViewportUseCase,
   ) {}
 
   async execute(
@@ -255,6 +408,7 @@ export class AssistantChatUseCase {
     conversationId: string,
     message: string,
     lang = 'fr',
+    mapContext?: AssistantMapContext,
   ): Promise<AssistantChatResult> {
     const conversation = await this.conversationRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('AssistantConversation', conversationId);
@@ -268,7 +422,20 @@ export class AssistantChatUseCase {
     ];
     const clientActions: AssistantClientAction[] = [];
     const attachments: AssistantAttachment[] = [];
-    const systemInstruction = buildSystemInstruction(lang);
+    // Chargé depuis la conversation (pas un champ de classe - AssistantChatUseCase est partagé
+    // entre requêtes concurrentes) et repersisté à la fin - voir compute_geometry/geometryARef.
+    // Sans ça, un "dessine un cercle" dans un message puis "analyse cette zone" dans le message
+    // SUIVANT ne retrouvait pas le cercle (vécu en conditions réelles le 2026-08-06).
+    const geometryCache = new Map<string, CachedGeometry>(
+      Object.entries(
+        (conversation.geometryCache as unknown as Record<string, CachedGeometry> | null) ?? {},
+      ),
+    );
+    // Le modèle ne "sait" qu'un label existe que si on le lui dit explicitement : l'historique
+    // texte persisté (priorTurns) ne contient pas les appels d'outils d'un tour précédent, donc
+    // sans cette liste il recalculait une géométrie déjà connue au lieu de réutiliser son label
+    // (résultat correct mais appel redondant - vécu en conditions réelles le 2026-08-06).
+    const systemInstruction = buildSystemInstruction(lang, mapContext, geometryCache);
     let reply = '';
 
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
@@ -297,6 +464,9 @@ export class AssistantChatUseCase {
             call.args,
             userId,
             instanceId,
+            lang,
+            mapContext,
+            geometryCache,
           );
           if (clientAction) clientActions.push(clientAction);
           if (attachment) attachments.push(attachment);
@@ -328,9 +498,16 @@ export class AssistantChatUseCase {
       { role: 'user', text: message, createdAt: now },
       { role: 'model', text: reply, createdAt: now },
     ];
+    // Garde les MAX_CACHED_GEOMETRIES plus récentes (Map préserve l'ordre d'insertion) - un
+    // historique de géométries indéfiniment croissant sur une longue conversation n'a pas de
+    // sens, seules les dernières sont plausiblement encore référencées par l'utilisateur.
+    const cachedEntries = [...geometryCache.entries()].slice(-MAX_CACHED_GEOMETRIES);
     const isFirstUserMessage = priorTurns.length === 0;
     await this.conversationRepository.update(conversationId, {
       messages: updatedTurns as unknown as import('@prisma/client').Prisma.InputJsonValue,
+      geometryCache: Object.fromEntries(
+        cachedEntries,
+      ) as unknown as import('@prisma/client').Prisma.InputJsonValue,
       ...(isFirstUserMessage ? { title: message.slice(0, 60) } : {}),
     });
 
@@ -348,6 +525,9 @@ export class AssistantChatUseCase {
     args: Record<string, unknown>,
     userId: string,
     instanceId: string,
+    lang: string,
+    mapContext: AssistantMapContext | undefined,
+    geometryCache: Map<string, CachedGeometry>,
   ): Promise<DataToolResult> {
     switch (name) {
       case 'geocode': {
@@ -428,8 +608,80 @@ export class AssistantChatUseCase {
           },
         };
       }
+      case 'compute_geometry': {
+        const operation = String(args.operation) as
+          | 'buffer'
+          | 'intersection'
+          | 'union'
+          | 'difference';
+        const label = String(args.label);
+        const geometryA = this.resolveGeometry(args, 'geometryA', 'geometryARef', geometryCache);
+        const geometryB = this.resolveGeometry(args, 'geometryB', 'geometryBRef', geometryCache);
+        if (!geometryA) throw new Error('geometryA (ou geometryARef) est requis');
+
+        const analysisResult = await this.spatialAnalysisUseCase.execute({
+          operation,
+          geometryA,
+          geometryB: geometryB ?? undefined,
+          distance: args.distanceMeters != null ? Number(args.distanceMeters) : undefined,
+        });
+        if (!analysisResult.geometry) {
+          throw new Error('Aucun résultat (géométries disjointes ?)');
+        }
+
+        const geometry = analysisResult.geometry as Record<string, unknown>;
+        const distanceNote = args.distanceMeters != null ? `, ${Number(args.distanceMeters)}m` : '';
+        geometryCache.set(label, {
+          geometry,
+          summary: `${operation}${distanceNote} -> ${(geometry.type as string) ?? 'géométrie'}`,
+        });
+        return {
+          data: { label, geometryType: geometry.type },
+          clientAction: { action: 'displayGeometry', geometry, label },
+        };
+      }
+      case 'count_features_in_geometry': {
+        const geometry = this.resolveGeometry(args, 'geometry', 'geometryRef', geometryCache);
+        if (!geometry) throw new Error('geometry (ou geometryRef) est requis');
+        return {
+          data: await this.countFeaturesInGeometryUseCase.execute(String(args.layerId), geometry),
+        };
+      }
+      case 'get_raster_stats_in_geometry': {
+        const geometry = this.resolveGeometry(args, 'geometry', 'geometryRef', geometryCache);
+        if (!geometry) throw new Error('geometry (ou geometryRef) est requis');
+        return {
+          data: await this.getRasterStatsInGeometryUseCase.execute(String(args.layerId), geometry),
+        };
+      }
+      case 'analyze_map_context': {
+        const layerIds = mapContext?.activeLayers?.map((l) => l.id) ?? [];
+        if (layerIds.length === 0) {
+          throw new Error('Aucune couche active sur la carte actuellement.');
+        }
+        return { data: await this.summarizeViewportUseCase.execute(layerIds, lang, mapContext?.extent) };
+      }
       default:
         throw new Error(`Outil inconnu : ${name}`);
     }
+  }
+
+  /** Résout geometryA/geometryB soit depuis une géométrie GeoJSON directe, soit depuis le label
+   * d'un compute_geometry précédent (geometryARef/geometryBRef) - voir CachedGeometry. */
+  private resolveGeometry(
+    args: Record<string, unknown>,
+    directKey: string,
+    refKey: string,
+    geometryCache: Map<string, CachedGeometry>,
+  ): Record<string, unknown> | null {
+    const ref = args[refKey];
+    if (typeof ref === 'string' && ref.length > 0) {
+      const cached = geometryCache.get(ref);
+      if (!cached) throw new Error(`Référence de géométrie inconnue : "${ref}"`);
+      return cached.geometry;
+    }
+    const direct = args[directKey];
+    if (direct && typeof direct === 'object') return direct as Record<string, unknown>;
+    return null;
   }
 }
