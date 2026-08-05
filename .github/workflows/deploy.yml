@@ -159,6 +159,19 @@ jobs:
               STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$(docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q api)" 2>/dev/null || echo "starting")
               if [ "$STATUS" = "healthy" ]; then
                 echo "✅ Déploiement réussi (${API_IMAGE})"
+                # "export API_IMAGE=..." ne vaut que pour ce script SSH - une invocation
+                # ultérieure de "docker compose" dans une AUTRE session (ex: le déploiement du
+                # frontend, qui doit démarrer "api" comme dépendance via depends_on) relit .env
+                # et retombe sur l'ancienne valeur qui y est écrite si on ne la persiste pas ici.
+                # Vécu en conditions réelles : .env était resté figé sur "API_IMAGE=...:latest"
+                # (jamais mis à jour depuis sa création), et l'image ":latest" en cache local sur
+                # le VPS datait d'un mois - son schema Prisma voulait DROP des tables ajoutées
+                # depuis, ce qui a fait planter "api" en boucle au déploiement suivant du frontend.
+                if grep -q '^API_IMAGE=' .env; then
+                  sed -i "s|^API_IMAGE=.*|API_IMAGE=${API_IMAGE}|" .env
+                else
+                  echo "API_IMAGE=${API_IMAGE}" >> .env
+                fi
                 exit 0
               fi
               sleep 4
@@ -167,6 +180,11 @@ jobs:
             export API_IMAGE="${PREVIOUS_IMAGE}"
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull api
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
+            if grep -q '^API_IMAGE=' .env; then
+              sed -i "s|^API_IMAGE=.*|API_IMAGE=${API_IMAGE}|" .env
+            else
+              echo "API_IMAGE=${API_IMAGE}" >> .env
+            fi
             exit 1
 
   create-tag:
