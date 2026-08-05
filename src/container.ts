@@ -1111,7 +1111,6 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
           c.spatialAnalysisUseCase,
           c.findNearestFeatureUseCase,
           c.createLocationPlanUseCase,
-          c.getLocationPlanUseCase,
         ),
       { lifetime: Lifetime.SCOPED },
     ),

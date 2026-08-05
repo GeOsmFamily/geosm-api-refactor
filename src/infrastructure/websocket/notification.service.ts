@@ -1,5 +1,6 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { WebSocket } from '@fastify/websocket';
+import { UnauthorizedError } from '../../domain/errors/unauthorized.error.js';
 import { logger } from '../observability/logger.js';
 
 interface WSClient {
@@ -10,10 +11,37 @@ interface WSClient {
 export class NotificationService {
   private clients: Map<string, WSClient[]> = new Map();
 
+  /**
+   * Le WebSocket natif du navigateur ne permet PAS de fixer d'en-tête `Authorization` sur la
+   * requête de handshake (limitation du standard, pas de cette app) - `app.authenticate`
+   * (basé sur `request.jwtVerify()`, qui ne lit QUE cet en-tête) rejette donc systématiquement
+   * toute connexion depuis un vrai navigateur. Confirmé en pratique : aucun client frontend
+   * n'utilisait ce endpoint (recherche menée avant le lot "tiroir de tâches" du 2026-08-05) -
+   * ce préHandler accepte en plus un token en query string (`?token=...`), seule option
+   * praticable pour un WebSocket appelé depuis le navigateur ; conserve le repli sur l'en-tête
+   * pour un éventuel client non-navigateur qui peut déjà le fournir.
+   */
+  private async authenticateWs(
+    app: FastifyInstance,
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const queryToken = (request.query as Record<string, unknown> | undefined)?.['token'];
+    if (typeof queryToken === 'string' && queryToken.length > 0) {
+      try {
+        request.user = app.jwt.verify(queryToken);
+        return;
+      } catch {
+        throw new UnauthorizedError('Invalid or expired access token');
+      }
+    }
+    await app.authenticate(request, reply);
+  }
+
   registerRoutes(app: FastifyInstance): void {
     app.get(
       '/ws/notifications',
-      { websocket: true, preHandler: [app.authenticate] },
+      { websocket: true, preHandler: [(req, reply) => this.authenticateWs(app, req, reply)] },
       (socket, request) => {
         const userId = (request.user as { sub: string }).sub;
         const clients = this.clients.get(userId) || [];

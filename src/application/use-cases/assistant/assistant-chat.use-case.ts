@@ -9,7 +9,6 @@ import type { GetLayerStatsUseCase } from '../layers/get-layer-stats.use-case.js
 import type { SpatialAnalysisUseCase } from '../analysis/spatial-analysis.use-case.js';
 import type { FindNearestFeatureUseCase } from '../routing/find-nearest-feature.use-case.js';
 import type { CreateLocationPlanUseCase } from '../location-plans/create-location-plan.use-case.js';
-import type { GetLocationPlanUseCase } from '../location-plans/get-location-plan.use-case.js';
 import type {
   PrismaAssistantConversationRepository,
   AssistantMessageRecord,
@@ -117,9 +116,11 @@ const TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: 'create_location_plan',
     description:
-      'Génère un plan de localisation professionnel en PDF pour un point donné. Un bouton de téléchargement apparaît ' +
-      "automatiquement dans l'interface une fois prêt - ne mentionne jamais d'identifiant technique dans ta réponse, dis " +
-      "simplement que le plan est prêt et peut être téléchargé ci-dessous (ou qu'il est encore en cours si le statut n'est pas COMPLETED).",
+      'Génère un plan de localisation professionnel en PDF pour un point donné. La génération est ' +
+      "asynchrone (peut prendre plusieurs dizaines de secondes) : dis simplement à l'utilisateur que " +
+      "le plan est en cours de génération et qu'il apparaîtra dans le tiroir de tâches (icône cloche " +
+      "en haut de l'écran) avec un lien de téléchargement dès qu'il sera prêt - ne mentionne jamais " +
+      "d'identifiant technique dans ta réponse.",
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -180,11 +181,6 @@ const TOOLS: GeminiFunctionDeclaration[] = [
 
 const CLIENT_ACTION_TOOLS = new Set(['activate_layer', 'deactivate_layer', 'zoom_to']);
 const MAX_ITERATIONS = 5;
-const LOCATION_PLAN_POLL_INTERVAL_MS = 1500;
-// 18 x 1.5s = 27s - mesuré en pratique : le rendu QGIS d'une zone dense (ex. Douala) peut
-// dépasser 20s, une fenêtre plus courte laissait parfois le plan encore "PROCESSING" au
-// moment de répondre alors qu'il se terminait quelques secondes plus tard.
-const LOCATION_PLAN_POLL_MAX_TRIES = 18;
 
 // Base de connaissances condensée du géoportail (menu Outils + panneaux principaux) pour que
 // l'assistant puisse répondre à des questions du type "comment fait-on X ?" même quand X
@@ -251,7 +247,6 @@ export class AssistantChatUseCase {
     private readonly spatialAnalysisUseCase: SpatialAnalysisUseCase,
     private readonly findNearestFeatureUseCase: FindNearestFeatureUseCase,
     private readonly createLocationPlanUseCase: CreateLocationPlanUseCase,
-    private readonly getLocationPlanUseCase: GetLocationPlanUseCase,
   ) {}
 
   async execute(
@@ -408,6 +403,13 @@ export class AssistantChatUseCase {
           ),
         };
       case 'create_location_plan': {
+        // Retourne immédiatement sans attendre la fin du rendu QGIS (peut prendre plusieurs
+        // dizaines de secondes sur une zone dense) - le tiroir de tâches (JobsTrayService côté
+        // frontend, alimenté par NotificationService.notifyUser dans location-plan.worker.ts)
+        // prend le relais et affiche le lien de téléchargement dès que le job se termine, que
+        // la conversation soit encore ouverte ou non. Remplace l'ancien polling borné à 27s
+        // (pollLocationPlanCompletion) qui bloquait la réponse HTTP et pouvait quand même
+        // couper une génération encore en cours sur les zones les plus denses.
         const plan = await this.createLocationPlanUseCase.execute(userId, {
           instanceId,
           title: String(args.title),
@@ -416,41 +418,18 @@ export class AssistantChatUseCase {
           description: args.description ? String(args.description) : undefined,
           landmark: args.landmark ? String(args.landmark) : undefined,
         });
-        const finalPlan = await this.pollLocationPlanCompletion(plan.id);
         return {
-          data: { id: finalPlan.id, title: finalPlan.title, status: finalPlan.status },
+          data: { id: plan.id, title: plan.title, status: plan.status },
           attachment: {
             type: 'location-plan',
-            id: finalPlan.id,
-            title: finalPlan.title,
-            status: finalPlan.status,
-            downloadUrl:
-              finalPlan.status === 'COMPLETED'
-                ? `/api/v1/location-plans/${finalPlan.id}/download`
-                : undefined,
+            id: plan.id,
+            title: plan.title,
+            status: plan.status,
           },
         };
       }
       default:
         throw new Error(`Outil inconnu : ${name}`);
     }
-  }
-
-  // Le PDF est généré de façon asynchrone (BullMQ, voir CreateLocationPlanUseCase) - on
-  // patiente ici un temps borné pour pouvoir proposer le téléchargement direct dans la même
-  // réponse de chat plutôt que de laisser l'utilisateur aller le chercher dans l'outil dédié.
-  private async pollLocationPlanCompletion(id: string) {
-    let plan = await this.getLocationPlanUseCase.execute(id);
-    let tries = 0;
-    while (
-      plan.status !== 'COMPLETED' &&
-      plan.status !== 'FAILED' &&
-      tries < LOCATION_PLAN_POLL_MAX_TRIES
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, LOCATION_PLAN_POLL_INTERVAL_MS));
-      plan = await this.getLocationPlanUseCase.execute(id);
-      tries++;
-    }
-    return plan;
   }
 }
