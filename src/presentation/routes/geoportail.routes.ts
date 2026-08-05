@@ -66,6 +66,14 @@ const layerStatsQuerySchema = z.object({
 
 const summarizeViewBodySchema = z.object({
   layerIds: z.array(z.string().uuid()).min(1).max(50),
+  // Restreint l'agrégation à l'emprise visible sur la carte au lieu de toute la couche - voir
+  // MapService.getCurrentExtent(), même paramètre que analyze_map_context côté assistant IA
+  // (plan "refonte Statistiques" du 2026-08-05, section G : le panneau Statistiques appelle
+  // directement ce même endpoint plutôt que de dupliquer la logique via le chat).
+  extent: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional(),
+  // Zone dessinée à la main - prime sur `extent` quand fournie (voir
+  // StatisticsToolComponent.startDrawZoneForMultiLayer côté frontend).
+  geometry: z.record(z.string(), z.unknown()).optional(),
 });
 
 const adminBoundaryQuerySchema = z.object({
@@ -246,8 +254,13 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
       preHandler: [app.authenticate],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const { layerIds } = parseBody(summarizeViewBodySchema, request.body);
-      const summary = await summarizeViewportUseCase.execute(layerIds);
+      const { layerIds, extent, geometry } = parseBody(summarizeViewBodySchema, request.body);
+      const summary = await summarizeViewportUseCase.execute(
+        layerIds,
+        resolveLang(request),
+        extent,
+        geometry,
+      );
       return reply.send(successResponse(summary));
     },
   );

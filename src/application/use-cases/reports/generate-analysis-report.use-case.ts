@@ -27,6 +27,7 @@ export class GenerateAnalysisReportUseCase {
     topic: string,
     layerIds: string[],
     extent?: [number, number, number, number],
+    geometry?: Record<string, unknown>,
   ): Promise<GenerateAnalysisReportResult> {
     if (!topic.trim()) throw new ValidationError('Le sujet du rapport est requis', {});
     if (layerIds.length === 0) {
@@ -44,6 +45,7 @@ export class GenerateAnalysisReportUseCase {
       topic,
       layerIds,
       extent,
+      geometry,
     });
 
     logger.info("Job de génération de rapport d'analyse mis en file", {

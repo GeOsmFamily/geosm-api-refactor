@@ -96,12 +96,13 @@ export class SummarizeViewportUseCase {
     layerIds: string[],
     lang = 'fr',
     extent?: [number, number, number, number],
+    geometry?: Record<string, unknown>,
   ): Promise<ViewportSummary> {
     const perLayer: LayerSummaryEntry[] = [];
 
     for (const layerId of layerIds) {
       try {
-        const entry = await this.resolveLayerSummary(layerId, lang, extent);
+        const entry = await this.resolveLayerSummary(layerId, lang, extent, geometry);
         if (entry) perLayer.push(entry);
       } catch (error) {
         logger.warn('Statistiques indisponibles pour une couche du résumé de vue', {
@@ -134,13 +135,19 @@ export class SummarizeViewportUseCase {
     layerId: string,
     lang: string,
     extent?: [number, number, number, number],
+    geometry?: Record<string, unknown>,
   ): Promise<LayerSummaryEntry | null> {
     const layer = await this.layerRepository.findById(layerId);
     if (!layer?.schemaName || !layer.tableName) return null;
     const name = localize(layer.name, lang);
 
     if (layer.metadata?.['source'] !== 'raster') {
-      const stats = await this.postGISService.getLayerStats(layer.schemaName, layer.tableName, extent);
+      const stats = await this.postGISService.getLayerStats(
+        layer.schemaName,
+        layer.tableName,
+        extent,
+        geometry,
+      );
       return {
         layerId,
         name,
@@ -151,13 +158,14 @@ export class SummarizeViewportUseCase {
       };
     }
 
-    if (!extent) {
+    if (!extent && !geometry) {
       const stats = await this.postGISService.getRasterStats(layer.schemaName, layer.tableName);
       return { layerId, name, kind: 'raster', raster: { ...stats, sum: null } };
     }
 
+    const zoneGeometry = geometry ?? bboxToPolygon(extent!);
     const [zone] = await this.postGISService.getZonalStats(layer.schemaName, layer.tableName, [
-      { id: 0, name: 'extent', geojson: JSON.stringify(bboxToPolygon(extent)) },
+      { id: 0, name: 'zone', geojson: JSON.stringify(zoneGeometry) },
     ]);
     return {
       layerId,

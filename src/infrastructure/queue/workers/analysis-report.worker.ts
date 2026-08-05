@@ -19,6 +19,7 @@ export interface AnalysisReportJobData {
   topic: string;
   layerIds: string[];
   extent?: [number, number, number, number];
+  geometry?: Record<string, unknown>;
 }
 
 type AnalysisReportWorkerDeps = {
@@ -55,7 +56,7 @@ function buildReportPrompt(topic: string, perLayer: LayerSummaryEntry[]): string
 
 export function createAnalysisReportProcessor(deps: AnalysisReportWorkerDeps) {
   return async function processAnalysisReport(job: Job<AnalysisReportJobData>): Promise<void> {
-    const { reportId, userId, instanceId, topic, layerIds, extent } = job.data;
+    const { reportId, userId, instanceId, topic, layerIds, extent, geometry } = job.data;
     logger.info("Traitement du job de rapport d'analyse", { jobId: job.id, reportId, topic });
 
     try {
@@ -72,7 +73,7 @@ export function createAnalysisReportProcessor(deps: AnalysisReportWorkerDeps) {
       const instance = await deps.instanceRepository.findById(instanceId);
       const instanceName = instance ? localize(instance.name, 'fr') : 'Instance';
 
-      const summary = await deps.summarizeViewportUseCase.execute(layerIds, 'fr', extent);
+      const summary = await deps.summarizeViewportUseCase.execute(layerIds, 'fr', extent, geometry);
       if (summary.perLayer.length === 0) {
         throw new Error('Aucune donnée disponible pour les couches sélectionnées');
       }

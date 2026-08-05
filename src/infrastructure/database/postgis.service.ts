@@ -447,16 +447,23 @@ export class PostGISService {
   // Get layer statistics (count, area, length, bbox) - `bbox` optionnel restreint le calcul à
   // l'emprise visible sur la carte au lieu de toute la couche (voir plan "refonte Statistiques"
   // du 2026-08-05, GetLayerStatsUseCase l'utilise pour comparer zone visible vs couche entière).
+  // `geometry` (zone dessinée à la main, section G du même plan) prime sur `bbox` quand les deux
+  // sont fournis - un polygone précis restreint mieux qu'un simple rectangle d'emprise.
   async getLayerStats(
     schema: string,
     table: string,
     bbox?: [number, number, number, number],
+    geometry?: Record<string, unknown>,
   ): Promise<LayerStats> {
     const s = this.sanitizeIdentifier(schema);
     const t = this.sanitizeIdentifier(table);
-    const bboxFilter = bbox
-      ? `AND ST_Intersects(geom, ST_MakeEnvelope(${bbox[0]}, ${bbox[1]}, ${bbox[2]}, ${bbox[3]}, 4326))`
-      : '';
+    let bboxFilter = '';
+    if (geometry) {
+      const geomJson = JSON.stringify(geometry).replace(/'/g, "''");
+      bboxFilter = `AND ST_Intersects(geom, ST_SetSRID(ST_GeomFromGeoJSON('${geomJson}'), 4326))`;
+    } else if (bbox) {
+      bboxFilter = `AND ST_Intersects(geom, ST_MakeEnvelope(${bbox[0]}, ${bbox[1]}, ${bbox[2]}, ${bbox[3]}, 4326))`;
+    }
 
     const result = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
       SELECT

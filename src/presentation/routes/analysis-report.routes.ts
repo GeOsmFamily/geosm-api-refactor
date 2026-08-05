@@ -29,6 +29,7 @@ const generateReportBodySchema = z.object({
   topic: z.string().min(1).max(200),
   layerIds: z.array(z.string().uuid()).min(1).max(20),
   extent: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional(),
+  geometry: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
@@ -57,7 +58,7 @@ export async function analysisReportRoutes(app: FastifyInstance): Promise<void> 
       preHandler: [app.authenticate],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const { instanceId, topic, layerIds, extent } = parseBody(
+      const { instanceId, topic, layerIds, extent, geometry } = parseBody(
         generateReportBodySchema,
         request.body,
       );
@@ -68,6 +69,7 @@ export async function analysisReportRoutes(app: FastifyInstance): Promise<void> 
         topic,
         layerIds,
         extent,
+        geometry,
       );
       return reply.status(202).send(successResponse(result));
     },
