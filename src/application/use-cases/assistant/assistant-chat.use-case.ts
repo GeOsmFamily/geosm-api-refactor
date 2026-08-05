@@ -12,6 +12,7 @@ import type { CreateLocationPlanUseCase } from '../location-plans/create-locatio
 import type { CountFeaturesInGeometryUseCase } from '../features/count-features-in-geometry.use-case.js';
 import type { GetRasterStatsInGeometryUseCase } from '../rasters/get-raster-stats-in-geometry.use-case.js';
 import type { SummarizeViewportUseCase } from '../geoportail/summarize-viewport.use-case.js';
+import type { GenerateAnalysisReportUseCase } from '../reports/generate-analysis-report.use-case.js';
 import type {
   PrismaAssistantConversationRepository,
   AssistantMessageRecord,
@@ -28,10 +29,10 @@ export interface AssistantMapContext {
   activeLayers?: { id: string; name: string }[];
 }
 
-/** Résultat compact d'un `compute_geometry` mis en cache le temps de la requête (pas de
- * persistance) - évite de faire recopier par Gemini des coordonnées complètes d'un appel à
- * l'autre (coûteux en tokens, source d'erreurs de recopie sur une géométrie complexe) : les
- * outils suivants référencent juste le label. */
+/** Résultat compact d'un `compute_geometry`, persisté sur la conversation (voir
+ * AssistantConversation.geometryCache) - évite de faire recopier par Gemini des coordonnées
+ * complètes d'un appel à l'autre ou d'un message à l'autre (coûteux en tokens, source d'erreurs
+ * de recopie sur une géométrie complexe) : les outils suivants référencent juste le label. */
 interface CachedGeometry {
   geometry: Record<string, unknown>;
   summary: string;
@@ -43,7 +44,7 @@ export interface AssistantClientAction {
 }
 
 export interface AssistantAttachment {
-  type: 'location-plan';
+  type: 'location-plan' | 'analysis-report';
   id: string;
   title: string;
   status: string;
@@ -266,6 +267,30 @@ const TOOLS: GeminiFunctionDeclaration[] = [
       "d'en activer via activate_layer/search_layers d'abord.",
     parameters: { type: 'OBJECT', properties: {} },
   },
+  {
+    name: 'generate_analysis_report',
+    description:
+      "Génère un rapport d'analyse complet en PDF (asynchrone - prend environ une minute) à " +
+      "partir des couches actuellement actives sur la carte (comme analyze_map_context, aucun " +
+      "layerId à fournir). Utilise cet outil pour des demandes explicites de document/rapport " +
+      '(ex: "fais-moi un rapport sur...", "génère une étude complète sur...", "j\'ai besoin d\'un ' +
+      'PDF sur..."), PAS pour une simple question ponctuelle (utilise alors analyze_map_context ou ' +
+      "les outils de comptage). Le rapport apparaîtra dans le tiroir de tâches (icône cloche) avec " +
+      "un lien de téléchargement une fois prêt - dis-le simplement à l'utilisateur, sans mentionner " +
+      "d'identifiant technique. Ne fonctionne que si des couches sont actives.",
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        topic: {
+          type: 'STRING',
+          description:
+            'Sujet/titre du rapport, formulé clairement, ex: "Densité de population et ' +
+            'couverture scolaire à Douala 3"',
+        },
+      },
+      required: ['topic'],
+    },
+  },
 ];
 
 const CLIENT_ACTION_TOOLS = new Set(['activate_layer', 'deactivate_layer', 'zoom_to']);
@@ -400,6 +425,7 @@ export class AssistantChatUseCase {
     private readonly countFeaturesInGeometryUseCase: CountFeaturesInGeometryUseCase,
     private readonly getRasterStatsInGeometryUseCase: GetRasterStatsInGeometryUseCase,
     private readonly summarizeViewportUseCase: SummarizeViewportUseCase,
+    private readonly generateAnalysisReportUseCase: GenerateAnalysisReportUseCase,
   ) {}
 
   async execute(
@@ -660,6 +686,24 @@ export class AssistantChatUseCase {
           throw new Error('Aucune couche active sur la carte actuellement.');
         }
         return { data: await this.summarizeViewportUseCase.execute(layerIds, lang, mapContext?.extent) };
+      }
+      case 'generate_analysis_report': {
+        const layerIds = mapContext?.activeLayers?.map((l) => l.id) ?? [];
+        if (layerIds.length === 0) {
+          throw new Error('Aucune couche active sur la carte actuellement.');
+        }
+        const topic = String(args.topic);
+        const { reportId } = await this.generateAnalysisReportUseCase.execute(
+          userId,
+          instanceId,
+          topic,
+          layerIds,
+          mapContext?.extent,
+        );
+        return {
+          data: { reportId },
+          attachment: { type: 'analysis-report', id: reportId, title: topic, status: 'PENDING' },
+        };
       }
       default:
         throw new Error(`Outil inconnu : ${name}`);

@@ -118,6 +118,9 @@ import { DeleteExportUseCase } from './application/use-cases/exports/delete-expo
 // Location plans use cases
 import { CreateLocationPlanUseCase } from './application/use-cases/location-plans/create-location-plan.use-case.js';
 import { GetLocationPlanUseCase } from './application/use-cases/location-plans/get-location-plan.use-case.js';
+import { GenerateAnalysisReportUseCase } from './application/use-cases/reports/generate-analysis-report.use-case.js';
+import { GetAnalysisReportUseCase } from './application/use-cases/reports/get-analysis-report.use-case.js';
+import { ReportRendererService } from './infrastructure/pdf/report-renderer.service.js';
 
 // Geocoding use cases
 import { SearchGeocodingUseCase } from './application/use-cases/geocoding/search-geocoding.use-case.js';
@@ -446,6 +449,9 @@ interface Cradle {
   // Location plans
   createLocationPlanUseCase: CreateLocationPlanUseCase;
   getLocationPlanUseCase: GetLocationPlanUseCase;
+  reportRendererService: ReportRendererService;
+  generateAnalysisReportUseCase: GenerateAnalysisReportUseCase;
+  getAnalysisReportUseCase: GetAnalysisReportUseCase;
   // Geocoding
   searchGeocodingUseCase: SearchGeocodingUseCase;
   reverseGeocodingUseCase: ReverseGeocodingUseCase;
@@ -1066,6 +1072,18 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       { lifetime: Lifetime.SCOPED },
     ),
 
+    // Analysis reports (rapports IA en PDF, voir plan "refonte Statistiques" du 2026-08-05)
+    reportRendererService: asFunction(() => new ReportRendererService(), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    generateAnalysisReportUseCase: asFunction(
+      (c: Cradle) => new GenerateAnalysisReportUseCase(c.prisma, c.queueService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getAnalysisReportUseCase: asFunction((c: Cradle) => new GetAnalysisReportUseCase(c.prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
+
     // Geocoding use cases
     searchGeocodingUseCase: asFunction(
       (c: Cradle) => new SearchGeocodingUseCase(c.nominatimService),
@@ -1118,6 +1136,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
           c.countFeaturesInGeometryUseCase,
           c.getRasterStatsInGeometryUseCase,
           c.summarizeViewportUseCase,
+          c.generateAnalysisReportUseCase,
         ),
       { lifetime: Lifetime.SCOPED },
     ),

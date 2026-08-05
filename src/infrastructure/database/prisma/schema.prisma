@@ -109,6 +109,7 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   feedbackSubmissions     FeedbackSubmission[]
   personalLayers          PersonalLayer[]
+  analysisReports         AnalysisReport[]
 
   @@map("users")
 }
@@ -522,6 +523,31 @@ model LocationPlan {
 
   @@index([userId])
   @@map("location_plans")
+}
+
+// Rapport d'analyse IA en PDF (voir plan "refonte Statistiques" du 2026-08-05, lot rapports) -
+// même structure que LocationPlan (job BullMQ asynchrone, résultat sur MinIO, notifié via
+// NotificationService/tiroir de tâches), généré depuis l'outil `generate_analysis_report` de
+// l'assistant. `resultJson` conserve les données chiffrées ayant servi au rapport (même forme
+// que ViewportSummary.perLayer) pour un éventuel réaffichage sans reparser le PDF.
+model AnalysisReport {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  instanceId   String    @map("instance_id") @db.Uuid
+  topic        String
+  layerIds     String[]  @map("layer_ids")
+  status       JobStatus @default(PENDING)
+  resultJson   Json?     @map("result_json")
+  filePath     String?   @map("file_path")
+  fileSize     Int?      @map("file_size")
+  errorMessage String?   @map("error_message")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("analysis_reports")
 }
 
 model DefaultTheme {

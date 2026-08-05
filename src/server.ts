@@ -67,6 +67,8 @@ import { createLocationPlanProcessor } from './infrastructure/queue/workers/loca
 import { createScheduledOsmImportProcessor } from './infrastructure/queue/workers/scheduled-osm-import.worker.js';
 import { createDatabaseBackupProcessor } from './infrastructure/queue/workers/database-backup.worker.js';
 import { createRasterAnalysisProcessor } from './infrastructure/queue/workers/raster-analysis.worker.js';
+import { createAnalysisReportProcessor } from './infrastructure/queue/workers/analysis-report.worker.js';
+import { analysisReportRoutes } from './presentation/routes/analysis-report.routes.js';
 import { config as envConfig } from './config/env.config.js';
 
 async function bootstrap(): Promise<void> {
@@ -235,6 +237,35 @@ async function bootstrap(): Promise<void> {
   );
   await queueService.addRepeatableJob('database-backup', 'daily-backup', {}, envConfig.BACKUP_CRON);
 
+  // Register analysis report worker (rapports IA en PDF, voir plan "refonte Statistiques" du
+  // 2026-08-05) - job à la demande, déclenché via POST /analysis-reports ou l'outil
+  // `generate_analysis_report` de l'assistant IA.
+  queueService.createQueue('analysis-report');
+  queueService.registerWorker(
+    'analysis-report',
+    createAnalysisReportProcessor({
+      prisma: app.diContainer.resolve('prisma') as import('@prisma/client').PrismaClient,
+      instanceRepository: app.diContainer.resolve(
+        'instanceRepository',
+      ) as import('./domain/repositories/instance.repository.js').IInstanceRepository,
+      summarizeViewportUseCase: app.diContainer.resolve(
+        'summarizeViewportUseCase',
+      ) as import('./application/use-cases/geoportail/summarize-viewport.use-case.js').SummarizeViewportUseCase,
+      geminiService: app.diContainer.resolve(
+        'geminiService',
+      ) as import('./infrastructure/external-apis/gemini.service.js').GeminiService,
+      reportRendererService: app.diContainer.resolve(
+        'reportRendererService',
+      ) as import('./infrastructure/pdf/report-renderer.service.js').ReportRendererService,
+      storageService: app.diContainer.resolve(
+        'storageService',
+      ) as import('./infrastructure/storage/minio.service.js').MinioStorageService,
+      notificationService: app.diContainer.resolve(
+        'notificationService',
+      ) as import('./infrastructure/websocket/notification.service.js').NotificationService,
+    }),
+  );
+
   // Register activity report workers (Rapports Hebdomadaire & Mensuel par email à ALERT_EMAIL_TO)
   queueService.createQueue('activity-reports');
   queueService.registerWorker('activity-reports', async (job) => {
@@ -288,6 +319,7 @@ async function bootstrap(): Promise<void> {
   await app.register(styleRoutes, { prefix: `${appConfig.apiPrefix}/layers/:layerId/style` });
   await app.register(exportRoutes, { prefix: `${appConfig.apiPrefix}/exports` });
   await app.register(locationPlanRoutes, { prefix: `${appConfig.apiPrefix}/location-plans` });
+  await app.register(analysisReportRoutes, { prefix: `${appConfig.apiPrefix}/analysis-reports` });
   await app.register(geocodingRoutes, { prefix: `${appConfig.apiPrefix}/geocode` });
   await app.register(routingRoutes, { prefix: `${appConfig.apiPrefix}/routing` });
   await app.register(searchRoutes, { prefix: `${appConfig.apiPrefix}/search` });

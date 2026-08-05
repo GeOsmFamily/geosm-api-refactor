@@ -20,6 +20,12 @@ FROM node:26-bookworm-slim AS production
 # plus récent que lui-même ("aborting because of server version mismatch"), confirmé en testant
 # réellement un backup plutôt qu'en supposant la version du paquet par défaut. On ajoute donc
 # le dépôt officiel PGDG pour installer postgresql-client-16 (aligné sur le serveur).
+# "chromium" (pas le paquet complet google-chrome-stable, qui demande un dépôt tiers en plus) -
+# utilisé par puppeteer-core (ReportRendererService) pour convertir le HTML des rapports
+# d'analyse IA en PDF (voir plan "refonte Statistiques" du 2026-08-05, lot rapports). On pointe
+# puppeteer-core sur ce binaire via PUPPETEER_EXECUTABLE_PATH plutôt que de laisser Puppeteer
+# télécharger sa propre copie de Chromium à l'installation npm (peu fiable dans un build Docker
+# multi-stage, et duplique un navigateur déjà disponible via apt).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gdal-bin \
     python3 \
@@ -31,6 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zip \
     ca-certificates \
     gnupg \
+    chromium \
   && install -d /usr/share/postgresql-common/pgdg \
   && wget --quiet -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
   && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
@@ -67,6 +74,8 @@ RUN sed -i 's/\r$//' ./docker/entrypoint.sh ./scripts/*.sh && chmod +x ./docker/
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 RUN addgroup --system --gid 1001 appgroup && \
     adduser --system --uid 1001 --ingroup appgroup appuser

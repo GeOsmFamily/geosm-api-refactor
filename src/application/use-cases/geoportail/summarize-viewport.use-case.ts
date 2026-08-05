@@ -40,7 +40,9 @@ function bboxToPolygon(bbox: [number, number, number, number]): Record<string, u
   };
 }
 
-function formatLayerForPrompt(l: LayerSummaryEntry): string {
+/** Réutilisé par analysis-report.worker.ts pour construire le prompt du rapport IA en PDF -
+ * une seule façon de décrire une couche à Gemini, sur les deux fonctionnalités. */
+export function formatLayerForPrompt(l: LayerSummaryEntry): string {
   if (l.kind === 'raster' && l.raster) {
     const parts = [`min ${l.raster.min ?? 'n/d'}`, `max ${l.raster.max ?? 'n/d'}`, `moyenne ${l.raster.mean?.toFixed(1) ?? 'n/d'}`];
     if (l.raster.sum != null) parts.push(`somme ${l.raster.sum.toFixed(0)}`);
