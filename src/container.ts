@@ -146,6 +146,7 @@ import { PrismaAssistantConversationRepository } from './infrastructure/database
 
 // Admin Boundary use cases
 import { FindAdminBoundaryUseCase } from './application/use-cases/geoportail/find-admin-boundary.use-case.js';
+import { FindAdminBoundariesByLevelUseCase } from './application/use-cases/geoportail/find-admin-boundaries-by-level.use-case.js';
 
 // Drawing use cases
 import { PrismaDrawingRepository } from './infrastructure/database/repositories/prisma-drawing.repository.js';
@@ -225,6 +226,9 @@ import { SpatialAnalysisUseCase } from './application/use-cases/analysis/spatial
 import { RasterService } from './infrastructure/gdal/raster.service.js';
 import { UploadRasterUseCase } from './application/use-cases/rasters/upload-raster.use-case.js';
 import { DownloadRasterUseCase } from './application/use-cases/rasters/download-raster.use-case.js';
+import { RunRasterAnalysisUseCase } from './application/use-cases/rasters/run-raster-analysis.use-case.js';
+import { GetRasterAnalysisResultUseCase } from './application/use-cases/rasters/get-raster-analysis-result.use-case.js';
+import { GetPixelValueUseCase } from './application/use-cases/rasters/get-pixel-value.use-case.js';
 
 // SVG Icons
 import { SvgGeneratorService } from './infrastructure/utils/svg-generator.service.js';
@@ -513,6 +517,7 @@ interface Cradle {
   removeLayerIndexUseCase: RemoveLayerIndexUseCase;
   // Admin Boundary
   findAdminBoundaryUseCase: FindAdminBoundaryUseCase;
+  findAdminBoundariesByLevelUseCase: FindAdminBoundariesByLevelUseCase;
   // Drawings
   drawingRepository: PrismaDrawingRepository;
   saveDrawingUseCase: SaveDrawingUseCase;
@@ -598,6 +603,9 @@ interface Cradle {
   rasterService: RasterService;
   uploadRasterUseCase: UploadRasterUseCase;
   downloadRasterUseCase: DownloadRasterUseCase;
+  runRasterAnalysisUseCase: RunRasterAnalysisUseCase;
+  getRasterAnalysisResultUseCase: GetRasterAnalysisResultUseCase;
+  getPixelValueUseCase: GetPixelValueUseCase;
   // SVG
   svgGeneratorService: SvgGeneratorService;
   generateIconUseCase: GenerateIconUseCase;
@@ -1374,6 +1382,10 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     findAdminBoundaryUseCase: asFunction((c: Cradle) => new FindAdminBoundaryUseCase(c.prisma), {
       lifetime: Lifetime.SCOPED,
     }),
+    findAdminBoundariesByLevelUseCase: asFunction(
+      (c: Cradle) => new FindAdminBoundariesByLevelUseCase(c.prisma, c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // Drawing repositories and use cases
     drawingRepository: asFunction(() => new PrismaDrawingRepository(prisma), {
@@ -1668,6 +1680,18 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     downloadRasterUseCase: asFunction((c: Cradle) => new DownloadRasterUseCase(c.rasterService), {
       lifetime: Lifetime.SCOPED,
     }),
+    runRasterAnalysisUseCase: asFunction(
+      (c: Cradle) => new RunRasterAnalysisUseCase(c.prisma, c.layerRepository, c.queueService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getRasterAnalysisResultUseCase: asFunction(
+      (c: Cradle) => new GetRasterAnalysisResultUseCase(c.prisma),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getPixelValueUseCase: asFunction(
+      (c: Cradle) => new GetPixelValueUseCase(c.layerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
 
     // SVG
     svgGeneratorService: asFunction(() => new SvgGeneratorService(), {

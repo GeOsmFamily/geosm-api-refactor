@@ -66,6 +66,7 @@ import { createExportProcessor } from './infrastructure/queue/workers/export.wor
 import { createLocationPlanProcessor } from './infrastructure/queue/workers/location-plan.worker.js';
 import { createScheduledOsmImportProcessor } from './infrastructure/queue/workers/scheduled-osm-import.worker.js';
 import { createDatabaseBackupProcessor } from './infrastructure/queue/workers/database-backup.worker.js';
+import { createRasterAnalysisProcessor } from './infrastructure/queue/workers/raster-analysis.worker.js';
 import { config as envConfig } from './config/env.config.js';
 
 async function bootstrap(): Promise<void> {
@@ -208,6 +209,25 @@ async function bootstrap(): Promise<void> {
       alertingService: app.diContainer.resolve(
         'alertingService',
       ) as import('./infrastructure/observability/alerting.service.js').AlertingService,
+    }),
+  );
+
+  // Register raster analysis worker (statistiques globales/zonales, voir plan "Analyse raster") -
+  // job à la demande (pas de cron), déclenché via POST /rasters/:layerId/analyze.
+  queueService.createQueue('raster-analysis');
+  queueService.registerWorker(
+    'raster-analysis',
+    createRasterAnalysisProcessor({
+      prisma: app.diContainer.resolve('prisma') as import('@prisma/client').PrismaClient,
+      postGISService: app.diContainer.resolve(
+        'postGISService',
+      ) as import('./infrastructure/database/postgis.service.js').PostGISService,
+      layerRepository: app.diContainer.resolve(
+        'layerRepository',
+      ) as import('./domain/repositories/layer.repository.js').ILayerRepository,
+      findAdminBoundariesByLevelUseCase: app.diContainer.resolve(
+        'findAdminBoundariesByLevelUseCase',
+      ) as import('./application/use-cases/geoportail/find-admin-boundaries-by-level.use-case.js').FindAdminBoundariesByLevelUseCase,
     }),
   );
   await queueService.addRepeatableJob('database-backup', 'daily-backup', {}, envConfig.BACKUP_CRON);
