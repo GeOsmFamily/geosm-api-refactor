@@ -59,7 +59,7 @@ export class AlertingService {
         const html = `<h2>[${level}] ${title}</h2><p>${message}</p><pre>${JSON.stringify(metadata, null, 2)}</pre><p><small>${alertData.timestamp} on ${alertData.hostname}</small></p>`;
         await this.emailService.sendAlertEmail(
           this.alertEmailTo,
-          `[GeOSM ALERT - ${level}] ${title}`,
+          `[GeOsm ALERT - ${level}] ${title}`,
           html,
         );
       } catch (err) {
@@ -176,7 +176,7 @@ export class AlertingService {
             { title: 'Environment', value: alertData.environment, short: true },
             { title: 'Host', value: alertData.hostname, short: true },
           ],
-          footer: 'GeOSM API Alerting',
+          footer: 'GeOsm API Alerting',
           ts: Math.floor(Date.now() / 1000),
         },
       ],

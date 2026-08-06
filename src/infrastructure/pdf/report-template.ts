@@ -119,7 +119,7 @@ export function buildReportHtml(data: ReportTemplateData): string {
 </head>
 <body>
   <header>
-    <div class="brand">GEOSM &middot; RAPPORT D'ANALYSE</div>
+    <div class="brand">GeOsm &middot; RAPPORT D'ANALYSE</div>
     <h1>${escapeHtml(data.topic)}</h1>
     <div class="meta">${escapeHtml(data.instanceName)} &middot; généré le ${dateStr} &middot; assistant IA</div>
   </header>
@@ -133,7 +133,7 @@ export function buildReportHtml(data: ReportTemplateData): string {
   </div>
 
   <footer>
-    Rapport généré automatiquement par l'assistant IA du géoportail GeOSM à partir des couches
+    Rapport généré automatiquement par l'assistant IA du géoportail GeOsm à partir des couches
     actives au moment de la demande. Les chiffres reflètent l'état des données à la date de
     génération et peuvent évoluer. Les repères de comparaison éventuellement cités sont
     indicatifs, pas des statistiques officielles vérifiées.

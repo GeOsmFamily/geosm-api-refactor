@@ -170,7 +170,7 @@ export async function qgisProjectRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // GET /:qgisProjectId/layers — liste les couches exposées par le WMS du projet (pour que
-  // l'admin choisisse lesquelles publier comme couches GeOSM).
+  // l'admin choisisse lesquelles publier comme couches GeOsm).
   app.get(
     '/:qgisProjectId/layers',
     {
@@ -188,8 +188,8 @@ export async function qgisProjectRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // POST /:qgisProjectId/layers/confirm — crée une couche GeOSM par couche sélectionnée dans
-  // le projet QGIS uploadé (aucune table PostGIS gérée par GeOSM - la donnée reste dans les
+  // POST /:qgisProjectId/layers/confirm — crée une couche GeOsm par couche sélectionnée dans
+  // le projet QGIS uploadé (aucune table PostGIS gérée par GeOsm - la donnée reste dans les
   // sources propres du projet, servie via son propre WMS).
   const confirmQgisLayersSchema = z.object({
     subGroupId: z.string().uuid(),
@@ -207,7 +207,7 @@ export async function qgisProjectRoutes(app: FastifyInstance): Promise<void> {
     '/:qgisProjectId/layers/confirm',
     {
       schema: {
-        description: 'Publier des couches GeOSM depuis un projet QGIS',
+        description: 'Publier des couches GeOsm depuis un projet QGIS',
         tags: ['Projets QGIS'],
         security: [{ bearerAuth: [] }],
         body: zodToSwagger(confirmQgisLayersSchema),
@@ -229,7 +229,7 @@ export async function qgisProjectRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // POST /:qgisProjectId/auto-import — importe TOUTES les couches du projet d'un coup, en
-  // recréant automatiquement la thématique/sous-thématique GeOSM depuis l'arborescence réelle
+  // recréant automatiquement la thématique/sous-thématique GeOsm depuis l'arborescence réelle
   // du projet QGIS (voir AutoImportQgisProjectUseCase) - alternative à
   // /:qgisProjectId/layers/confirm pour un utilisateur qui glisse-dépose un projet QGIS complet
   // et veut tout publier sans choisir manuellement un sous-groupe par couche.
@@ -239,7 +239,7 @@ export async function qgisProjectRoutes(app: FastifyInstance): Promise<void> {
       schema: {
         description:
           "Importer automatiquement toutes les couches d'un projet QGIS, en recréant la " +
-          'thématique/sous-thématique GeOSM depuis les groupes du projet',
+          'thématique/sous-thématique GeOsm depuis les groupes du projet',
         tags: ['Projets QGIS'],
         security: [{ bearerAuth: [] }],
       },
@@ -257,7 +257,7 @@ export async function qgisProjectRoutes(app: FastifyInstance): Promise<void> {
 
   // GET /:qgisProjectId/export — empaquette le projet complet (projet + toutes les couches +
   // leur donnée actuelle + leurs styles) en une archive .zip autonome, utilisable directement
-  // dans QGIS Desktop (plus de dépendance à la base PostGIS de GeOSM).
+  // dans QGIS Desktop (plus de dépendance à la base PostGIS de GeOsm).
   app.get(
     '/:qgisProjectId/export',
     {

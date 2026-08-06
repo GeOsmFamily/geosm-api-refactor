@@ -13,6 +13,7 @@ import type { CountFeaturesInGeometryUseCase } from '../features/count-features-
 import type { GetRasterStatsInGeometryUseCase } from '../rasters/get-raster-stats-in-geometry.use-case.js';
 import type { SummarizeViewportUseCase } from '../geoportail/summarize-viewport.use-case.js';
 import type { GenerateAnalysisReportUseCase } from '../reports/generate-analysis-report.use-case.js';
+import type { TrackEventUseCase } from '../analytics/track-event.use-case.js';
 import type {
   PrismaAssistantConversationRepository,
   AssistantMessageRecord,
@@ -306,7 +307,7 @@ const MAX_CACHED_GEOMETRIES = 20;
 // pour la documentation complète, ceci n'en est qu'un résumé pour guider l'utilisateur dans
 // l'interface.
 const GEOPORTAL_GUIDE = `
-Connaissance de l'interface GeOSM (pour répondre aux questions "comment faire X ?") :
+Connaissance de l'interface GeOsm (pour répondre aux questions "comment faire X ?") :
 - Barre de recherche (haut de l'écran) : recherche d'adresses/lieux (géocodage) et de couches, avec historique des recherches récentes.
 - Panneau de gauche "Couches" : onglet Catalogue (parcourir les couches par thématique/sous-thématique), onglet Couches actives (opacité, visibilité, glisser-déposer pour réordonner, resynchronisation des données pour les admins), onglet Fonds de carte.
 - Icône ✨ (Assistant IA) : ce chat.
@@ -388,7 +389,7 @@ function buildSystemInstruction(
   const languageInstruction =
     RESPONSE_LANGUAGE_INSTRUCTION[lang] ?? RESPONSE_LANGUAGE_INSTRUCTION['fr'];
   return (
-    `Tu es l'assistant du géoportail GeOSM (plateforme cartographique open-source basée sur OpenStreetMap). ` +
+    `Tu es l'assistant du géoportail GeOsm (plateforme cartographique open-source basée sur OpenStreetMap). ` +
     `Tu as trois rôles : (1) agir sur la carte pour l'utilisateur en pilotant les outils disponibles, ` +
     `(2) analyser les données géographiques disponibles (une ou plusieurs couches, éventuellement croisées) ` +
     `pour produire de vraies déductions plutôt que de simples lectures de base de données, et (3) servir de ` +
@@ -426,6 +427,7 @@ export class AssistantChatUseCase {
     private readonly getRasterStatsInGeometryUseCase: GetRasterStatsInGeometryUseCase,
     private readonly summarizeViewportUseCase: SummarizeViewportUseCase,
     private readonly generateAnalysisReportUseCase: GenerateAnalysisReportUseCase,
+    private readonly trackEventUseCase: TrackEventUseCase,
   ) {}
 
   async execute(
@@ -500,6 +502,16 @@ export class AssistantChatUseCase {
             role: 'user',
             functionResponse: { name: call.name, response: { data } },
           });
+          // Détail par outil pour le tableau de bord d'usage admin (voir plan "tableau de
+          // bord analytique" du 2026-08-05) - fire-and-forget, ne doit jamais ralentir ou
+          // faire échouer la boucle d'outils de l'agent.
+          this.trackEventUseCase
+            .execute(instanceId, {
+              eventType: 'assistant_tool_used',
+              userId,
+              metadata: { tool: call.name },
+            })
+            .catch(() => undefined);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           logger.warn("Échec d'un outil de l'assistant IA", {

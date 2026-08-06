@@ -186,6 +186,7 @@ import { GetSearchSuggestionsUseCase } from './application/use-cases/search/get-
 import { GetLayerRecommendationsUseCase } from './application/use-cases/search/get-layer-recommendations.use-case.js';
 import { TrackEventUseCase } from './application/use-cases/analytics/track-event.use-case.js';
 import { GetAnalyticsUseCase } from './application/use-cases/analytics/get-analytics.use-case.js';
+import { GetUsageDashboardUseCase } from './application/use-cases/analytics/get-usage-dashboard.use-case.js';
 
 // QGIS Projects use cases
 import { GetQgisProjectUseCase } from './application/use-cases/qgis-projects/get-qgis-project.use-case.js';
@@ -559,6 +560,7 @@ interface Cradle {
   getLayerRecommendationsUseCase: GetLayerRecommendationsUseCase;
   trackEventUseCase: TrackEventUseCase;
   getAnalyticsUseCase: GetAnalyticsUseCase;
+  getUsageDashboardUseCase: GetUsageDashboardUseCase;
   incrementViewUseCase: IncrementViewUseCase;
   // Catalog
   getCatalogUseCase: GetCatalogUseCase;
@@ -1137,6 +1139,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
           c.getRasterStatsInGeometryUseCase,
           c.summarizeViewportUseCase,
           c.generateAnalysisReportUseCase,
+          c.trackEventUseCase,
         ),
       { lifetime: Lifetime.SCOPED },
     ),
@@ -1510,6 +1513,16 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     getAnalyticsUseCase: asFunction((c: Cradle) => new GetAnalyticsUseCase(c.analyticsRepository), {
       lifetime: Lifetime.SCOPED,
     }),
+    getUsageDashboardUseCase: asFunction(
+      (c: Cradle) =>
+        new GetUsageDashboardUseCase(
+          c.analyticsRepository,
+          c.notificationService,
+          prisma,
+          c.layerRepository,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
     incrementViewUseCase: asFunction(
       (c: Cradle) => new IncrementViewUseCase(c.analyticsRepository),
       { lifetime: Lifetime.SCOPED },

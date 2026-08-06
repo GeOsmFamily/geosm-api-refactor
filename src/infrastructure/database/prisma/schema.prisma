@@ -157,12 +157,12 @@ model EmailVerificationToken {
   @@map("email_verification_tokens")
 }
 
-// Profil OpenStreetMap lié à un compte GeOSM (voir OsmOAuthService) - table séparée du User
+// Profil OpenStreetMap lié à un compte GeOsm (voir OsmOAuthService) - table séparée du User
 // plutôt qu'extension de colonnes : garde le modèle User propre et permet de délier un compte
-// OSM sans perdre le compte GeOSM associé. accessTokenEncrypted sert à re-rafraîchir le profil
+// OSM sans perdre le compte GeOsm associé. accessTokenEncrypted sert à re-rafraîchir le profil
 // (changesetCount, avatar...) périodiquement sans redemander une connexion - jamais exposé en
 // clair (voir infrastructure/utils/encryption.util.ts), et non requis pour l'authentification
-// elle-même (le JWT GeOSM classique gère la session une fois l'utilisateur résolu).
+// elle-même (le JWT GeOsm classique gère la session une fois l'utilisateur résolu).
 model OsmProfile {
   id                   String    @id @default(uuid()) @db.Uuid
   userId               String    @unique @map("user_id") @db.Uuid

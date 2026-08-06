@@ -24,9 +24,9 @@ export interface CreateLayersFromQgisProjectInput {
 }
 
 /**
- * Crée une couche GeOSM par couche sélectionnée dans un projet QGIS uploadé (source "Projet
+ * Crée une couche GeOsm par couche sélectionnée dans un projet QGIS uploadé (source "Projet
  * QGIS" de l'assistant) : contrairement aux sources fichier/OSM, la donnée reste dans les
- * sources propres du projet uploadé (pas de table PostGIS gérée par GeOSM) - la couche pointe
+ * sources propres du projet uploadé (pas de table PostGIS gérée par GeOsm) - la couche pointe
  * simplement vers le WMS de ce projet, comme le ferait n'importe quelle couche WMS externe.
  */
 export class CreateLayersFromQgisProjectUseCase {

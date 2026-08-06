@@ -6,8 +6,8 @@ export async function swaggerPlugin(app: FastifyInstance): Promise<void> {
   await app.register(fastifySwagger, {
     openapi: {
       info: {
-        title: 'GeOSM API',
-        description: 'GeOSM Backend API Documentation',
+        title: 'GeOsm API',
+        description: 'GeOsm Backend API Documentation',
         version: '1.0.0',
       },
       components: {

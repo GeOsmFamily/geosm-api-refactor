@@ -94,7 +94,7 @@ export class QGISProjectService {
   /** Lit l'arborescence réelle (groupes/sous-groupes/couches) du projet QGIS via son
    * layerTreeRoot() - contrairement à ListQgisProjectLayersUseCase (WMS GetCapabilities, plat
    * par construction), donne la structure exacte utilisée pour auto-recréer les thématiques
-   * GeOSM à l'import (voir AutoImportQgisProjectUseCase). */
+   * GeOsm à l'import (voir AutoImportQgisProjectUseCase). */
   async listProjectTree(projectPath: string): Promise<PyQGISResult> {
     return this.runPythonScript('list_qgis_project_tree.py', [projectPath]);
   }
