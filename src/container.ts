@@ -1813,7 +1813,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       { lifetime: Lifetime.SCOPED },
     ),
     getPublishedInstanceFaqUseCase: asFunction(
-      (c: Cradle) => new GetPublishedInstanceFaqUseCase(c.instanceRepository, c.instanceFaqRepository),
+      (c: Cradle) =>
+        new GetPublishedInstanceFaqUseCase(c.instanceRepository, c.instanceFaqRepository),
       { lifetime: Lifetime.SCOPED },
     ),
 

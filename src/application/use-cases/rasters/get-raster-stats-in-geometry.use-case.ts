@@ -1,5 +1,8 @@
 import type { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
-import type { PostGISService, ZonalStat } from '../../../infrastructure/database/postgis.service.js';
+import type {
+  PostGISService,
+  ZonalStat,
+} from '../../../infrastructure/database/postgis.service.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ValidationError } from '../../../domain/errors/validation.error.js';
 

@@ -218,23 +218,38 @@ const TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: 'compute_geometry',
     description:
-      'Calcule une géométrie (buffer/intersection/union/différence) et l\'affiche sur la carte. ' +
+      "Calcule une géométrie (buffer/intersection/union/différence) et l'affiche sur la carte. " +
       'Pour buffer : geometryA = {type:"Point", coordinates:[lon,lat]}, distanceMeters requis. ' +
       'Pour intersection/union/difference : geometryA ET geometryB requis, chacun soit une ' +
-      'géométrie GeoJSON directe, soit - pour réutiliser le résultat d\'un compute_geometry ' +
+      "géométrie GeoJSON directe, soit - pour réutiliser le résultat d'un compute_geometry " +
       'précédent dans CETTE conversation sans le recopier - geometryARef/geometryBRef avec le ' +
       '"label" retourné par cet appel précédent. Donne toujours un "label" court et mémorable ' +
       '(ex: "buffer_douala5") pour permettre de réutiliser ce résultat dans un appel suivant.',
     parameters: {
       type: 'OBJECT',
       properties: {
-        operation: { type: 'STRING', description: "'buffer' | 'intersection' | 'union' | 'difference'" },
+        operation: {
+          type: 'STRING',
+          description: "'buffer' | 'intersection' | 'union' | 'difference'",
+        },
         label: { type: 'STRING', description: 'Nom court pour référencer ce résultat plus tard' },
         geometryA: { type: 'OBJECT', description: 'Géométrie GeoJSON directe (point/polygone...)' },
-        geometryARef: { type: 'STRING', description: "Label d'un compute_geometry précédent à réutiliser" },
-        geometryB: { type: 'OBJECT', description: 'Géométrie GeoJSON directe (intersection/union/difference)' },
-        geometryBRef: { type: 'STRING', description: "Label d'un compute_geometry précédent à réutiliser" },
-        distanceMeters: { type: 'NUMBER', description: 'Rayon en mètres (opération buffer uniquement)' },
+        geometryARef: {
+          type: 'STRING',
+          description: "Label d'un compute_geometry précédent à réutiliser",
+        },
+        geometryB: {
+          type: 'OBJECT',
+          description: 'Géométrie GeoJSON directe (intersection/union/difference)',
+        },
+        geometryBRef: {
+          type: 'STRING',
+          description: "Label d'un compute_geometry précédent à réutiliser",
+        },
+        distanceMeters: {
+          type: 'NUMBER',
+          description: 'Rayon en mètres (opération buffer uniquement)',
+        },
       },
       required: ['operation', 'label'],
     },
@@ -242,7 +257,7 @@ const TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: 'count_features_in_geometry',
     description:
-      'Compte les entités d\'une couche VECTORIELLE (obtenue via search_layers) qui se trouvent ' +
+      "Compte les entités d'une couche VECTORIELLE (obtenue via search_layers) qui se trouvent " +
       "dans une géométrie - typiquement le résultat d'un compute_geometry précédent (via " +
       'geometryRef). Pour des questions comme "combien d\'hôpitaux dans cette zone/intersection ?".',
     parameters: {
@@ -250,7 +265,10 @@ const TOOLS: GeminiFunctionDeclaration[] = [
       properties: {
         layerId: { type: 'STRING', description: 'Identifiant UUID de la couche vectorielle' },
         geometryRef: { type: 'STRING', description: "Label d'un compute_geometry précédent" },
-        geometry: { type: 'OBJECT', description: 'Géométrie GeoJSON directe (si pas de geometryRef)' },
+        geometry: {
+          type: 'OBJECT',
+          description: 'Géométrie GeoJSON directe (si pas de geometryRef)',
+        },
       },
       required: ['layerId'],
     },
@@ -267,7 +285,10 @@ const TOOLS: GeminiFunctionDeclaration[] = [
       properties: {
         layerId: { type: 'STRING', description: 'Identifiant UUID de la couche raster' },
         geometryRef: { type: 'STRING', description: "Label d'un compute_geometry précédent" },
-        geometry: { type: 'OBJECT', description: 'Géométrie GeoJSON directe (si pas de geometryRef)' },
+        geometry: {
+          type: 'OBJECT',
+          description: 'Géométrie GeoJSON directe (si pas de geometryRef)',
+        },
       },
       required: ['layerId'],
     },
@@ -275,7 +296,7 @@ const TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: 'analyze_map_context',
     description:
-      "Analyse CROISÉE de toutes les couches actuellement actives sur la carte, restreinte à la " +
+      'Analyse CROISÉE de toutes les couches actuellement actives sur la carte, restreinte à la ' +
       "zone actuellement affichée à l'écran (extent) - pas besoin de préciser quelles couches ni " +
       "quelle zone, c'est déjà connu du contexte de la conversation. Utilise cet outil pour des " +
       'demandes du type "analyse cette zone", "que peux-tu me dire sur ce qui est affiché ?", ou ' +
@@ -288,11 +309,11 @@ const TOOLS: GeminiFunctionDeclaration[] = [
     name: 'generate_analysis_report',
     description:
       "Génère un rapport d'analyse complet en PDF (asynchrone - prend environ une minute) à " +
-      "partir des couches actuellement actives sur la carte (comme analyze_map_context, aucun " +
-      "layerId à fournir). Utilise cet outil pour des demandes explicites de document/rapport " +
+      'partir des couches actuellement actives sur la carte (comme analyze_map_context, aucun ' +
+      'layerId à fournir). Utilise cet outil pour des demandes explicites de document/rapport ' +
       '(ex: "fais-moi un rapport sur...", "génère une étude complète sur...", "j\'ai besoin d\'un ' +
       'PDF sur..."), PAS pour une simple question ponctuelle (utilise alors analyze_map_context ou ' +
-      "les outils de comptage). Le rapport apparaîtra dans le tiroir de tâches (icône cloche) avec " +
+      'les outils de comptage). Le rapport apparaîtra dans le tiroir de tâches (icône cloche) avec ' +
       "un lien de téléchargement une fois prêt - dis-le simplement à l'utilisateur, sans mentionner " +
       "d'identifiant technique. Ne fonctionne que si des couches sont actives.",
     parameters: {
@@ -352,7 +373,8 @@ Connaissance de l'interface GeOsm (pour répondre aux questions "comment faire X
 // vérifiées pour un pays précis) pour ancrer les réponses de type "est-ce qu'il y a assez de
 // X ?" sur une référence plutôt que sur une impression du modèle - voir plan "refonte
 // Statistiques" du 2026-08-05. Toujours présentés comme indicatifs dans la consigne ci-dessous.
-const BENCHMARK_REFERENCES = `
+const BENCHMARK_REFERENCES =
+  `
 Repères indicatifs (ordres de grandeur généraux, PAS des statistiques officielles vérifiées - à ` +
   `présenter explicitement comme approximatifs si tu les utilises, jamais comme une vérité chiffrée) :
 - Lits d'hôpital : un repère souvent cité (OMS/Banque mondiale, moyenne mondiale) est de l'ordre de 1 lit pour 1000 habitants ; très variable selon les pays et contextes.
@@ -621,7 +643,10 @@ export class AssistantChatUseCase {
           3,
           lang,
         );
-        recs = trending.filter((t) => t.id !== layerId).slice(0, 2).map((t) => ({ ...t, coUserCount: 0 }));
+        recs = trending
+          .filter((t) => t.id !== layerId)
+          .slice(0, 2)
+          .map((t) => ({ ...t, coUserCount: 0 }));
       }
       if (recs.length === 0) return null;
 

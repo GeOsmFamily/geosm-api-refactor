@@ -11,7 +11,13 @@ export interface LayerSummaryEntry {
   featureCount?: number;
   totalAreaKm2?: number | null;
   totalLengthKm?: number | null;
-  raster?: { min: number | null; max: number | null; mean: number | null; sum: number | null; count: number };
+  raster?: {
+    min: number | null;
+    max: number | null;
+    mean: number | null;
+    sum: number | null;
+    count: number;
+  };
 }
 
 export interface ViewportSummary {
@@ -44,7 +50,11 @@ function bboxToPolygon(bbox: [number, number, number, number]): Record<string, u
  * une seule façon de décrire une couche à Gemini, sur les deux fonctionnalités. */
 export function formatLayerForPrompt(l: LayerSummaryEntry): string {
   if (l.kind === 'raster' && l.raster) {
-    const parts = [`min ${l.raster.min ?? 'n/d'}`, `max ${l.raster.max ?? 'n/d'}`, `moyenne ${l.raster.mean?.toFixed(1) ?? 'n/d'}`];
+    const parts = [
+      `min ${l.raster.min ?? 'n/d'}`,
+      `max ${l.raster.max ?? 'n/d'}`,
+      `moyenne ${l.raster.mean?.toFixed(1) ?? 'n/d'}`,
+    ];
     if (l.raster.sum != null) parts.push(`somme ${l.raster.sum.toFixed(0)}`);
     return `${l.name} [raster: ${parts.join(', ')}]`;
   }

@@ -162,7 +162,8 @@ export class CreateLocationPlanUseCase {
       ? `Access: about ${parts.join(', then ')}.`
       : `Accès : environ ${parts.join(', puis ')}.`;
     if (!elevation) return base;
-    const terrainLabel = CreateLocationPlanUseCase.TERRAIN_LABELS[elevation.terrainClass][isEn ? 'en' : 'fr'];
+    const terrainLabel =
+      CreateLocationPlanUseCase.TERRAIN_LABELS[elevation.terrainClass][isEn ? 'en' : 'fr'];
     const elevationLabel = isEn ? 'Elevation gain along the way' : 'Dénivelé positif sur le trajet';
     return `${base} ${elevationLabel} : +${Math.round(elevation.ascentMeters)} m (${terrainLabel}).`;
   }
@@ -206,9 +207,13 @@ export class CreateLocationPlanUseCase {
     let walkDistance = gapMeters;
     let walkDuration = gapMeters / 1.2; // ~1.2 m/s, vitesse de marche moyenne - repli si OSRM foot échoue.
     try {
-      const walkResult = await this.osrmService.route([snappedDest, [destLon, destLat]], 'walking', {
-        geometries: 'geojson',
-      });
+      const walkResult = await this.osrmService.route(
+        [snappedDest, [destLon, destLat]],
+        'walking',
+        {
+          geometries: 'geojson',
+        },
+      );
       if (walkResult.code === 'Ok' && walkResult.routes.length > 0) {
         walkGeometry = walkResult.routes[0].geometry as typeof walkGeometry;
         walkDistance = walkResult.routes[0].distance;
@@ -234,7 +239,12 @@ export class CreateLocationPlanUseCase {
       walkDuration += remainingGapMeters / 1.2;
     }
 
-    legs.push({ mode: 'walking', distanceMeters: walkDistance, durationSeconds: walkDuration, geometry: walkGeometry });
+    legs.push({
+      mode: 'walking',
+      distanceMeters: walkDistance,
+      durationSeconds: walkDuration,
+      geometry: walkGeometry,
+    });
     return legs;
   }
 

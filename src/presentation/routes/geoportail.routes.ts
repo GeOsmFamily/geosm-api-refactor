@@ -140,9 +140,7 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
     'summarizeViewportUseCase',
   );
   const findAdminBoundariesByLevelUseCase =
-    app.diContainer.resolve<FindAdminBoundariesByLevelUseCase>(
-      'findAdminBoundariesByLevelUseCase',
-    );
+    app.diContainer.resolve<FindAdminBoundariesByLevelUseCase>('findAdminBoundariesByLevelUseCase');
 
   // POST /api/v1/geoportail/altitude
   app.post(
@@ -332,7 +330,7 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
     '/instances/:id/admin-levels',
     {
       schema: {
-        description: "Lister les niveaux administratifs disponibles pour une instance",
+        description: 'Lister les niveaux administratifs disponibles pour une instance',
         tags: ['Geoportail'],
         security: [{ bearerAuth: [] }],
       },

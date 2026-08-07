@@ -34,11 +34,7 @@ export class GetChoroplethStatsUseCase {
     private readonly findAdminBoundariesByLevelUseCase: FindAdminBoundariesByLevelUseCase,
   ) {}
 
-  async execute(
-    layerId: string,
-    attribute: string,
-    adminLevel: number,
-  ): Promise<ChoroplethZone[]> {
+  async execute(layerId: string, attribute: string, adminLevel: number): Promise<ChoroplethZone[]> {
     const layer = await this.layerRepository.findById(layerId);
     if (!layer) throw new NotFoundError('Layer', layerId);
     if (!layer.schemaName || !layer.tableName) {

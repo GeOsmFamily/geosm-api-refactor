@@ -18,9 +18,9 @@ const CLUSTERING_PROMPT =
   "Voici une liste de questions posées par des visiteurs d'un géoportail (une par ligne, " +
   'certaines quasi-identiques ou reformulées). Regroupe-les en une FAQ synthétique : identifie ' +
   'les questions RÉCURRENTES ou représentatives (ignore les questions trop spécifiques à un cas ' +
-  "isolé, ex: une adresse précise), formule une question claire et générique pour chaque groupe, " +
+  'isolé, ex: une adresse précise), formule une question claire et générique pour chaque groupe, ' +
   "et rédige une réponse courte et factuelle (2-3 phrases) basée sur ce qu'un géoportail de ce " +
-  "type permet de faire (recherche de lieux, activation de couches thématiques, mesures, export, " +
+  'type permet de faire (recherche de lieux, activation de couches thématiques, mesures, export, ' +
   "plans de localisation...). N'invente aucune donnée chiffrée précise que tu ne peux pas déduire " +
   "du contexte. Réponds STRICTEMENT en JSON, un tableau d'objets " +
   '{"question": string, "answer": string, "sourceCount": number} (sourceCount = nombre de ' +
@@ -31,15 +31,16 @@ const CLUSTERING_PROMPT =
  * confondus - c'est la matière première regroupée/synthétisée par Gemini en Q/R. */
 function extractUserQuestions(messagesJson: unknown): string[] {
   const turns = (messagesJson as AssistantMessageRecord[] | null) ?? [];
-  return turns
-    .filter((t) => t.role === 'user' && t.text?.trim())
-    .map((t) => t.text.trim());
+  return turns.filter((t) => t.role === 'user' && t.text?.trim()).map((t) => t.text.trim());
 }
 
 /** Gemini répond parfois avec des balises ```json ... ``` malgré la consigne stricte - on les
  * retire avant JSON.parse plutôt que d'échouer sur un cas facilement récupérable. */
 function parseClusteredFaq(raw: string): ClusteredFaqEntry[] {
-  const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
+  const cleaned = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```\s*$/i, '');
   const parsed: unknown = JSON.parse(cleaned);
   if (!Array.isArray(parsed)) throw new Error('Réponse Gemini non conforme : tableau attendu');
   return parsed

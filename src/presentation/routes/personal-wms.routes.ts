@@ -19,7 +19,7 @@ export async function personalWmsRoutes(app: FastifyInstance): Promise<void> {
     '/',
     {
       schema: {
-        description: "Proxy WMS authentifié pour une donnée personnelle (projet QGIS privé)",
+        description: 'Proxy WMS authentifié pour une donnée personnelle (projet QGIS privé)',
         tags: ['Proxy WMS/WFS'],
       },
     },

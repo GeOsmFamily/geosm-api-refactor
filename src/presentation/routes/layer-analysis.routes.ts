@@ -33,7 +33,10 @@ const gridQuerySchema = z.object({
   bbox: z.string().transform((v, ctx) => {
     const parts = v.split(',').map(Number);
     if (parts.length !== 4 || parts.some(isNaN)) {
-      ctx.addIssue({ code: 'custom', message: 'bbox invalide, attendu "minLon,minLat,maxLon,maxLat"' });
+      ctx.addIssue({
+        code: 'custom',
+        message: 'bbox invalide, attendu "minLon,minLat,maxLon,maxLat"',
+      });
       return z.NEVER;
     }
     return parts as [number, number, number, number];
@@ -51,8 +54,7 @@ export async function layerAnalysisRoutes(app: FastifyInstance): Promise<void> {
   const getChoroplethStatsUseCase = app.diContainer.resolve<GetChoroplethStatsUseCase>(
     'getChoroplethStatsUseCase',
   );
-  const getGridStatsUseCase =
-    app.diContainer.resolve<GetGridStatsUseCase>('getGridStatsUseCase');
+  const getGridStatsUseCase = app.diContainer.resolve<GetGridStatsUseCase>('getGridStatsUseCase');
 
   // GET /api/v1/layers/:layerId/analysis/choropleth?attribute=X&adminLevel=N
   app.get(

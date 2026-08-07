@@ -21,10 +21,7 @@ export class GetPublishedInstanceFaqUseCase {
     const instance = await this.instanceRepository.findBySlug(instanceSlug);
     if (!instance) throw new NotFoundError('Instance', instanceSlug);
 
-    const faqs = await this.instanceFaqRepository.listByInstanceAndStatus(
-      instance.id,
-      'PUBLISHED',
-    );
+    const faqs = await this.instanceFaqRepository.listByInstanceAndStatus(instance.id, 'PUBLISHED');
     return faqs.map((f) => ({ id: f.id, question: f.question, answer: f.answer }));
   }
 }

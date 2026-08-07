@@ -35,8 +35,9 @@ export async function adminFaqRoutes(app: FastifyInstance): Promise<void> {
   const listDraftInstanceFaqUseCase = app.diContainer.resolve<ListDraftInstanceFaqUseCase>(
     'listDraftInstanceFaqUseCase',
   );
-  const reviewInstanceFaqUseCase =
-    app.diContainer.resolve<ReviewInstanceFaqUseCase>('reviewInstanceFaqUseCase');
+  const reviewInstanceFaqUseCase = app.diContainer.resolve<ReviewInstanceFaqUseCase>(
+    'reviewInstanceFaqUseCase',
+  );
 
   app.get(
     '/',

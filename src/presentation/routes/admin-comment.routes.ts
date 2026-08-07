@@ -23,7 +23,9 @@ const listQuerySchema = z.object({
   instanceId: z.string().uuid().optional(),
   flagged: z.coerce.boolean().optional(),
   resolved: z.coerce.boolean().optional(),
-  reportType: z.enum(['FEATURE_CLOSED', 'WRONG_ATTRIBUTE', 'OUTDATED_GEOMETRY', 'OTHER']).optional(),
+  reportType: z
+    .enum(['FEATURE_CLOSED', 'WRONG_ATTRIBUTE', 'OUTDATED_GEOMETRY', 'OTHER'])
+    .optional(),
 });
 
 const reviewCommentSchema = z.object({

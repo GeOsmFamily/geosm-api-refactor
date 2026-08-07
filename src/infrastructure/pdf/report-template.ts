@@ -24,7 +24,9 @@ function escapeHtml(value: string): string {
 // pour la moyenne, qui passait par toFixed() - un point, pas une virgule) : la même fonction
 // pour les trois évite ce mélange de séparateurs décimaux dans le même tableau.
 function formatDecimal(n: number | null | undefined): string {
-  return n == null ? 'n/d' : n.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return n == null
+    ? 'n/d'
+    : n.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 function formatLayerCard(l: LayerSummaryEntry): string {
@@ -34,7 +36,8 @@ function formatLayerCard(l: LayerSummaryEntry): string {
       ['Maximum', formatDecimal(l.raster.max)],
       ['Moyenne', formatDecimal(l.raster.mean)],
     ];
-    if (l.raster.sum != null) rows.push(['Total estimé', Math.round(l.raster.sum).toLocaleString('fr-FR')]);
+    if (l.raster.sum != null)
+      rows.push(['Total estimé', Math.round(l.raster.sum).toLocaleString('fr-FR')]);
     return `
       <div class="layer-card">
         <h3>${escapeHtml(l.name)} <span class="badge">raster</span></h3>

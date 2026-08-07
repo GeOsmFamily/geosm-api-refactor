@@ -28,9 +28,8 @@ const layerIdParamSchema = z.object({ layerId: z.string().uuid() });
  * raisonnement complet sur l'absence d'authentification).
  */
 export async function liveLayerRoutes(app: FastifyInstance): Promise<void> {
-  const getLiveLayerDataUseCase = app.diContainer.resolve<GetLiveLayerDataUseCase>(
-    'getLiveLayerDataUseCase',
-  );
+  const getLiveLayerDataUseCase =
+    app.diContainer.resolve<GetLiveLayerDataUseCase>('getLiveLayerDataUseCase');
 
   app.get(
     '/',

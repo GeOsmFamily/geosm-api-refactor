@@ -35,8 +35,7 @@ export async function routingRoutes(app: FastifyInstance): Promise<void> {
   const findNearestFeatureUseCase = app.diContainer.resolve<FindNearestFeatureUseCase>(
     'findNearestFeatureUseCase',
   );
-  const getIsochroneUseCase =
-    app.diContainer.resolve<GetIsochroneUseCase>('getIsochroneUseCase');
+  const getIsochroneUseCase = app.diContainer.resolve<GetIsochroneUseCase>('getIsochroneUseCase');
 
   app.get(
     '/route',

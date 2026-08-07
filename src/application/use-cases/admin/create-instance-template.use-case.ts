@@ -206,7 +206,9 @@ export class CreateInstanceTemplateUseCase {
       }
     }
 
-    const baseMaps = await this.prisma.baseMap.findMany({ where: { instanceId: sourceInstanceId } });
+    const baseMaps = await this.prisma.baseMap.findMany({
+      where: { instanceId: sourceInstanceId },
+    });
     for (const baseMap of baseMaps) {
       await this.prisma.baseMap.create({
         data: {

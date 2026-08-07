@@ -28,7 +28,9 @@ type AnalysisReportWorkerDeps = {
   summarizeViewportUseCase: SummarizeViewportUseCase;
   geminiService: GeminiService;
   reportRendererService: ReportRendererService;
-  storageService: { uploadFile: (key: string, data: Buffer, contentType?: string) => Promise<string> };
+  storageService: {
+    uploadFile: (key: string, data: Buffer, contentType?: string) => Promise<string>;
+  };
   notificationService: { notifyUser: (userId: string, event: string, data: unknown) => void };
 };
 
@@ -91,10 +93,13 @@ export function createAnalysisReportProcessor(deps: AnalysisReportWorkerDeps) {
           buildReportPrompt(topic, summary.perLayer),
         );
       } catch (error) {
-        logger.warn("Rédaction longue du rapport indisponible (Gemini), repli sur la synthèse courte", {
-          reportId,
-          error: error instanceof Error ? error.message : error,
-        });
+        logger.warn(
+          'Rédaction longue du rapport indisponible (Gemini), repli sur la synthèse courte',
+          {
+            reportId,
+            error: error instanceof Error ? error.message : error,
+          },
+        );
       }
       deps.notificationService.notifyUser(userId, 'analysis-report:progress', {
         reportId,

@@ -29,12 +29,11 @@ export interface OSRMTableResult {
 
 // Profils applicatifs (déjà utilisés côté frontend, ex. routing-tool.component.ts) vers les
 // variables d'env OSRM_URL_* dédiées à un conteneur mono-profil - voir env.config.ts.
-const PROFILE_URL_ENV_KEY: Record<string, 'OSRM_URL_CAR' | 'OSRM_URL_BICYCLE' | 'OSRM_URL_FOOT'> =
-  {
-    driving: 'OSRM_URL_CAR',
-    cycling: 'OSRM_URL_BICYCLE',
-    walking: 'OSRM_URL_FOOT',
-  };
+const PROFILE_URL_ENV_KEY: Record<string, 'OSRM_URL_CAR' | 'OSRM_URL_BICYCLE' | 'OSRM_URL_FOOT'> = {
+  driving: 'OSRM_URL_CAR',
+  cycling: 'OSRM_URL_BICYCLE',
+  walking: 'OSRM_URL_FOOT',
+};
 
 export class OSRMService {
   private readonly baseUrl: string;

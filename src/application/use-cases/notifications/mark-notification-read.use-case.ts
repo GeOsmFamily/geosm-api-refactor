@@ -15,7 +15,7 @@ export class MarkNotificationReadUseCase {
     const notification = await this.notificationRepository.findById(notificationId);
     if (!notification) throw new NotFoundError('Notification', notificationId);
     if (notification.userId !== userId) {
-      throw new ForbiddenError("Cette notification ne vous appartient pas.");
+      throw new ForbiddenError('Cette notification ne vous appartient pas.');
     }
     return this.notificationRepository.markRead(notificationId);
   }

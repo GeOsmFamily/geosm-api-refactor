@@ -48,10 +48,12 @@ export async function analysisReportRoutes(app: FastifyInstance): Promise<void> 
   const generateAnalysisReportUseCase = app.diContainer.resolve<GenerateAnalysisReportUseCase>(
     'generateAnalysisReportUseCase',
   );
-  const getAnalysisReportUseCase =
-    app.diContainer.resolve<GetAnalysisReportUseCase>('getAnalysisReportUseCase');
-  const rateAnalysisReportUseCase =
-    app.diContainer.resolve<RateAnalysisReportUseCase>('rateAnalysisReportUseCase');
+  const getAnalysisReportUseCase = app.diContainer.resolve<GetAnalysisReportUseCase>(
+    'getAnalysisReportUseCase',
+  );
+  const rateAnalysisReportUseCase = app.diContainer.resolve<RateAnalysisReportUseCase>(
+    'rateAnalysisReportUseCase',
+  );
   const storageService = app.diContainer.resolve<MinioStorageService>('storageService');
 
   app.post(

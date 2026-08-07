@@ -34,7 +34,12 @@ export class GetStaleLayersUseCase {
 
     const layers = await this.prisma.layer.findMany({
       where: { updatedAt: { lt: cutoff } },
-      select: { id: true, name: true, updatedAt: true, instance: { select: { id: true, name: true } } },
+      select: {
+        id: true,
+        name: true,
+        updatedAt: true,
+        instance: { select: { id: true, name: true } },
+      },
       orderBy: { updatedAt: 'asc' },
     });
 

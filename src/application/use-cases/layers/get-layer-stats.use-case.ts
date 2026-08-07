@@ -64,7 +64,9 @@ const COMPARATIVE_PROMPT_BY_LANG: Record<
     return (
       `Tu analyses la couche "${layerName}" sur un géoportail. Dans la zone actuellement visible ` +
       `à l'écran : ${zone.featureCount} entités` +
-      (zoneDensity ? ` (≈ ${(zone.featureCount / zoneDensity).toFixed(1)} entités/km² sur cette zone)` : '') +
+      (zoneDensity
+        ? ` (≈ ${(zone.featureCount / zoneDensity).toFixed(1)} entités/km² sur cette zone)`
+        : '') +
       (zone.totalArea !== null ? `, superficie ${zone.totalArea.toFixed(2)} km²` : '') +
       (zone.totalLength !== null ? `, longueur ${zone.totalLength.toFixed(2)} km` : '') +
       `. Sur l'ensemble de la couche : ${whole.featureCount} entités au total` +
@@ -81,7 +83,9 @@ const COMPARATIVE_PROMPT_BY_LANG: Record<
     return (
       `You are analyzing the "${layerName}" layer on a geoportal. In the area currently visible ` +
       `on screen: ${zone.featureCount} features` +
-      (zoneDensity ? ` (≈ ${(zone.featureCount / zoneDensity).toFixed(1)} features/km² in this area)` : '') +
+      (zoneDensity
+        ? ` (≈ ${(zone.featureCount / zoneDensity).toFixed(1)} features/km² in this area)`
+        : '') +
       (zone.totalArea !== null ? `, area ${zone.totalArea.toFixed(2)} km²` : '') +
       (zone.totalLength !== null ? `, length ${zone.totalLength.toFixed(2)} km` : '') +
       `. Across the whole layer: ${whole.featureCount} features total` +

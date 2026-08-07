@@ -57,8 +57,9 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   const getAnalyticsUseCase = app.diContainer.resolve<GetAnalyticsUseCase>('getAnalyticsUseCase');
   const incrementViewUseCase =
     app.diContainer.resolve<IncrementViewUseCase>('incrementViewUseCase');
-  const getUsageDashboardUseCase =
-    app.diContainer.resolve<GetUsageDashboardUseCase>('getUsageDashboardUseCase');
+  const getUsageDashboardUseCase = app.diContainer.resolve<GetUsageDashboardUseCase>(
+    'getUsageDashboardUseCase',
+  );
 
   // POST /api/v1/analytics/track
   // authenticateOptional (et non authenticate) : la route reste utilisable sans être connecté

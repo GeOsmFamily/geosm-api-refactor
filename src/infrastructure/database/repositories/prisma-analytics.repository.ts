@@ -181,7 +181,9 @@ export class PrismaAnalyticsRepository {
       GROUP BY tool
       ORDER BY count DESC
     `;
-    return rows.filter((r) => r.tool).map((r) => ({ tool: r.tool as string, count: Number(r.count) }));
+    return rows
+      .filter((r) => r.tool)
+      .map((r) => ({ tool: r.tool as string, count: Number(r.count) }));
   }
 
   /**
