@@ -594,6 +594,116 @@ export class PostGISService {
     }));
   }
 
+  /** Agrégation d'un attribut numérique d'une couche vectorielle par zone (choroplèthe) - même
+   * convention UNNEST+jointure spatiale que getZonalStats, mais ST_Within sur des géométries
+   * vecteur au lieu de ST_Clip sur un raster. L'appelant DOIT avoir déjà validé que `attribute`
+   * est un nom de colonne numérique réel de la table (voir GetChoroplethStatsUseCase) -
+   * sanitizeIdentifier() protège seulement contre l'injection SQL, pas contre un nom de colonne
+   * inexistant ou non numérique. */
+  async getVectorZonalStats(
+    schema: string,
+    table: string,
+    attribute: string,
+    zones: ZonalStatZone[],
+  ): Promise<ZonalStat[]> {
+    if (zones.length === 0) return [];
+    const s = this.sanitizeIdentifier(schema);
+    const t = this.sanitizeIdentifier(table);
+    const attr = this.sanitizeIdentifier(attribute);
+
+    const ids = zones.map((z) => Number(z.id)).join(',');
+    const names = zones.map((z) => `'${z.name.replace(/'/g, "''")}'`).join(',');
+    const geojsons = zones.map((z) => `'${z.geojson.replace(/'/g, "''")}'`).join(',');
+
+    const sql = `
+      WITH zones AS (
+        SELECT * FROM UNNEST(
+          ARRAY[${ids}]::int[],
+          ARRAY[${names}]::text[],
+          ARRAY[${geojsons}]::text[]
+        ) AS z(id, name, geojson)
+      )
+      SELECT
+        z.id as zone_id,
+        z.name as zone_name,
+        SUM(f."${attr}")::float as sum,
+        AVG(f."${attr}")::float as mean,
+        MIN(f."${attr}")::float as min,
+        MAX(f."${attr}")::float as max,
+        COUNT(f."${attr}")::int as count
+      FROM zones z
+      JOIN "${s}"."${t}" f
+        ON ST_Within(
+          CASE WHEN GeometryType(f.geom) = 'POINT' THEN f.geom ELSE ST_Centroid(f.geom) END,
+          ST_SetSRID(ST_GeomFromGeoJSON(z.geojson), 4326)
+        )
+      GROUP BY z.id, z.name
+    `;
+
+    const rows = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(sql);
+    return rows.map((row) => ({
+      zoneId: Number(row.zone_id),
+      zoneName: String(row.zone_name),
+      sum: row.sum != null ? Number(row.sum) : null,
+      mean: row.mean != null ? Number(row.mean) : null,
+      min: row.min != null ? Number(row.min) : null,
+      max: row.max != null ? Number(row.max) : null,
+      count: row.count != null ? Number(row.count) : 0,
+    }));
+  }
+
+  /** Grille statistique (carroyage/hexbin) : génère une grille carrée ou hexagonale sur
+   * l'emprise donnée (ST_HexagonGrid/ST_SquareGrid, PostGIS 3.4+) et compte les entités de la
+   * couche par cellule. Le calcul de grille se fait en Web Mercator (mètres) - une grille
+   * générée directement en degrés (4326) aurait des cellules visuellement très différentes
+   * selon la latitude - puis reprojetée en 4326 pour le GeoJSON de sortie. Cellules vides
+   * exclues (HAVING) et résultat plafonné pour éviter un pavage démesuré sur une grande emprise
+   * avec une petite maille. */
+  async getGridStats(
+    schema: string,
+    table: string,
+    extent: [number, number, number, number],
+    cellSizeMeters: number,
+    gridType: 'square' | 'hexagon',
+  ): Promise<{ geojson: string; value: number }[]> {
+    const s = this.sanitizeIdentifier(schema);
+    const t = this.sanitizeIdentifier(table);
+    const gridFn = gridType === 'hexagon' ? 'ST_HexagonGrid' : 'ST_SquareGrid';
+    const [minLon, minLat, maxLon, maxLat] = extent;
+
+    const sql = `
+      WITH bounds AS (
+        SELECT ST_Transform(
+          ST_SetSRID(ST_MakeEnvelope(${minLon}, ${minLat}, ${maxLon}, ${maxLat}), 4326),
+          3857
+        ) AS geom
+      ),
+      grid AS (
+        SELECT (g).geom AS geom
+        FROM bounds b, LATERAL ${gridFn}(${cellSizeMeters}, b.geom) AS g
+      )
+      SELECT
+        ST_AsGeoJSON(ST_Transform(grid.geom, 4326))::text AS geojson,
+        COUNT(f.*)::int AS value
+      FROM grid
+      LEFT JOIN "${s}"."${t}" f
+        ON ST_Within(
+          ST_Transform(
+            CASE WHEN GeometryType(f.geom) = 'POINT' THEN f.geom ELSE ST_Centroid(f.geom) END,
+            3857
+          ),
+          grid.geom
+        )
+      GROUP BY grid.geom
+      HAVING COUNT(f.*) > 0
+      ORDER BY value DESC
+      LIMIT 2000
+    `;
+
+    const rows = await this.prisma.$queryRawUnsafe<{ geojson: string; value: number }[]>(sql);
+    return rows.map((r) => ({ geojson: r.geojson, value: Number(r.value) }));
+  }
+
   // Spatial query: find features within a boundary
   async findFeaturesWithin(
     schema: string,

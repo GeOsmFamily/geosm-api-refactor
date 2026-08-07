@@ -16,6 +16,11 @@ export const createLocationPlanSchema = z.object({
   includeGrid: z.boolean().optional(),
   includeNorthArrow: z.boolean().optional(),
   autoFillWithAI: z.boolean().optional(),
+  originLon: z.number().min(-180).max(180).optional(),
+  originLat: z.number().min(-90).max(90).optional(),
+}).refine((data) => (data.originLon === undefined) === (data.originLat === undefined), {
+  message: 'originLon et originLat doivent être fournis ensemble',
+  path: ['originLat'],
 });
 
 export const locationPlanIdParamSchema = z.object({

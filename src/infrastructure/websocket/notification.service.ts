@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { WebSocket } from '@fastify/websocket';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { UnauthorizedError } from '../../domain/errors/unauthorized.error.js';
 import { logger } from '../observability/logger.js';
 
@@ -10,6 +11,8 @@ interface WSClient {
 
 export class NotificationService {
   private clients: Map<string, WSClient[]> = new Map();
+
+  constructor(private readonly prisma: PrismaClient) {}
 
   /**
    * Le WebSocket natif du navigateur ne permet PAS de fixer d'en-tête `Authorization` sur la
@@ -74,7 +77,28 @@ export class NotificationService {
     );
   }
 
-  notifyUser(userId: string, event: string, data: unknown): void {
+  /**
+   * Persiste TOUJOURS la notification en base avant de tenter le push WebSocket en direct (voir
+   * plan "Centre de notifications unifié" du 2026-08-06) - avant ce correctif, un utilisateur
+   * hors ligne au moment de l'appel perdait l'événement pour toujours (pur fire-and-forget,
+   * aucune trace nulle part). Un échec de persistance est journalisé mais n'empêche jamais la
+   * tentative de push en direct (best-effort, comme le reste de cette classe) - inversement, un
+   * échec du push WS n'empêche jamais la persistance, qui a déjà eu lieu au moment où le push
+   * est tenté.
+   */
+  async notifyUser(userId: string, event: string, data: unknown): Promise<void> {
+    try {
+      await this.prisma.notification.create({
+        data: { userId, type: event, payload: data as Prisma.InputJsonValue },
+      });
+    } catch (err) {
+      logger.warn('Failed to persist notification', {
+        userId,
+        event,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     const clients = this.clients.get(userId) || [];
     const message = JSON.stringify({ event, data, timestamp: Date.now() });
     for (const client of clients) {

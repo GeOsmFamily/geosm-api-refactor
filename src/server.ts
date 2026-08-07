@@ -35,6 +35,8 @@ import { routingRoutes } from './presentation/routes/routing.routes.js';
 import { searchRoutes } from './presentation/routes/search.routes.js';
 import { qgisProjectRoutes } from './presentation/routes/qgis-project.routes.js';
 import { personalLayerRoutes } from './presentation/routes/personal-layers.routes.js';
+import { faqRoutes } from './presentation/routes/faq.routes.js';
+import { adminFaqRoutes } from './presentation/routes/admin-faq.routes.js';
 import { wmsProxyRoutes, wfsProxyRoutes } from './presentation/routes/wms-proxy.routes.js';
 import { defaultThemeRoutes } from './presentation/routes/default-theme.routes.js';
 import { adminRoutes } from './presentation/routes/admin.routes.js';
@@ -45,6 +47,10 @@ import { osmRoutes } from './presentation/routes/osm.routes.js';
 import { multipartPlugin } from './presentation/plugins/multipart.plugin.js';
 import { uploadRoutes } from './presentation/routes/upload.routes.js';
 import { featureRoutes } from './presentation/routes/feature.routes.js';
+import { layerAnalysisRoutes } from './presentation/routes/layer-analysis.routes.js';
+import { liveLayerRoutes } from './presentation/routes/live-layer.routes.js';
+import { personalWmsRoutes } from './presentation/routes/personal-wms.routes.js';
+import { notificationRoutes } from './presentation/routes/notification.routes.js';
 import { geoportailRoutes } from './presentation/routes/geoportail.routes.js';
 import { drawingRoutes } from './presentation/routes/drawing.routes.js';
 import { geosignetRoutes } from './presentation/routes/geosignet.routes.js';
@@ -284,6 +290,42 @@ async function bootstrap(): Promise<void> {
   await queueService.addRepeatableJob('activity-reports', 'weekly-report', {}, '0 8 * * 1');
   await queueService.addRepeatableJob('activity-reports', 'monthly-report', {}, '0 8 1 * *');
 
+  // Register FAQ generation worker + job récurrent (génération hebdomadaire de FAQ en DRAFT à
+  // partir des questions posées à l'assistant IA sur les 30 derniers jours, voir plan "FAQ
+  // dynamique par instance" du 2026-08-06) - jamais publiée automatiquement, un admin doit
+  // toujours relire avant diffusion publique (voir InstanceFaqStatus).
+  queueService.createQueue('faq-generation');
+  queueService.registerWorker('faq-generation', async () => {
+    const scheduledFaqGenerationUseCase = app.diContainer.resolve(
+      'scheduledFaqGenerationUseCase',
+    ) as import('./application/use-cases/faq/scheduled-faq-generation.use-case.js').ScheduledFaqGenerationUseCase;
+    await scheduledFaqGenerationUseCase.execute();
+  });
+  await queueService.addRepeatableJob(
+    'faq-generation',
+    'weekly-faq-generation',
+    {},
+    envConfig.FAQ_GENERATION_CRON,
+  );
+
+  // Register layer freshness report worker + job récurrent (email hebdomadaire des couches non
+  // resynchronisées depuis plus de 90 jours, voir plan "Couches vivantes + rapport de
+  // fraîcheur" du 2026-08-06) - actif par défaut (comme database-backup), ne dépend d'aucune
+  // configuration externe.
+  queueService.createQueue('layer-freshness-report');
+  queueService.registerWorker('layer-freshness-report', async () => {
+    const sendLayerFreshnessReportUseCase = app.diContainer.resolve(
+      'sendLayerFreshnessReportUseCase',
+    ) as import('./application/use-cases/admin/send-layer-freshness-report.use-case.js').SendLayerFreshnessReportUseCase;
+    await sendLayerFreshnessReportUseCase.execute();
+  });
+  await queueService.addRepeatableJob(
+    'layer-freshness-report',
+    'weekly-freshness-report',
+    {},
+    '0 9 * * 1',
+  );
+
   // Route publique pour servir les icônes SVG personnalisées des couches
   app.get('/api/v1/layers/icons/:filename', async (request, reply) => {
     const { filename } = request.params as { filename: string };
@@ -329,7 +371,13 @@ async function bootstrap(): Promise<void> {
   await app.register(personalLayerRoutes, {
     prefix: `${appConfig.apiPrefix}/instances/:instanceId/personal-layers`,
   });
+  await app.register(faqRoutes, { prefix: `${appConfig.apiPrefix}/faq` });
+  await app.register(adminFaqRoutes, {
+    prefix: `${appConfig.apiPrefix}/instances/:instanceId/faq/admin`,
+  });
   await app.register(wmsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wms` });
+  await app.register(personalWmsRoutes, { prefix: `${appConfig.apiPrefix}/personal-wms` });
+  await app.register(notificationRoutes, { prefix: `${appConfig.apiPrefix}/notifications` });
   await app.register(wfsProxyRoutes, { prefix: `${appConfig.apiPrefix}/wfs` });
   await app.register(defaultThemeRoutes, { prefix: `${appConfig.apiPrefix}/default-themes` });
   await app.register(adminRoutes, { prefix: `${appConfig.apiPrefix}/admin` });
@@ -339,6 +387,10 @@ async function bootstrap(): Promise<void> {
   await app.register(osmRoutes, { prefix: `${appConfig.apiPrefix}/osm` });
   await app.register(uploadRoutes, { prefix: `${appConfig.apiPrefix}/layers` });
   await app.register(featureRoutes, { prefix: `${appConfig.apiPrefix}/layers/:layerId/features` });
+  await app.register(layerAnalysisRoutes, {
+    prefix: `${appConfig.apiPrefix}/layers/:layerId/analysis`,
+  });
+  await app.register(liveLayerRoutes, { prefix: `${appConfig.apiPrefix}/layers/:layerId/live` });
   await app.register(geoportailRoutes, { prefix: `${appConfig.apiPrefix}/geoportail` });
   await app.register(drawingRoutes, { prefix: `${appConfig.apiPrefix}/drawings` });
   await app.register(geosignetRoutes, { prefix: `${appConfig.apiPrefix}/geosignets` });

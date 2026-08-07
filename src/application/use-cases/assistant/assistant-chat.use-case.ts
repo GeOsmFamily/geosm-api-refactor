@@ -14,12 +14,16 @@ import type { GetRasterStatsInGeometryUseCase } from '../rasters/get-raster-stat
 import type { SummarizeViewportUseCase } from '../geoportail/summarize-viewport.use-case.js';
 import type { GenerateAnalysisReportUseCase } from '../reports/generate-analysis-report.use-case.js';
 import type { TrackEventUseCase } from '../analytics/track-event.use-case.js';
+import type { GetLayerRecommendationsUseCase } from '../search/get-layer-recommendations.use-case.js';
+import type { GetSearchSuggestionsUseCase } from '../search/get-search-suggestions.use-case.js';
+import type { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
 import type {
   PrismaAssistantConversationRepository,
   AssistantMessageRecord,
 } from '../../../infrastructure/database/repositories/prisma-assistant-conversation.repository.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ForbiddenError } from '../../../domain/errors/forbidden.error.js';
+import { localize } from '../../utils/localize.js';
 import { logger } from '../../../infrastructure/observability/logger.js';
 
 /** Contexte carte ambiant, envoyé par le frontend à CHAQUE message (pas un paramètre que
@@ -52,17 +56,29 @@ export interface AssistantAttachment {
   downloadUrl?: string;
 }
 
+/** Couche(s) réellement interrogée(s) pour produire une réponse - traçabilité contre
+ * l'hallucination (voir demande du 2026-08-06 "chat expert cadastre/urbanisme"). Alimenté
+ * uniquement par les outils qui lisent vraiment des données d'une couche (stats, comptage,
+ * analyse croisée...), jamais par de simples outils de recherche/navigation (search_layers,
+ * geocode) qui ne sont pas eux-mêmes la source d'une affirmation factuelle. */
+export interface AssistantSourceRef {
+  layerId: string;
+  layerName: string;
+}
+
 export interface AssistantChatResult {
   conversationId: string;
   reply: string;
   clientActions: AssistantClientAction[];
   attachments: AssistantAttachment[];
+  sources: AssistantSourceRef[];
 }
 
 interface DataToolResult {
   data: unknown;
   clientAction?: AssistantClientAction;
   attachment?: AssistantAttachment;
+  source?: AssistantSourceRef[];
 }
 
 // Outils que Gemini peut choisir d'appeler - deux catégories : les outils "données" sont
@@ -408,7 +424,11 @@ function buildSystemInstruction(
     `suite, auquel cas explique clairement ce qui a été fait et ce qui a échoué). N'invente jamais d'identifiant ` +
     `de couche : utilise toujours un layerId obtenu via search_layers ou déjà connu du contexte carte ` +
     `ci-dessous. Si un outil échoue ou ne trouve rien, explique-le clairement à l'utilisateur plutôt que ` +
-    `d'inventer une réponse.\n${GEOPORTAL_GUIDE}${BENCHMARK_REFERENCES}${buildMapContextBlock(mapContext)}` +
+    `d'inventer une réponse. TRAÇABILITÉ : quand ta réponse s'appuie sur des données réellement lues sur ` +
+    `une ou plusieurs couches (statistiques, comptage, analyse croisée...), mentionne explicitement leur ` +
+    `nom dans le texte (ex: "D'après la couche Hôpitaux...") plutôt qu'une affirmation sans source - cela ` +
+    `permet à l'utilisateur de vérifier d'où viennent les chiffres.` +
+    `\n${GEOPORTAL_GUIDE}${BENCHMARK_REFERENCES}${buildMapContextBlock(mapContext)}` +
     `${buildCachedGeometriesBlock(geometryCache ?? new Map())}`
   );
 }
@@ -428,6 +448,9 @@ export class AssistantChatUseCase {
     private readonly summarizeViewportUseCase: SummarizeViewportUseCase,
     private readonly generateAnalysisReportUseCase: GenerateAnalysisReportUseCase,
     private readonly trackEventUseCase: TrackEventUseCase,
+    private readonly layerRepository: ILayerRepository,
+    private readonly getLayerRecommendationsUseCase: GetLayerRecommendationsUseCase,
+    private readonly getSearchSuggestionsUseCase: GetSearchSuggestionsUseCase,
   ) {}
 
   async execute(
@@ -450,6 +473,11 @@ export class AssistantChatUseCase {
     ];
     const clientActions: AssistantClientAction[] = [];
     const attachments: AssistantAttachment[] = [];
+    const sourcesUsed: AssistantSourceRef[] = [];
+    // Une seule suggestion proactive par tour, prise sur le PREMIER activate_layer du tour -
+    // en enchaîner une par couche activée (ex: "active hôpitaux et écoles") noierait la
+    // réponse plutôt que d'aider (voir demande du 2026-08-06 "suggestions proactives").
+    let suggestionNote: string | null = null;
     // Chargé depuis la conversation (pas un champ de classe - AssistantChatUseCase est partagé
     // entre requêtes concurrentes) et repersisté à la fin - voir compute_geometry/geometryARef.
     // Sans ça, un "dessine un cercle" dans un message puis "analyse cette zone" dans le message
@@ -483,11 +511,18 @@ export class AssistantChatUseCase {
             role: 'user',
             functionResponse: { name: call.name, response: { success: true } },
           });
+          if (call.name === 'activate_layer' && !suggestionNote && call.args.layerId) {
+            suggestionNote = await this.buildProactiveSuggestion(
+              String(call.args.layerId),
+              instanceId,
+              lang,
+            );
+          }
           continue;
         }
 
         try {
-          const { data, clientAction, attachment } = await this.executeDataTool(
+          const { data, clientAction, attachment, source } = await this.executeDataTool(
             call.name,
             call.args,
             userId,
@@ -498,6 +533,13 @@ export class AssistantChatUseCase {
           );
           if (clientAction) clientActions.push(clientAction);
           if (attachment) attachments.push(attachment);
+          if (source) {
+            for (const s of source) {
+              if (!sourcesUsed.some((existing) => existing.layerId === s.layerId)) {
+                sourcesUsed.push(s);
+              }
+            }
+          }
           messages.push({
             role: 'user',
             functionResponse: { name: call.name, response: { data } },
@@ -530,11 +572,19 @@ export class AssistantChatUseCase {
       }
     }
 
+    // Ajoutée après coup au texte final plutôt qu'injectée dans le prompt : une suggestion
+    // déterministe (calcul SQL, pas une invention du modèle) n'a pas besoin de repasser par
+    // Gemini, et cela garantit qu'elle apparaît même si le modèle conclut en une seule
+    // itération (cas le plus fréquent pour un simple activate_layer).
+    if (suggestionNote && reply) {
+      reply = `${reply}\n\n💡 ${suggestionNote}`;
+    }
+
     const now = new Date().toISOString();
     const updatedTurns: AssistantMessageRecord[] = [
       ...priorTurns,
       { role: 'user', text: message, createdAt: now },
-      { role: 'model', text: reply, createdAt: now },
+      { role: 'model', text: reply, createdAt: now, sources: sourcesUsed },
     ];
     // Garde les MAX_CACHED_GEOMETRIES plus récentes (Map préserve l'ordre d'insertion) - un
     // historique de géométries indéfiniment croissant sur une longue conversation n'a pas de
@@ -549,7 +599,48 @@ export class AssistantChatUseCase {
       ...(isFirstUserMessage ? { title: message.slice(0, 60) } : {}),
     });
 
-    return { conversationId, reply, clientActions, attachments };
+    return { conversationId, reply, clientActions, attachments, sources: sourcesUsed };
+  }
+
+  /** "Les utilisateurs qui ont activé X ont aussi activé Y" formulé en langage naturel,
+   * déclenché juste après un activate_layer (voir demande du 2026-08-06). Repli sur les
+   * couches les plus activées de l'instance si aucune co-activation trouvée (démarrage à
+   * froid, même logique que GetSearchSuggestionsUseCase). Ne doit jamais faire échouer la
+   * conversation : une erreur ici est juste avalée, la suggestion est un bonus. */
+  private async buildProactiveSuggestion(
+    layerId: string,
+    instanceId: string,
+    lang: string,
+  ): Promise<string | null> {
+    try {
+      let recs = await this.getLayerRecommendationsUseCase.execute(layerId, instanceId, 2, lang);
+      if (recs.length === 0) {
+        const trending = await this.getSearchSuggestionsUseCase.execute(
+          undefined,
+          instanceId,
+          3,
+          lang,
+        );
+        recs = trending.filter((t) => t.id !== layerId).slice(0, 2).map((t) => ({ ...t, coUserCount: 0 }));
+      }
+      if (recs.length === 0) return null;
+
+      const joiners: Record<string, string> = { fr: ' et ', en: ' and ', es: ' y ' };
+      const names = recs.map((r) => r.name).join(joiners[lang] ?? joiners['fr']);
+      const templates: Record<string, string> = {
+        fr: `D'autres utilisateurs qui consultent cette couche activent souvent aussi ${names}.`,
+        en: `Other users looking at this layer often also activate ${names}.`,
+        es: `Otros usuarios que consultan esta capa también suelen activar ${names}.`,
+      };
+      return templates[lang] ?? templates['fr'];
+    } catch (error) {
+      logger.warn('Suggestion proactive indisponible', {
+        layerId,
+        instanceId,
+        error: error instanceof Error ? error.message : error,
+      });
+      return null;
+    }
   }
 
   private toClientActionName(toolName: string): 'activateLayer' | 'deactivateLayer' | 'zoomTo' {
@@ -594,8 +685,14 @@ export class AssistantChatUseCase {
           })),
         };
       }
-      case 'get_layer_stats':
-        return { data: await this.getLayerStatsUseCase.execute(String(args.layerId)) };
+      case 'get_layer_stats': {
+        const layerId = String(args.layerId);
+        const [data, source] = await Promise.all([
+          this.getLayerStatsUseCase.execute(layerId),
+          this.resolveSource(layerId, lang),
+        ]);
+        return { data, source };
+      }
       case 'buffer_around_point': {
         const analysisResult = await this.spatialAnalysisUseCase.execute({
           operation: 'buffer',
@@ -611,15 +708,19 @@ export class AssistantChatUseCase {
           },
         };
       }
-      case 'find_nearest_feature':
-        return {
-          data: await this.findNearestFeatureUseCase.execute(
-            String(args.layerId),
+      case 'find_nearest_feature': {
+        const layerId = String(args.layerId);
+        const [data, source] = await Promise.all([
+          this.findNearestFeatureUseCase.execute(
+            layerId,
             Number(args.lon),
             Number(args.lat),
             args.limit ? Number(args.limit) : undefined,
           ),
-        };
+          this.resolveSource(layerId, lang),
+        ]);
+        return { data, source };
+      }
       case 'create_location_plan': {
         // Retourne immédiatement sans attendre la fin du rendu QGIS (peut prendre plusieurs
         // dizaines de secondes sur une zone dense) - le tiroir de tâches (JobsTrayService côté
@@ -681,27 +782,41 @@ export class AssistantChatUseCase {
       case 'count_features_in_geometry': {
         const geometry = this.resolveGeometry(args, 'geometry', 'geometryRef', geometryCache);
         if (!geometry) throw new Error('geometry (ou geometryRef) est requis');
-        return {
-          data: await this.countFeaturesInGeometryUseCase.execute(String(args.layerId), geometry),
-        };
+        const layerId = String(args.layerId);
+        const [data, source] = await Promise.all([
+          this.countFeaturesInGeometryUseCase.execute(layerId, geometry),
+          this.resolveSource(layerId, lang),
+        ]);
+        return { data, source };
       }
       case 'get_raster_stats_in_geometry': {
         const geometry = this.resolveGeometry(args, 'geometry', 'geometryRef', geometryCache);
         if (!geometry) throw new Error('geometry (ou geometryRef) est requis');
-        return {
-          data: await this.getRasterStatsInGeometryUseCase.execute(String(args.layerId), geometry),
-        };
+        const layerId = String(args.layerId);
+        const [data, source] = await Promise.all([
+          this.getRasterStatsInGeometryUseCase.execute(layerId, geometry),
+          this.resolveSource(layerId, lang),
+        ]);
+        return { data, source };
       }
       case 'analyze_map_context': {
-        const layerIds = mapContext?.activeLayers?.map((l) => l.id) ?? [];
-        if (layerIds.length === 0) {
+        const activeLayers = mapContext?.activeLayers ?? [];
+        if (activeLayers.length === 0) {
           throw new Error('Aucune couche active sur la carte actuellement.');
         }
-        return { data: await this.summarizeViewportUseCase.execute(layerIds, lang, mapContext?.extent) };
+        const data = await this.summarizeViewportUseCase.execute(
+          activeLayers.map((l) => l.id),
+          lang,
+          mapContext?.extent,
+        );
+        return {
+          data,
+          source: activeLayers.map((l) => ({ layerId: l.id, layerName: l.name })),
+        };
       }
       case 'generate_analysis_report': {
-        const layerIds = mapContext?.activeLayers?.map((l) => l.id) ?? [];
-        if (layerIds.length === 0) {
+        const activeLayers = mapContext?.activeLayers ?? [];
+        if (activeLayers.length === 0) {
           throw new Error('Aucune couche active sur la carte actuellement.');
         }
         const topic = String(args.topic);
@@ -709,12 +824,13 @@ export class AssistantChatUseCase {
           userId,
           instanceId,
           topic,
-          layerIds,
+          activeLayers.map((l) => l.id),
           mapContext?.extent,
         );
         return {
           data: { reportId },
           attachment: { type: 'analysis-report', id: reportId, title: topic, status: 'PENDING' },
+          source: activeLayers.map((l) => ({ layerId: l.id, layerName: l.name })),
         };
       }
       default:
@@ -739,5 +855,16 @@ export class AssistantChatUseCase {
     const direct = args[directKey];
     if (direct && typeof direct === 'object') return direct as Record<string, unknown>;
     return null;
+  }
+
+  /** Résout le nom localisé d'une couche pour la citer comme source d'une réponse (voir
+   * AssistantSourceRef) - une recherche supplémentaire par id (indexée, coût négligeable)
+   * plutôt que de faire remonter le nom depuis chaque use case de données, qui ne le
+   * retournent pas aujourd'hui (ils ne consomment que layerId). Silencieux si la couche a
+   * disparu entre-temps : une source manquante ne doit jamais faire échouer la réponse. */
+  private async resolveSource(layerId: string, lang: string): Promise<AssistantSourceRef[]> {
+    const layer = await this.layerRepository.findById(layerId);
+    if (!layer) return [];
+    return [{ layerId, layerName: localize(layer.name, lang) }];
   }
 }

@@ -21,6 +21,11 @@ export interface LocationPlanJobData {
   includeGrid?: boolean;
   includeNorthArrow?: boolean;
   instanceBbox?: number[] | null;
+  originLon?: number;
+  originLat?: number;
+  accessInstructions?: string;
+  routeLegs?: unknown;
+  elevationSummary?: unknown;
 }
 
 type LocationPlanWorkerDeps = {
@@ -50,6 +55,11 @@ export function createLocationPlanProcessor(deps: LocationPlanWorkerDeps) {
       includeGrid,
       includeNorthArrow,
       instanceBbox,
+      originLon,
+      originLat,
+      accessInstructions,
+      routeLegs,
+      elevationSummary,
     } = job.data;
     logger.info('Processing location plan', { locationPlanId, lon, lat });
 
@@ -84,6 +94,11 @@ export function createLocationPlanProcessor(deps: LocationPlanWorkerDeps) {
           instanceBbox && instanceBbox.length === 4
             ? (instanceBbox as [number, number, number, number])
             : undefined,
+        originLon,
+        originLat,
+        accessInstructions,
+        routeLegs,
+        elevationSummary,
       });
 
       if (!result.success) {

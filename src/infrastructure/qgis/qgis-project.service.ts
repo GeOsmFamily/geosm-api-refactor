@@ -180,6 +180,11 @@ export class QGISProjectService {
       includeGrid?: boolean;
       includeNorthArrow?: boolean;
       instanceBbox?: [number, number, number, number];
+      originLon?: number;
+      originLat?: number;
+      accessInstructions?: string;
+      routeLegs?: unknown;
+      elevationSummary?: unknown;
     },
   ): Promise<PyQGISResult> {
     const dir = path.dirname(outputPath);

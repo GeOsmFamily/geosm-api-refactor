@@ -10,6 +10,8 @@ export interface AnalysisReportDTO {
   filePath: string | null;
   fileSize: number | null;
   errorMessage: string | null;
+  rating: number | null;
+  ratingComment: string | null;
 }
 
 /** Lecture du statut/résultat d'un rapport d'analyse - consommé en polling par le frontend
@@ -30,6 +32,8 @@ export class GetAnalysisReportUseCase {
       filePath: row.filePath,
       fileSize: row.fileSize,
       errorMessage: row.errorMessage,
+      rating: row.rating,
+      ratingComment: row.ratingComment,
     };
   }
 }

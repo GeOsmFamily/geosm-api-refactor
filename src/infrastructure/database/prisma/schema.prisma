@@ -69,6 +69,9 @@ enum ExportFormat {
   KML
   CSV
   PDF
+  // GML generique (driver GDAL natif) - PAS conforme INSPIRE (mapping de schema par theme non
+  // fait, hors perimetre - voir plan "Interoperabilite & securite des donnees" du 2026-08-06).
+  GML
 }
 
 enum JobStatus {
@@ -110,6 +113,7 @@ model User {
   feedbackSubmissions     FeedbackSubmission[]
   personalLayers          PersonalLayer[]
   analysisReports         AnalysisReport[]
+  notifications           Notification[]
 
   @@map("users")
 }
@@ -225,6 +229,7 @@ model Instance {
   qgisProjects   QgisProject[]
   instanceUsers  InstanceUser[]
   personalLayers PersonalLayer[]
+  faqs           InstanceFaq[]
 
   @@map("instances")
 }
@@ -511,6 +516,22 @@ model LocationPlan {
   includeScale      Boolean         @default(true) @map("include_scale")
   includeGrid       Boolean         @default(true) @map("include_grid")
   includeNorthArrow Boolean         @default(true) @map("include_north_arrow")
+  // Itinéraire d'accès optionnel (voir plan "Plan de localisation + OSRM + altimétrie" du
+  // 2026-08-07) : origin{Lon,Lat} est le point de départ choisi par l'utilisateur, tout le
+  // reste est calculé par CreateLocationPlanUseCase (OSRM + drapage altimétrique + IA) avant
+  // l'enfilage du job, jamais saisi directement par le client.
+  originLon         Float?          @map("origin_lon")
+  originLat         Float?          @map("origin_lat")
+  // Texte rédigé par l'IA (avec repli déterministe si Gemini indisponible, même esprit que
+  // draftWithAI) décrivant l'itinéraire d'accès en une phrase ou deux.
+  accessInstructions String?        @map("access_instructions")
+  // Array<{mode:'driving'|'walking', distanceMeters, durationSeconds, geometry: GeoJSON}> -
+  // un élément par tronçon (véhicule puis, si la destination n'est pas directement sur une
+  // route carrossable, un tronçon à pied jusqu'au point exact).
+  routeLegs         Json?           @map("route_legs")
+  // {ascentMeters, descentMeters, maxAltitudeMeters, terrainClass} calculé par drapage SRTM
+  // sur la géométrie combinée des tronçons - voir PostGISService.drapeElevationProfile().
+  elevationSummary  Json?           @map("elevation_summary")
   filePath          String?         @map("file_path")
   fileSize          Int?            @map("file_size")
   errorMessage      String?         @map("error_message")
@@ -541,6 +562,12 @@ model AnalysisReport {
   filePath     String?   @map("file_path")
   fileSize     Int?      @map("file_size")
   errorMessage String?   @map("error_message")
+  // Retour qualité (voir plan "Gouvernance citoyenne & qualité IA" du 2026-08-06) - rating
+  // +1/-1 (pas d'échelle plus large, un simple pouce haut/bas suffit pour ce cas d'usage),
+  // ratedAt distinct de updatedAt (qui bouge aussi sur d'autres changements, ex. statut du job).
+  rating        Int?      @db.SmallInt
+  ratingComment String?   @map("rating_comment")
+  ratedAt       DateTime? @map("rated_at")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
@@ -633,6 +660,40 @@ model AssistantConversation {
   @@map("assistant_conversations")
 }
 
+// DRAFT : générée automatiquement par le job faq-generation à partir des questions réelles des
+// utilisateurs (potentiellement sensibles - adresses, noms), jamais visible publiquement.
+// PUBLISHED : validée par un admin, visible sur la route publique GET /faq/:instanceSlug.
+// REJECTED : refusée par un admin, reste en base pour historique, jamais republiée
+// automatiquement. Calqué sur PersonalLayerStatus, le seul autre vrai workflow de revue humaine
+// avant publication déjà présent dans le code.
+enum InstanceFaqStatus {
+  DRAFT
+  PUBLISHED
+  REJECTED
+}
+
+model InstanceFaq {
+  id           String             @id @default(uuid()) @db.Uuid
+  instanceId   String             @map("instance_id") @db.Uuid
+  question     String
+  answer       String             @db.Text
+  // Nombre de conversations distinctes ayant contribué à cette question lors du regroupement
+  // Gemini - donne à l'admin qui relit un signal de fréquence réelle avant publication.
+  sourceCount  Int                @default(1) @map("source_count")
+  status       InstanceFaqStatus  @default(DRAFT)
+  reviewedBy   String?            @map("reviewed_by") @db.Uuid
+  reviewedAt   DateTime?          @map("reviewed_at")
+  generatedAt  DateTime           @default(now()) @map("generated_at")
+  publishedAt  DateTime?          @map("published_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId, status])
+  @@map("instance_faqs")
+}
+
 model MapComposition {
   id          String   @id @default(uuid()) @db.Uuid
   name        String
@@ -698,6 +759,16 @@ model Geosignet {
   @@map("geosignets")
 }
 
+// Type structuré d'un signalement citoyen sur une entité précise (voir plan "Gouvernance
+// citoyenne & qualité IA" du 2026-08-06) - distinct d'un simple commentaire libre sur un point
+// de la carte (reportType reste null dans ce cas, comportement inchangé).
+enum CommentReportType {
+  FEATURE_CLOSED
+  WRONG_ATTRIBUTE
+  OUTDATED_GEOMETRY
+  OTHER
+}
+
 model Comment {
   id         String    @id @default(uuid()) @db.Uuid
   userId     String    @map("user_id") @db.Uuid
@@ -716,6 +787,23 @@ model Comment {
   flagged    Boolean   @default(false)
   flagReason String?   @map("flag_reason")
   flaggedAt  DateTime? @map("flagged_at")
+  // Signalement structuré sur une entité précise (voir plan "Gouvernance citoyenne & qualité
+  // IA" du 2026-08-06) - tous nullable : un commentaire "libre" (pin sur la carte, pas de
+  // rattachement à une couche/feature) reste possible, comportement historique inchangé.
+  // featureId n'est PAS une relation Prisma : les tables de features du catalogue sont
+  // dynamiques (une par couche), jamais modélisées individuellement par Prisma.
+  // layerId n'est volontairement PAS une relation Prisma (juste un uuid brut, même idiome que
+  // PersonalLayer.reviewedBy) - évite de devoir ajouter un champ inverse `comments Comment[]`
+  // sur Layer, qu'aucun autre écran n'a besoin de traverser.
+  reportType CommentReportType? @map("report_type")
+  layerId    String?            @map("layer_id") @db.Uuid
+  featureId  String?            @map("feature_id")
+  // Triplet de revue (calqué sur PersonalLayer.reviewedBy/reviewedAt/reviewNote, le seul autre
+  // vrai workflow de revue humaine déjà dans le code) - distinct de flagged/flaggedAt, qui ne
+  // fait que repérer un commentaire pour la file de modération sans trancher.
+  reviewedBy String?   @map("reviewed_by") @db.Uuid
+  reviewedAt DateTime? @map("reviewed_at")
+  reviewNote String?   @map("review_note")
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
@@ -727,6 +815,7 @@ model Comment {
   @@index([instanceId])
   @@index([parentId])
   @@index([flagged])
+  @@index([layerId])
   @@map("comments")
 }
 
@@ -778,6 +867,28 @@ model FeedbackSubmission {
   @@index([createdAt])
   @@index([status])
   @@map("feedback_submissions")
+}
+
+// Centre de notifications unifié (voir plan "Centre de notifications unifié + plan de
+// scalabilité documenté" du 2026-08-06) - AVANT ce modèle, NotificationService.notifyUser()
+// était du pur fire-and-forget WebSocket (voir notification.service.ts) : un utilisateur hors
+// ligne au moment de l'envoi perdait l'événement pour toujours, rien n'était jamais persisté.
+// `type` suit la même convention que les événements WS déjà émis par les workers BullMQ
+// (ex. "export:completed", "location-plan:failed") - un simple string, pas d'enum fermé, pour
+// ne jamais bloquer l'ajout d'un nouveau type de notification par une migration de schéma.
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String
+  payload   Json
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
 }
 
 // Table de référence des limites administratives (pays/régions/communes), importée

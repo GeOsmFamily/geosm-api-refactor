@@ -5,6 +5,7 @@ import { ValidationError } from '../../domain/errors/validation.error.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { GenerateAnalysisReportUseCase } from '../../application/use-cases/reports/generate-analysis-report.use-case.js';
 import { GetAnalysisReportUseCase } from '../../application/use-cases/reports/get-analysis-report.use-case.js';
+import { RateAnalysisReportUseCase } from '../../application/use-cases/reports/rate-analysis-report.use-case.js';
 import type { MinioStorageService } from '../../infrastructure/storage/minio.service.js';
 
 function parseBody<T>(
@@ -32,6 +33,11 @@ const generateReportBodySchema = z.object({
   geometry: z.record(z.string(), z.unknown()).optional(),
 });
 
+const rateReportBodySchema = z.object({
+  rating: z.union([z.literal(1), z.literal(-1)]),
+  ratingComment: z.string().max(500).optional(),
+});
+
 /**
  * Rapports d'analyse IA en PDF (voir plan "refonte Statistiques" du 2026-08-05) - même pattern
  * que location-plan.routes.ts (génération asynchrone BullMQ + proxy de téléchargement MinIO),
@@ -44,6 +50,8 @@ export async function analysisReportRoutes(app: FastifyInstance): Promise<void> 
   );
   const getAnalysisReportUseCase =
     app.diContainer.resolve<GetAnalysisReportUseCase>('getAnalysisReportUseCase');
+  const rateAnalysisReportUseCase =
+    app.diContainer.resolve<RateAnalysisReportUseCase>('rateAnalysisReportUseCase');
   const storageService = app.diContainer.resolve<MinioStorageService>('storageService');
 
   app.post(
@@ -89,6 +97,32 @@ export async function analysisReportRoutes(app: FastifyInstance): Promise<void> 
       const { id } = parseBody(idParamSchema, request.params);
       const result = await getAnalysisReportUseCase.execute(id);
       return reply.send(successResponse(result));
+    },
+  );
+
+  // POST /:id/rate — retour qualité (voir plan "Gouvernance citoyenne & qualité IA" du
+  // 2026-08-06), réservé à l'auteur du rapport (vérifié dans le use case).
+  app.post(
+    '/:id/rate',
+    {
+      schema: {
+        description: "Noter la pertinence d'un rapport d'analyse IA (+1/-1)",
+        tags: ["Rapports d'analyse"],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(rateReportBodySchema),
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = parseBody(idParamSchema, request.params);
+      const { rating, ratingComment } = parseBody(rateReportBodySchema, request.body);
+      await rateAnalysisReportUseCase.execute({
+        userId: request.user!.sub,
+        reportId: id,
+        rating,
+        ratingComment,
+      });
+      return reply.send(successResponse(null));
     },
   );
 

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, CommentReportType } from '@prisma/client';
 
 export interface CommentRecord {
   id: string;
@@ -12,6 +12,12 @@ export interface CommentRecord {
   flagged: boolean;
   flagReason: string | null;
   flaggedAt: Date | null;
+  reportType: CommentReportType | null;
+  layerId: string | null;
+  featureId: string | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  reviewNote: string | null;
   createdAt: Date;
   updatedAt: Date;
   authorName?: string;
@@ -24,6 +30,7 @@ export interface AdminListCommentsOptions {
   instanceId?: string;
   flagged?: boolean;
   resolved?: boolean;
+  reportType?: CommentReportType;
 }
 
 const authorSelect = { user: { select: { firstName: true, lastName: true } } };
@@ -46,6 +53,9 @@ export class PrismaCommentRepository {
     lat: number;
     lon: number;
     parentId?: string | null;
+    reportType?: CommentReportType | null;
+    layerId?: string | null;
+    featureId?: string | null;
   }): Promise<CommentRecord> {
     const record = await this.prisma.comment.create({ data, include: authorSelect });
     return withAuthorName(record) as CommentRecord;
@@ -106,6 +116,7 @@ export class PrismaCommentRepository {
     if (options.instanceId) where.instanceId = options.instanceId;
     if (options.flagged !== undefined) where.flagged = options.flagged;
     if (options.resolved !== undefined) where.resolved = options.resolved;
+    if (options.reportType) where.reportType = options.reportType;
 
     const [records, total] = await Promise.all([
       this.prisma.comment.findMany({
@@ -119,6 +130,28 @@ export class PrismaCommentRepository {
     ]);
 
     return { data: records.map((r) => withAuthorName(r) as CommentRecord), total };
+  }
+
+  /** Tranche un signalement structuré (voir plan "Gouvernance citoyenne & qualité IA" du
+   * 2026-08-06) - APPROVE marque le fil comme traité (resolved=true, le signalement était
+   * fondé), REJECT le classe sans suite (resolved=true aussi, reviewNote porte le motif) ;
+   * dans les deux cas le fil sort de la file de modération active. */
+  async review(
+    id: string,
+    data: { reviewedBy: string; decision: 'APPROVE' | 'REJECT'; reviewNote?: string | null },
+  ): Promise<CommentRecord> {
+    const record = await this.prisma.comment.update({
+      where: { id },
+      data: {
+        reviewedBy: data.reviewedBy,
+        reviewedAt: new Date(),
+        reviewNote: data.reviewNote ?? null,
+        resolved: true,
+        flagged: false,
+      },
+      include: authorSelect,
+    });
+    return withAuthorName(record) as CommentRecord;
   }
 
   async setFlagged(

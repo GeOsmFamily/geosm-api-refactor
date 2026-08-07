@@ -39,6 +39,7 @@ export enum ExportFormat {
   KML = 'KML',
   CSV = 'CSV',
   PDF = 'PDF',
+  GML = 'GML',
 }
 
 export enum JobStatus {

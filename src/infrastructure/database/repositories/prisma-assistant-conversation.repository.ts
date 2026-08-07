@@ -4,6 +4,10 @@ export interface AssistantMessageRecord {
   role: 'user' | 'model';
   text: string;
   createdAt: string;
+  // Couches réellement interrogées pour produire cette réponse (voir AssistantSourceRef côté
+  // assistant-chat.use-case.ts) - persisté pour que les citations de source survivent à la
+  // réouverture d'une conversation, pas seulement à l'échange en direct.
+  sources?: { layerId: string; layerName: string }[];
 }
 
 export interface AssistantConversationRecord {
@@ -43,6 +47,20 @@ export class PrismaAssistantConversationRepository {
   ): Promise<AssistantConversationRecord[]> {
     return this.prisma.assistantConversation.findMany({
       where: { userId, instanceId },
+      orderBy: { updatedAt: 'desc' },
+    }) as Promise<AssistantConversationRecord[]>;
+  }
+
+  /** Toutes les conversations d'une instance depuis une date donnée, tous utilisateurs confondus -
+   * scope volontairement plus large que findByUserAndInstance (limité à un seul utilisateur),
+   * nécessaire pour GenerateInstanceFaqUseCase qui doit regrouper les questions de TOUS les
+   * visiteurs de l'instance pour en dégager une FAQ représentative. */
+  async findAllByInstance(
+    instanceId: string,
+    options: { since: Date },
+  ): Promise<AssistantConversationRecord[]> {
+    return this.prisma.assistantConversation.findMany({
+      where: { instanceId, updatedAt: { gte: options.since } },
       orderBy: { updatedAt: 'desc' },
     }) as Promise<AssistantConversationRecord[]>;
   }
