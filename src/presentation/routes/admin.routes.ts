@@ -23,6 +23,12 @@ import { ReindexAllLayersUseCase } from '../../application/use-cases/search/rein
 import { DatabaseBackupUseCase } from '../../application/use-cases/admin/database-backup.use-case.js';
 import { GetDatabaseOverviewUseCase } from '../../application/use-cases/admin/get-database-overview.use-case.js';
 import { PurgeOrphanTablesUseCase } from '../../application/use-cases/admin/purge-orphan-tables.use-case.js';
+import { GetStaleLayersUseCase } from '../../application/use-cases/admin/get-stale-layers.use-case.js';
+import { resolveLang } from '../utils/lang.util.js';
+
+const staleLayersQuerySchema = z.object({
+  cutoffDays: z.coerce.number().int().positive().optional(),
+});
 
 function parseBody<T>(
   schema: {
@@ -64,6 +70,10 @@ const createInstanceTemplateSchema = z.object({
   slug: z.string().min(1),
   description: z.string().optional(),
   thematiques: z.array(z.string()).optional(),
+  // Clone le catalogue (Group→SubGroup→Layer→LayerStyle→LayerAction) + BaseMap d'une instance
+  // existante au lieu des thématiques par défaut - voir plan "Interopérabilité & sécurité des
+  // données" du 2026-08-06.
+  sourceInstanceId: z.string().uuid().optional(),
 });
 
 const createSequenceSchema = z.object({
@@ -76,6 +86,8 @@ const deleteSequenceSchema = z.object({ name: z.string().min(1) });
 
 export async function adminRoutes(app: FastifyInstance): Promise<void> {
   const getDashboardUseCase = app.diContainer.resolve<GetDashboardUseCase>('getDashboardUseCase');
+  const getStaleLayersUseCase =
+    app.diContainer.resolve<GetStaleLayersUseCase>('getStaleLayersUseCase');
   const listJobsUseCase = app.diContainer.resolve<ListJobsUseCase>('listJobsUseCase');
   const getJobDetailsUseCase =
     app.diContainer.resolve<GetJobDetailsUseCase>('getJobDetailsUseCase');
@@ -119,6 +131,26 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const result = await getDashboardUseCase.execute();
+      return reply.send(successResponse(result));
+    },
+  );
+
+  // GET /layers/freshness — rapport de fraîcheur (voir plan "Couches vivantes + rapport de
+  // fraîcheur" du 2026-08-06)
+  app.get(
+    '/layers/freshness',
+    {
+      schema: {
+        description: 'Lister les couches non resynchronisées depuis un seuil donné',
+        tags: ['Administration'],
+        security: [{ bearerAuth: [] }],
+        querystring: zodToSwagger(staleLayersQuerySchema),
+      },
+      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const query = parseBody(staleLayersQuerySchema, request.query);
+      const result = await getStaleLayersUseCase.execute(query.cutoffDays, resolveLang(request));
       return reply.send(successResponse(result));
     },
   );

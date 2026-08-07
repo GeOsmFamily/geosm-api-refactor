@@ -1,6 +1,10 @@
-import { PrismaClient, LocationPlan as PrismaLocationPlan } from '@prisma/client';
+import { Prisma, PrismaClient, LocationPlan as PrismaLocationPlan } from '@prisma/client';
 import { ILocationPlanRepository } from '../../../domain/repositories/location-plan.repository.js';
-import { LocationPlan } from '../../../domain/entities/location-plan.entity.js';
+import {
+  LocationPlan,
+  LocationPlanElevationSummary,
+  LocationPlanRouteLeg,
+} from '../../../domain/entities/location-plan.entity.js';
 import { JobStatus, PaperSize, PlanOrientation } from '../../../domain/enums.js';
 
 export class PrismaLocationPlanRepository implements ILocationPlanRepository {
@@ -30,6 +34,11 @@ export class PrismaLocationPlanRepository implements ILocationPlanRepository {
         includeScale: data.includeScale,
         includeGrid: data.includeGrid,
         includeNorthArrow: data.includeNorthArrow,
+        originLon: data.originLon,
+        originLat: data.originLat,
+        accessInstructions: data.accessInstructions,
+        routeLegs: data.routeLegs as unknown as Prisma.InputJsonValue,
+        elevationSummary: data.elevationSummary as unknown as Prisma.InputJsonValue,
         filePath: data.filePath,
         fileSize: data.fileSize,
         errorMessage: data.errorMessage,
@@ -76,6 +85,11 @@ export class PrismaLocationPlanRepository implements ILocationPlanRepository {
       includeScale: record.includeScale,
       includeGrid: record.includeGrid,
       includeNorthArrow: record.includeNorthArrow,
+      originLon: record.originLon,
+      originLat: record.originLat,
+      accessInstructions: record.accessInstructions,
+      routeLegs: record.routeLegs as unknown as LocationPlanRouteLeg[] | null,
+      elevationSummary: record.elevationSummary as unknown as LocationPlanElevationSummary | null,
       filePath: record.filePath,
       fileSize: record.fileSize,
       errorMessage: record.errorMessage,

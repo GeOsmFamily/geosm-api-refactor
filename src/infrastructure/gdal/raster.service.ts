@@ -26,6 +26,10 @@ export interface RasterInfo {
   bands: number;
   srid: number;
   format: string;
+  /** Surface réelle d'une cellule/pixel en m² - permet d'afficher une valeur de pixel
+   * contextualisée ("≈ X habitants dans cette cellule de ~R m²") plutôt qu'un nombre brut sans
+   * unité (voir plan "refonte Statistiques" du 2026-08-05). Null si le calcul échoue. */
+  cellAreaM2: number | null;
 }
 
 export interface ImportRasterResult {
@@ -141,10 +145,32 @@ export class RasterService {
         bands: info.bands?.length ?? 0,
         srid: 4326,
         format: info.driverShortName ?? 'Unknown',
+        cellAreaM2: this.computeCellAreaM2(info),
       };
     } catch {
-      return { width: 0, height: 0, bands: 0, srid: 4326, format: 'Unknown' };
+      return { width: 0, height: 0, bands: 0, srid: 4326, format: 'Unknown', cellAreaM2: null };
     }
+  }
+
+  /** Convertit la taille de pixel (degrés, tous les rasters importés ici sont reprojetés en
+   * EPSG:4326 - voir importRaster) en m² réels, à la latitude du centre du raster (un degré de
+   * longitude ne vaut ~111 km qu'à l'équateur, il rétrécit avec cos(latitude)). */
+  private computeCellAreaM2(gdalInfoJson: {
+    geoTransform?: number[];
+    cornerCoordinates?: { center?: number[] };
+  }): number | null {
+    const geoTransform = gdalInfoJson.geoTransform;
+    const centerLat = gdalInfoJson.cornerCoordinates?.center?.[1];
+    if (!geoTransform || geoTransform.length < 6 || centerLat == null) return null;
+
+    const pixelWidthDeg = Math.abs(geoTransform[1]);
+    const pixelHeightDeg = Math.abs(geoTransform[5]);
+    const metersPerDegLat = 111320;
+    const metersPerDegLon = 111320 * Math.cos((centerLat * Math.PI) / 180);
+
+    const cellWidthM = pixelWidthDeg * metersPerDegLon;
+    const cellHeightM = pixelHeightDeg * metersPerDegLat;
+    return cellWidthM * cellHeightM;
   }
 
   async cleanup(filePath: string): Promise<void> {

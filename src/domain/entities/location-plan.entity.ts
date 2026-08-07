@@ -1,5 +1,19 @@
 import { JobStatus, PaperSize, PlanOrientation } from '../enums.js';
 
+export interface LocationPlanRouteLeg {
+  mode: 'driving' | 'walking';
+  distanceMeters: number;
+  durationSeconds: number;
+  geometry: unknown;
+}
+
+export interface LocationPlanElevationSummary {
+  ascentMeters: number;
+  descentMeters: number;
+  maxAltitudeMeters: number;
+  terrainClass: 'plat' | 'vallonne' | 'accidente';
+}
+
 export interface LocationPlanProps {
   id: string;
   userId: string;
@@ -17,6 +31,11 @@ export interface LocationPlanProps {
   includeScale: boolean;
   includeGrid: boolean;
   includeNorthArrow: boolean;
+  originLon: number | null;
+  originLat: number | null;
+  accessInstructions: string | null;
+  routeLegs: LocationPlanRouteLeg[] | null;
+  elevationSummary: LocationPlanElevationSummary | null;
   filePath: string | null;
   fileSize: number | null;
   errorMessage: string | null;
@@ -43,6 +62,11 @@ export class LocationPlan {
   readonly includeScale: boolean;
   readonly includeGrid: boolean;
   readonly includeNorthArrow: boolean;
+  readonly originLon: number | null;
+  readonly originLat: number | null;
+  readonly accessInstructions: string | null;
+  readonly routeLegs: LocationPlanRouteLeg[] | null;
+  readonly elevationSummary: LocationPlanElevationSummary | null;
   readonly filePath: string | null;
   readonly fileSize: number | null;
   readonly errorMessage: string | null;
@@ -68,6 +92,11 @@ export class LocationPlan {
     this.includeScale = props.includeScale;
     this.includeGrid = props.includeGrid;
     this.includeNorthArrow = props.includeNorthArrow;
+    this.originLon = props.originLon;
+    this.originLat = props.originLat;
+    this.accessInstructions = props.accessInstructions;
+    this.routeLegs = props.routeLegs;
+    this.elevationSummary = props.elevationSummary;
     this.filePath = props.filePath;
     this.fileSize = props.fileSize;
     this.errorMessage = props.errorMessage;

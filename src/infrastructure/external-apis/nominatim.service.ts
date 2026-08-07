@@ -49,7 +49,7 @@ export class NominatimService {
       if (options?.limit) params.set('limit', String(options.limit));
       if (options?.countrycodes) params.set('countrycodes', options.countrycodes);
       const response = await fetch(`${this.baseUrl}/search?${params}`, {
-        headers: { 'User-Agent': 'GeOSM-API/1.0' },
+        headers: { 'User-Agent': 'GeOsm-API/1.0' },
       });
       if (!response.ok) throw new Error(`Nominatim search failed: ${response.statusText}`);
       return response.json() as Promise<NominatimResult[]>;
@@ -60,7 +60,7 @@ export class NominatimService {
     return this.traced('nominatim.reverse', async () => {
       const params = new URLSearchParams({ lat: String(lat), lon: String(lon), format: 'json' });
       const response = await fetch(`${this.baseUrl}/reverse?${params}`, {
-        headers: { 'User-Agent': 'GeOSM-API/1.0' },
+        headers: { 'User-Agent': 'GeOsm-API/1.0' },
       });
       if (!response.ok) throw new Error(`Nominatim reverse failed: ${response.statusText}`);
       return response.json() as Promise<NominatimResult>;
@@ -75,7 +75,7 @@ export class NominatimService {
         polygon_geojson: '1',
       });
       const response = await fetch(`${this.baseUrl}/lookup?${params}`, {
-        headers: { 'User-Agent': 'GeOSM-API/1.0' },
+        headers: { 'User-Agent': 'GeOsm-API/1.0' },
       });
       if (!response.ok) throw new Error(`Nominatim lookup failed: ${response.statusText}`);
       return response.json() as Promise<NominatimResult[]>;

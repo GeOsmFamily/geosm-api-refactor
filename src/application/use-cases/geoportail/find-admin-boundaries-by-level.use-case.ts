@@ -57,6 +57,34 @@ export class FindAdminBoundariesByLevelUseCase {
   }
 
   /**
+   * Liste les niveaux administratifs réellement disponibles pour une instance (indépendamment
+   * de Instance.adminLevel, qui peut être vide - ex. l'instance racine "Cameroun", qui n'a ni
+   * adminLevel ni boundaryTable/boundaryId configurés mais dispose d'un bbox) - sert à peupler
+   * un sélecteur de niveau côté statistiques raster "par zone" plutôt que d'échouer silencieusement
+   * quand aucun défaut n'est disponible (voir plan "refonte Statistiques" du 2026-08-05).
+   */
+  async findAvailableLevels(instanceId: string): Promise<number[]> {
+    const instance = await this.instanceRepository.findById(instanceId);
+    if (!instance) throw new NotFoundError('Instance', instanceId);
+
+    const instanceGeomSql = this.resolveInstanceGeomSql(instance);
+    if (!instanceGeomSql) {
+      throw new ValidationError(
+        "Cette instance n'a ni limite administrative (boundaryTable/boundaryId) ni bbox configurée",
+        {},
+      );
+    }
+
+    const rows = await this.prisma.$queryRawUnsafe<{ admin_level: number }[]>(
+      `SELECT DISTINCT admin_level
+       FROM public.admin_boundaries
+       WHERE ST_Intersects(geom, (${instanceGeomSql}))
+       ORDER BY admin_level`,
+    );
+    return rows.map((r) => r.admin_level);
+  }
+
+  /**
    * Construit la sous-requête SQL renvoyant la géométrie de l'instance - même logique de
    * résolution que GetBoundaryUseCase/le frontend (map-view.component.ts loadFallbackBoundary),
    * boundaryTable/boundaryId préféré, repli sur bbox. Les identifiants viennent de la DB

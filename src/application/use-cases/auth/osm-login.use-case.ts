@@ -17,7 +17,7 @@ const logger = createChildLogger('OsmLoginUseCase');
 /**
  * Termine le flux OAuth OpenStreetMap (voir OsmOAuthService) : échange le code contre un token,
  * récupère le profil OSM, puis résout un utilisateur local. Si un OsmProfile existe déjà pour
- * cet osmUserId, reconnecte ce compte. Sinon, crée un nouveau compte GeOSM (rôle VIEWER par
+ * cet osmUserId, reconnecte ce compte. Sinon, crée un nouveau compte GeOsm (rôle VIEWER par
  * défaut - décision produit : connexion en un clic, pas de friction pour un nouvel utilisateur ;
  * un admin peut ensuite élever le rôle si besoin) avec un mot de passe aléatoire inutilisable
  * (l'utilisateur ne se connecte que via OSM tant qu'il n'utilise pas "mot de passe oublié").

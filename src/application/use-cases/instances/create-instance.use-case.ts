@@ -415,9 +415,9 @@ export class CreateInstanceUseCase {
     // ─── Étape 5 : Configurer les capacités WMS du projet ─────────────────
     try {
       await this.qgisProjectService.setupWMSCapabilities(projectFilePath, {
-        title: `GeOSM - ${instanceSlug}`,
+        title: `GeOsm - ${instanceSlug}`,
         abstract: `Couches thématiques pour l'instance ${instanceSlug}`,
-        organization: 'GeOSM',
+        organization: 'GeOsm',
         crsList: ['EPSG:4326', 'EPSG:3857'],
       });
       logger.info('Capacités WMS configurées', { instanceSlug });

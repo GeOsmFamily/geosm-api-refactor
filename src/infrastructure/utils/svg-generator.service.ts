@@ -187,6 +187,186 @@ const MICROSCOPE = `<path d="M13 24h8 M17 24v-4a4 4 0 0 0-4-4h-1l-3-3 1-1 4 3" s
 const PRISON = `<path d="M9 10v14M13 10v14M17 10v14M21 10v14M9 10h12M9 24h12" stroke="#ffffff" stroke-width="1.4" fill="none"/>`;
 const CURRENCY_EXCHANGE = `<circle cx="13" cy="13" r="4.5" stroke="#ffffff" stroke-width="1.3" fill="none"/><circle cx="19" cy="19" r="4.5" stroke="#ffffff" stroke-width="1.3" fill="none"/>`;
 
+// ─── Troisième lot de glyphes (2026-08-06) : 140 icônes supplémentaires réparties sur 17
+// nouvelles thématiques (agriculture, énergie, eau/assainissement, sécurité, culture, sport,
+// technologie, immobilier, industrie, humanitaire, religion, tourisme, services publics,
+// télécommunications, urbanisme, météo, véhicules spécialisés) - même convention que les lots
+// précédents (canevas 32x32, trait/remplissage blanc, 1 à 4 primitives SVG simples par glyphe).
+
+// Agriculture
+const TRACTOR = `<path d="M8 20h6v-6h4l3 3h4v3h2" stroke="#ffffff" stroke-width="1.4" fill="none"/><circle cx="12" cy="22" r="2.5" stroke="#ffffff" stroke-width="1.3" fill="none"/><circle cx="22" cy="22" r="1.8" stroke="#ffffff" stroke-width="1.3" fill="none"/>`;
+const PLOW = `<path d="M8 22h16M10 22l3-8M15 22l3-8M20 22l3-8" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" fill="none"/>`;
+const SILO = `<path d="M12 24V12a4 4 0 0 1 8 0v12z M12 16h8" stroke="#ffffff" stroke-width="1.4" fill="none"/>`;
+const GREENHOUSE = `<path d="M8 24V14l8-5 8 5v10z M8 14h16 M12 14v10m4-10v10m4-10v10" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const IRRIGATION = `<circle cx="16" cy="14" r="3" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 19v3m-5-2l2 2m8-2l-2 2" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" fill="none"/>`;
+const LIVESTOCK = `<path d="M13 13c-2 0-3 2-2 3 M19 13c2 0 3 2 2 3 M16 12a5 5 0 0 0-5 5c0 3 2 6 5 6s5-3 5-6a5 5 0 0 0-5-5z" stroke="#ffffff" stroke-width="1.3" fill="none"/>`;
+const BEEHIVE = `<path d="M12 24h8l-1-4h-6zM12.5 20h7l-.8-4h-5.4zM13 16h6l-.6-4h-4.8z" fill="#ffffff"/>`;
+const ORCHARD = `<circle cx="12" cy="13" r="3.5" fill="#ffffff"/><circle cx="20" cy="11" r="3.5" fill="#ffffff"/><path d="M12 16v8m8-9v9" stroke="#ffffff" stroke-width="1.4"/>`;
+const SEED = `<ellipse cx="16" cy="20" rx="3" ry="4" fill="#ffffff"/><path d="M16 16c0-3 2-5 4-5 0 3-2 5-4 5z" fill="#ffffff"/>`;
+const HARVEST = `<path d="M16 24V12M16 12l-3-3M16 12l3-3M16 16l-4-2M16 16l4-2M16 20l-4-2M16 20l4-2" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" fill="none"/>`;
+
+// Énergie
+const WIND_TURBINE = `<path d="M16 24V10" stroke="#ffffff" stroke-width="1.5"/><path d="M16 10l5 3M16 10l-4 5M16 10l3-6" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" fill="none"/>`;
+const POWER_LINE = `<path d="M16 9v15M11 13h10M9 13l4-2M23 13l-4-2M9 24l7-11 7 11" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const GENERATOR = `<rect x="9" y="12" width="14" height="10" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M17 14l-3 4h3l-3 4" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" fill="none"/>`;
+const OIL_DERRICK = `<path d="M16 9l6 15h-4l-2-6-2 6h-4z M12 18h8" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round" fill="none"/>`;
+const BATTERY = `<rect x="10" y="12" width="12" height="10" rx="1.5" stroke="#ffffff" stroke-width="1.3" fill="none"/><rect x="14" y="10" width="4" height="2" fill="#ffffff"/><path d="M18 14l-3 4h3l-3 4" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" fill="none"/>`;
+const POWER_PLANT = `<path d="M10 24V16a3 5 0 1 1 6 0v8zm10 0V16a3 5 0 1 1 6 0v8z" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const TRANSFORMER = `<rect x="11" y="11" width="10" height="11" rx="2" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M11 15h10m-10 4h10" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+const COAL = `<path d="M9 22c0-3 2-4 3-4 1-2 3-3 4-2 1-1 3-1 4 1 2 0 3 2 3 5z" fill="#ffffff"/>`;
+const GAS_CANISTER = `<rect x="12" y="13" width="8" height="11" rx="2" stroke="#ffffff" stroke-width="1.3" fill="none"/><rect x="14.5" y="9" width="3" height="4" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+
+// Eau et assainissement
+const FAUCET = `<path d="M10 12h6v4h4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" fill="none"/><path d="M20 16c0 2-2 3-2 5a2 2 0 1 0 4 0c0-2-2-3-2-5z" fill="#ffffff"/>`;
+const WATER_TANK = `<rect x="10" y="10" width="12" height="9" rx="1.5" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M12 19l-2 5m10-5l2 5" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" fill="none"/>`;
+const SEWAGE = `<circle cx="16" cy="16" r="7" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M11 16c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" fill="none"/>`;
+const DAM = `<path d="M9 13h14v6H9z M9 19c2 2 4 2 6 0s4-2 6 0 2 2 2 2" stroke="#ffffff" stroke-width="1.3" fill="none"/>`;
+const WATER_PUMP = `<rect x="13" y="14" width="6" height="8" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 14v-4m-3 1h6" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" fill="none"/>`;
+const BOREHOLE = `<circle cx="16" cy="14" r="4" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 18v6" stroke="#ffffff" stroke-width="1.3" stroke-dasharray="2 2"/>`;
+const WATER_TREATMENT = `<circle cx="11" cy="18" r="2.5" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="16" cy="14" r="2.5" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="21" cy="18" r="2.5" stroke="#ffffff" stroke-width="1.2" fill="none"/><path d="M13 17l2-2m2 2l2-2" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+const IRRIGATION_CANAL = `<path d="M8 14c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M8 20c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" fill="none"/>`;
+
+// Sécurité
+const FIRE_EXTINGUISHER = `<rect x="13" y="13" width="6" height="10" rx="2" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 13v-2m-2 0h4m0 3l3-1" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" fill="none"/>`;
+const CCTV = `<path d="M10 14h8l3 2v4l-3 2h-8z M10 14v8" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round" fill="none"/>`;
+const ALARM = `<path d="M16 9a5 5 0 0 1 5 5v3l2 3H9l2-3v-3a5 5 0 0 1 5-5z M14 22a2 2 0 0 0 4 0" stroke="#ffffff" stroke-width="1.3" fill="none"/>`;
+const HELMET = `<path d="M9 20a7 6 0 0 1 14 0z M8 20h16" stroke="#ffffff" stroke-width="1.4" fill="none"/>`;
+const BARRIER = `<rect x="8" y="14" width="16" height="4" stroke="#ffffff" stroke-width="1.2" fill="none"/><path d="M11 14l-2 4m6-4l-2 4m6-4l-2 4m6-4l-2 4" stroke="#ffffff" stroke-width="1"/>`;
+const CHECKPOINT = `<path d="M16 9c3 1 5 1 5 1s1 3 1 6c0 4-6 7-6 7s-6-3-6-7c0-3 1-6 1-6s2 0 5-1z M13 16l2 2 4-4" stroke="#ffffff" stroke-width="1.3" fill="none"/>`;
+const WATCHTOWER = `<path d="M11 24l2-10h6l2 10 M13 14h6l1.5-5h-9z" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round" fill="none"/>`;
+const HANDCUFFS = `<circle cx="12" cy="16" r="3.5" stroke="#ffffff" stroke-width="1.4" fill="none"/><circle cx="20" cy="16" r="3.5" stroke="#ffffff" stroke-width="1.4" fill="none"/><path d="M15.5 16h1" stroke="#ffffff" stroke-width="1.4"/>`;
+
+// Culture
+const THEATRE_MASKS = `<ellipse cx="12" cy="15" rx="4" ry="5" stroke="#ffffff" stroke-width="1.2" fill="none"/><ellipse cx="20" cy="17" rx="4" ry="5" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const ART_GALLERY = `<rect x="9" y="10" width="14" height="12" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M11 19l3-4 2.5 3 1.5-2 3 3" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const MONUMENT = `<path d="M16 9l2 6h-4z M14 15h4v9h-4z" fill="#ffffff"/>`;
+const SCULPTURE = `<rect x="12" y="20" width="8" height="4" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="16" cy="14" r="4" stroke="#ffffff" stroke-width="1.3" fill="none"/>`;
+const AMPHITHEATER = `<path d="M8 22a8 5 0 0 1 16 0" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M10 22a6 3.5 0 0 1 12 0" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+const GALLERY_FRAME = `<rect x="10" y="9" width="12" height="9" stroke="#ffffff" stroke-width="1.2" fill="none"/><rect x="12" y="17" width="8" height="7" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+const PALACE = `<path d="M9 24V15h4v9zm5 0V13h4v11zm5 0v-9h4v9z M11 15a2 2 0 0 1 4 0m1-2a2 2 0 0 1 4 0" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+const HERITAGE_SITE = `<path d="M16 9l4 1.5v5c0 4-4 6.5-4 6.5s-4-2.5-4-6.5v-5z" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 13l1 2 2 .2-1.5 1.4.4 2-1.9-1-1.9 1 .4-2-1.5-1.4 2-.2z" fill="#ffffff"/>`;
+
+// Sport
+const FOOTBALL = `<circle cx="16" cy="16" r="7" stroke="#ffffff" stroke-width="1.4" fill="none"/><path d="M16 11l3 2-1 3.5h-4l-1-3.5z" fill="#ffffff"/>`;
+const BASKETBALL = `<circle cx="16" cy="16" r="7" stroke="#ffffff" stroke-width="1.4" fill="none"/><path d="M9 16h14M16 9v14M11 11c2 2 2 8 0 10m10-10c-2 2-2 8 0 10" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+const TENNIS = `<ellipse cx="14" cy="13" rx="4.5" ry="5.5" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M17 17l6 6" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>`;
+const VOLLEYBALL = `<circle cx="16" cy="16" r="7" stroke="#ffffff" stroke-width="1.4" fill="none"/><path d="M10 12c3 1 9 1 12 4M10 20c3-1 9-1 12-4" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+const ATHLETICS_TRACK = `<ellipse cx="16" cy="16" rx="8" ry="5" stroke="#ffffff" stroke-width="1.3" fill="none"/><ellipse cx="16" cy="16" rx="5" ry="3" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+const BOXING = `<path d="M11 16a4 4 0 0 1 8 0v3a3 3 0 0 1-3 3h-2l-3-3z" stroke="#ffffff" stroke-width="1.3" fill="none"/>`;
+const CYCLING_TRACK = `<path d="M8 20a8 4 0 0 1 16 0" stroke="#ffffff" stroke-width="1.3" fill="none"/><circle cx="11" cy="20" r="2" stroke="#ffffff" stroke-width="1.1" fill="none"/><circle cx="21" cy="20" r="2" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+const GOLF = `<path d="M12 24V10l6 2-6 2" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round" fill="none"/><circle cx="20" cy="23" r="1.3" fill="#ffffff"/>`;
+const TABLE_TENNIS = `<circle cx="13" cy="14" r="4" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 17l5 5" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round"/><circle cx="22" cy="11" r="1.3" fill="#ffffff"/>`;
+const MARTIAL_ARTS = `<circle cx="16" cy="14" r="4" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M11 20h10l-2 4h-6z" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const ARCHERY = `<circle cx="16" cy="16" r="7" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="16" cy="16" r="4" stroke="#ffffff" stroke-width="1" fill="none"/><circle cx="16" cy="16" r="1.3" fill="#ffffff"/>`;
+const SKATEBOARD = `<path d="M8 17c3-1.5 13-1.5 16 0" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" fill="none"/><circle cx="11" cy="19" r="1.3" fill="#ffffff"/><circle cx="21" cy="19" r="1.3" fill="#ffffff"/>`;
+
+// Technologie
+const COMPUTER = `<rect x="9" y="10" width="14" height="9" rx="1" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M14 22h4m-2-3v3" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/>`;
+const SERVER = `<rect x="10" y="10" width="12" height="4.5" rx="1" stroke="#ffffff" stroke-width="1.2" fill="none"/><rect x="10" y="17.5" width="12" height="4.5" rx="1" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="13" cy="12.2" r=".8" fill="#ffffff"/><circle cx="13" cy="19.7" r=".8" fill="#ffffff"/>`;
+const SATELLITE_DISH = `<path d="M9 16a8 8 0 0 1 14-5" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 16v6m-3 0h6" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/><circle cx="21" cy="10" r="1.2" fill="#ffffff"/>`;
+const DRONE = `<path d="M11 11l10 10M21 11l-10 10" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round"/><circle cx="11" cy="11" r="2" stroke="#ffffff" stroke-width="1" fill="none"/><circle cx="21" cy="11" r="2" stroke="#ffffff" stroke-width="1" fill="none"/><circle cx="11" cy="21" r="2" stroke="#ffffff" stroke-width="1" fill="none"/><circle cx="21" cy="21" r="2" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+const PRINTER = `<rect x="9" y="13" width="14" height="7" stroke="#ffffff" stroke-width="1.3" fill="none"/><rect x="12" y="9" width="8" height="4" stroke="#ffffff" stroke-width="1.1" fill="none"/><rect x="12" y="20" width="8" height="4" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+const ROUTER = `<rect x="9" y="16" width="14" height="5" rx="1.5" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M13 16v-4m6 4v-4" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>`;
+const SMARTPHONE = `<rect x="12" y="8" width="8" height="16" rx="1.5" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M15 21h2" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/>`;
+const LAPTOP = `<rect x="11" y="10" width="10" height="7" stroke="#ffffff" stroke-width="1.2" fill="none"/><path d="M8 21h16l-2-3H10z" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round" fill="none"/>`;
+const ROBOT = `<rect x="11" y="13" width="10" height="9" rx="1.5" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 13v-3" stroke="#ffffff" stroke-width="1.2"/><circle cx="14" cy="17" r=".9" fill="#ffffff"/><circle cx="18" cy="17" r=".9" fill="#ffffff"/>`;
+
+// Immobilier
+const APARTMENT_BUILDING = `<rect x="10" y="9" width="12" height="15" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M13 12h2m3 0h2m-7 4h2m3 0h2m-7 4h2m3 0h2" stroke="#ffffff" stroke-width="1"/>`;
+const CONSTRUCTION_CRANE = `<path d="M11 24V10h10M11 10l6 3" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" fill="none"/><path d="M17 13v4" stroke="#ffffff" stroke-width="1" stroke-dasharray="1 1"/>`;
+const LAND_PLOT = `<rect x="9" y="11" width="14" height="10" stroke="#ffffff" stroke-width="1.2" stroke-dasharray="2 2" fill="none"/><circle cx="9" cy="11" r="1" fill="#ffffff"/><circle cx="23" cy="21" r="1" fill="#ffffff"/>`;
+const REAL_ESTATE_SIGN = `<path d="M18 24V10" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round"/><rect x="9" y="10" width="9" height="6" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const SKYSCRAPER = `<path d="M12 24V15h4v-4h2v4h4v9z" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const HOUSE_FOR_SALE = `<path d="M16 9l7 6h-2v9h-10v-9h-2z" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round" fill="none"/><circle cx="20" cy="12" r="1.2" fill="#ffffff"/>`;
+const GATE = `<path d="M10 10v14M22 10v14M10 15h12" stroke="#ffffff" stroke-width="1.4" fill="none"/>`;
+const FENCE = `<path d="M9 24V13l2-2 2 2v11M15 24V13l2-2 2 2v11M21 24V13l2-2 2 2v11M8 18h18" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+
+// Industrie
+const CRANE_INDUSTRIAL = `<path d="M16 24V9M16 9h8M9 12l7-3" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" fill="none"/>`;
+const FORKLIFT = `<rect x="9" y="15" width="8" height="6" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M17 21V12M20 12v9" stroke="#ffffff" stroke-width="1.3"/><circle cx="11" cy="22.5" r="1.3" fill="#ffffff"/><circle cx="16" cy="22.5" r="1.3" fill="#ffffff"/>`;
+const PIPELINE = `<path d="M8 16h16" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/><path d="M13 13v6m6-6v6" stroke="#ffffff" stroke-width="1"/>`;
+const CONTAINER = `<rect x="8" y="12" width="16" height="9" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M11 12v9m3-9v9m3-9v9m3-9v9m3-9v9" stroke="#ffffff" stroke-width=".8"/>`;
+const MINING = `<path d="M10 22l8-8m4-4l-2 2M22 22l-8-8m-4-4l2 2" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>`;
+const CONVEYOR = `<path d="M8 20h16" stroke="#ffffff" stroke-width="1.4"/><circle cx="11" cy="20" r="1.5" stroke="#ffffff" stroke-width="1" fill="none"/><circle cx="21" cy="20" r="1.5" stroke="#ffffff" stroke-width="1" fill="none"/><path d="M9 16l14-2" stroke="#ffffff" stroke-width="1.2"/>`;
+const SILO_INDUSTRIAL = `<rect x="10" y="11" width="12" height="11" rx="3" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M10 15h12" stroke="#ffffff" stroke-width="1"/>`;
+const CHIMNEY = `<rect x="14" y="14" width="4" height="10" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 12c1-1 0-2 1-3m-1 3c-1-1 0-2-1-3" stroke="#ffffff" stroke-width="1" stroke-linecap="round" fill="none"/>`;
+
+// Humanitaire
+const AID_BOX = `<rect x="9" y="12" width="14" height="10" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 14v6m-3-3h6" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round"/>`;
+const REFUGEE_TENT = `<path d="M8 22a8 6 0 0 1 16 0z" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 16v6" stroke="#ffffff" stroke-width="1"/>`;
+const RED_CROSS_TENT = `<path d="M16 9l8 13H8z" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round" fill="none"/><path d="M16 16v4m-2-2h4" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/>`;
+const WATER_TRUCK = `<rect x="8" y="16" width="10" height="5" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="21" cy="17.5" r="3.5" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="11" cy="22.5" r="1.3" fill="#ffffff"/><circle cx="18" cy="22.5" r="1.3" fill="#ffffff"/>`;
+const FOOD_DISTRIBUTION = `<path d="M9 16h14l-1.5 8h-11z" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 10v4m-2-2h4" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/>`;
+const NGO_FLAG = `<path d="M11 9v14 M11 10h10l-2.5 3.5L21 17H11" stroke="#ffffff" stroke-width="1.4" stroke-linejoin="round" fill="none"/><path d="M15 12.5c0-1 1.5-1 1.5 0 0-1 1.5-1 1.5 0 0 1-1.5 2-1.5 2s-1.5-1-1.5-2z" fill="#ffffff"/>`;
+const FIRST_AID_KIT = `<path d="M9 13h14v9H9z M13 13v-2h6v2" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round" fill="none"/><path d="M16 15v5m-2.5-2.5h5" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/>`;
+const BLANKET = `<rect x="9" y="13" width="14" height="8" rx="1" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M9 17h14" stroke="#ffffff" stroke-width="1"/>`;
+
+// Religion
+const MOSQUE = `<path d="M9 24V17a7 6 0 0 1 14 0v7z M16 10l1 2h-2z" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const CHURCH = `<path d="M10 24V15l6-4 6 4v9z M16 11V8m-1.5 1.5h3" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round" fill="none"/>`;
+const TEMPLE = `<path d="M8 24h16M9 24V14m4 10V14m6 10V14m4 10V14M8 14l8-5 8 5" stroke="#ffffff" stroke-width="1.1" stroke-linejoin="round" fill="none"/>`;
+const SYNAGOGUE = `<path d="M9 24V17a7 6 0 0 1 14 0v7z" stroke="#ffffff" stroke-width="1.2" fill="none"/><path d="M13 12l3-2 3 2-1 3h-4z" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+const PAGODA = `<path d="M16 9l6 4H10zM12 13l8 0M13 17h6M11 21h10M16 24V13" stroke="#ffffff" stroke-width="1.1" stroke-linejoin="round" fill="none"/>`;
+const SHRINE = `<path d="M8 13h16M9 13v11M23 13v11M7 10h18" stroke="#ffffff" stroke-width="1.3" fill="none"/>`;
+
+// Tourisme et nature
+const WATERFALL = `<path d="M8 12l5 6-5 6z" stroke="#ffffff" stroke-width="1.2" fill="none"/><path d="M14 12v12m3-12v12m3-12v12" stroke="#ffffff" stroke-width="1" stroke-dasharray="1.5 1.5"/>`;
+const CAVE = `<path d="M8 24a8 9 0 0 1 16 0z" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M12 24a4 5 0 0 1 8 0" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+const BEACH = `<circle cx="12" cy="12" r="3" fill="#ffffff"/><path d="M8 22c2-2 4-2 6 0s4 2 6 0 4-2 6 0" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" fill="none"/>`;
+const HIKING_TRAIL = `<path d="M9 23l5-9 3 5 2-3 4 7" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M8 24h16" stroke="#ffffff" stroke-width="1" stroke-dasharray="1.5 1.5"/>`;
+const NATIONAL_PARK_GATE = `<path d="M10 24V11h12v13" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M9 11h14" stroke="#ffffff" stroke-width="1.3"/>`;
+const SAFARI = `<circle cx="12.5" cy="16" r="3" stroke="#ffffff" stroke-width="1.3" fill="none"/><circle cx="19.5" cy="16" r="3" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M15 15h2" stroke="#ffffff" stroke-width="1.3"/>`;
+const HOT_SPRING = `<ellipse cx="16" cy="20" rx="7" ry="3" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M13 15c0-2 1-2 1-4m4 4c0-2 1-2 1-4" stroke="#ffffff" stroke-width="1" stroke-linecap="round" fill="none"/>`;
+const CANYON = `<path d="M8 24V17l4-3 4 3v7M16 24v-9l4-3 4 3v9" stroke="#ffffff" stroke-width="1.1" stroke-linejoin="round" fill="none"/>`;
+const ISLAND = `<ellipse cx="16" cy="23" rx="7" ry="1.5" stroke="#ffffff" stroke-width="1" fill="none"/><path d="M16 23V13m0 0c-2-1-3 0-4 1m4-1c2-1 3 0 4 1m-4-1c1-2 0-3-1-4" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" fill="none"/>`;
+const LIGHTHOUSE = `<path d="M14 24V15h4v9z M13 15l1-6h4l1 6 M15 9h2" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round" fill="none"/>`;
+
+// Services publics
+const POST_OFFICE = `<rect x="9" y="13" width="14" height="9" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M9 13l7 5 7-5" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const VOTING_BOX = `<rect x="9" y="14" width="14" height="9" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M14 14v-3l2-2 2 2v3" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" fill="none"/>`;
+const CIVIL_REGISTRY = `<rect x="10" y="9" width="10" height="14" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="20" cy="20" r="3" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+const CUSTOMS = `<path d="M8 20h12M8 20l3-2m-3 2l3 2" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" fill="none"/><path d="M22 10v12" stroke="#ffffff" stroke-width="1.3"/><path d="M22 10l4 1.5-4 1.5z" fill="#ffffff"/>`;
+const EMBASSY = `<rect x="9" y="14" width="14" height="10" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 14V9" stroke="#ffffff" stroke-width="1.2"/><path d="M16 9l4 1.5-4 1.5z" fill="#ffffff"/>`;
+const CITY_HALL = `<path d="M8 24h16M9 24V14l7-5 7 5v10M13 24v-6h6v6" stroke="#ffffff" stroke-width="1.1" stroke-linejoin="round" fill="none"/><circle cx="16" cy="12" r="1.5" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+const ARCHIVE = `<rect x="9" y="11" width="14" height="5" stroke="#ffffff" stroke-width="1.2" fill="none"/><rect x="9" y="17" width="14" height="5" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const NOTARY = `<rect x="13" y="9" width="6" height="8" rx="1" stroke="#ffffff" stroke-width="1.2" fill="none"/><path d="M11 22h10l-1-5H12z" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round" fill="none"/>`;
+
+// Télécommunications
+const CELL_TOWER = `<path d="M16 9l-4 15h8zM12 18h8M13.5 13.5h5" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+const FIBER_CABLE = `<path d="M8 16c3-3 6 3 9 0s6-3 7 0" stroke="#ffffff" stroke-width="1.3" fill="none"/><circle cx="8" cy="16" r="1.2" fill="#ffffff"/><circle cx="24" cy="16" r="1.2" fill="#ffffff"/>`;
+const RADIO_TOWER = `<path d="M16 24V11" stroke="#ffffff" stroke-width="1.4"/><path d="M12 11a4 4 0 0 1 8 0" stroke="#ffffff" stroke-width="1.1" fill="none"/><path d="M10 9a7 7 0 0 1 12 0" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+const TV_TOWER = `<path d="M16 24V9m-3 5h6m-5 4h4" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="16" cy="9" r="1.3" fill="#ffffff"/>`;
+const SATELLITE = `<rect x="14" y="14" width="4" height="4" stroke="#ffffff" stroke-width="1.2" fill="none"/><path d="M14 16H9m9 0h5M16 14v-3m0 8v3" stroke="#ffffff" stroke-width="1.1"/>`;
+const BROADCAST = `<circle cx="16" cy="16" r="1.5" fill="#ffffff"/><path d="M12 12a6 6 0 0 1 8 0M9.5 9.5a10 10 0 0 1 13 0M12 20a6 6 0 0 0 8 0M9.5 22.5a10 10 0 0 0 13 0" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+
+// Urbanisme
+const STREET_LIGHT = `<path d="M16 24V11" stroke="#ffffff" stroke-width="1.4"/><path d="M16 11h4l-2-3z" fill="#ffffff"/>`;
+const TRAFFIC_LIGHT = `<rect x="13" y="9" width="6" height="12" rx="1.5" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="16" cy="12" r="1" fill="#ffffff"/><circle cx="16" cy="15" r="1" fill="#ffffff"/><circle cx="16" cy="18" r="1" fill="#ffffff"/>`;
+const ROAD_SIGN = `<path d="M16 24V16" stroke="#ffffff" stroke-width="1.3"/><path d="M16 9l5 8H11z" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round" fill="none"/>`;
+const ROUNDABOUT = `<circle cx="16" cy="16" r="6" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M22 16l2-1v2z" fill="#ffffff"/>`;
+const PEDESTRIAN_CROSSING = `<path d="M9 12v8M13 12v8M17 12v8M21 12v8" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>`;
+const SIDEWALK = `<path d="M10 9l-3 15M22 9l3 15M12 13h8m-9 4h10" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+const SEWER_COVER = `<circle cx="16" cy="16" r="7" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M9 16h14M16 9v14M11.5 11.5l9 9m0-9l-9 9" stroke="#ffffff" stroke-width=".8"/>`;
+const MANHOLE = `<circle cx="16" cy="16" r="7" stroke="#ffffff" stroke-width="1.3" fill="none"/><circle cx="16" cy="16" r="3" stroke="#ffffff" stroke-width="1" fill="none"/>`;
+const BENCH = `<path d="M9 15h14M9 15v3m14-3v3M11 18v4m10-4v4" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" fill="none"/>`;
+const BUS_STOP = `<path d="M12 24V10h8" stroke="#ffffff" stroke-width="1.3" fill="none"/><rect x="12" y="10" width="6" height="4" stroke="#ffffff" stroke-width="1.1" fill="none"/>`;
+
+// Météo
+const SUN = `<circle cx="16" cy="16" r="4.5" fill="#ffffff"/><path d="M16 8v2m0 12v2m8-8h-2M10 16H8m11.5-5.5l-1.4 1.4m-8.2 8.2-1.4 1.4m0-11 1.4 1.4m8.2 8.2 1.4 1.4" stroke="#ffffff" stroke-width="1.2"/>`;
+const RAIN = `<path d="M10 16a5 5 0 0 1 9-3 4 4 0 0 1 3 7H11a4 4 0 0 1-1-4z" stroke="#ffffff" stroke-width="1.2" fill="none"/><path d="M12 22l-1 2m5-2l-1 2m5-2l-1 2" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>`;
+const CLOUD = `<path d="M10 19a5 5 0 0 1 9-3 4 4 0 0 1 3 7H11a4 4 0 0 1-1-4z" stroke="#ffffff" stroke-width="1.3" fill="none"/>`;
+const THERMOMETER = `<rect x="14.5" y="9" width="3" height="11" rx="1.5" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="16" cy="21" r="2.5" fill="#ffffff"/>`;
+const WIND = `<path d="M8 13h10a2 2 0 1 0-2-2M8 17h13a2 2 0 1 1-2 2M8 21h8" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" fill="none"/>`;
+const STORM = `<path d="M10 16a5 5 0 0 1 9-3 4 4 0 0 1 3 7H11a4 4 0 0 1-1-4z" stroke="#ffffff" stroke-width="1.2" fill="none"/><path d="M17 17l-3 4h3l-2 3" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" fill="none"/>`;
+
+// Véhicules spécialisés
+const FIRE_TRUCK = `<rect x="8" y="15" width="14" height="6" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M10 15l3-4h8" stroke="#ffffff" stroke-width="1.1" fill="none"/><circle cx="11" cy="22.5" r="1.3" fill="#ffffff"/><circle cx="19" cy="22.5" r="1.3" fill="#ffffff"/>`;
+const TANKER_TRUCK = `<rect x="8" y="15" width="6" height="6" stroke="#ffffff" stroke-width="1.2" fill="none"/><ellipse cx="19" cy="18" rx="5" ry="3.5" stroke="#ffffff" stroke-width="1.2" fill="none"/><circle cx="11" cy="22.5" r="1.2" fill="#ffffff"/><circle cx="19" cy="22.5" r="1.2" fill="#ffffff"/>`;
+const TRAM = `<rect x="10" y="11" width="12" height="9" rx="1.5" stroke="#ffffff" stroke-width="1.3" fill="none"/><path d="M16 11V8" stroke="#ffffff" stroke-width="1.1"/><circle cx="13" cy="22" r="1.2" fill="#ffffff"/><circle cx="19" cy="22" r="1.2" fill="#ffffff"/>`;
+const SCOOTER = `<circle cx="11" cy="22" r="2" stroke="#ffffff" stroke-width="1.2" fill="none"/><path d="M11 22h9l3-11m-3 11l2-4" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" fill="none"/>`;
+const CABLE_CAR = `<path d="M8 11h16" stroke="#ffffff" stroke-width="1.2"/><path d="M13 11l3 4 3-4" stroke="#ffffff" stroke-width="1" fill="none"/><rect x="12" y="15" width="8" height="6" rx="1" stroke="#ffffff" stroke-width="1.2" fill="none"/>`;
+const PICKUP_TRUCK = `<path d="M8 20V15h6l2-3h4v3h3v5z" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round" fill="none"/><circle cx="11" cy="21" r="1.3" fill="#ffffff"/><circle cx="20" cy="21" r="1.3" fill="#ffffff"/>`;
+
 /**
  * Catalogue d'icônes génériques (indépendant de tout slug de couche par défaut) pour le
  * sélecteur d'icônes de l'assistant de création de couche - regroupe les glyphes déjà utilisés
@@ -278,6 +458,294 @@ export const ICON_CATALOG: { key: string; label: string; category: string; svgPa
   { key: 'farm', label: 'Ferme', category: 'autre', svgPath: FARM },
   { key: 'warehouse', label: 'Entrepôt', category: 'autre', svgPath: WAREHOUSE },
   { key: 'antenna', label: 'Antenne', category: 'autre', svgPath: ANTENNA },
+  // Troisième lot (2026-08-06) - 140 icônes, 17 nouvelles thématiques
+  // Agriculture
+  { key: 'tractor', label: 'Tracteur', category: 'agriculture', svgPath: TRACTOR },
+  { key: 'plow', label: 'Labour', category: 'agriculture', svgPath: PLOW },
+  { key: 'silo', label: 'Silo', category: 'agriculture', svgPath: SILO },
+  { key: 'greenhouse', label: 'Serre', category: 'agriculture', svgPath: GREENHOUSE },
+  { key: 'irrigation', label: 'Irrigation', category: 'agriculture', svgPath: IRRIGATION },
+  { key: 'livestock', label: 'Élevage', category: 'agriculture', svgPath: LIVESTOCK },
+  { key: 'beehive', label: 'Apiculture', category: 'agriculture', svgPath: BEEHIVE },
+  { key: 'orchard', label: 'Verger', category: 'agriculture', svgPath: ORCHARD },
+  { key: 'seed', label: 'Semences', category: 'agriculture', svgPath: SEED },
+  { key: 'harvest', label: 'Récolte', category: 'agriculture', svgPath: HARVEST },
+  // Énergie
+  { key: 'wind-turbine', label: 'Éolienne', category: 'energie', svgPath: WIND_TURBINE },
+  { key: 'power-line', label: 'Ligne électrique', category: 'energie', svgPath: POWER_LINE },
+  { key: 'generator', label: 'Groupe électrogène', category: 'energie', svgPath: GENERATOR },
+  { key: 'oil-derrick', label: 'Derrick pétrolier', category: 'energie', svgPath: OIL_DERRICK },
+  { key: 'battery', label: 'Batterie/Stockage', category: 'energie', svgPath: BATTERY },
+  { key: 'power-plant', label: 'Centrale électrique', category: 'energie', svgPath: POWER_PLANT },
+  { key: 'transformer', label: 'Transformateur', category: 'energie', svgPath: TRANSFORMER },
+  { key: 'coal', label: 'Charbon', category: 'energie', svgPath: COAL },
+  { key: 'gas-canister', label: 'Bouteille de gaz', category: 'energie', svgPath: GAS_CANISTER },
+  // Eau et assainissement
+  { key: 'faucet', label: 'Robinet', category: 'eau', svgPath: FAUCET },
+  { key: 'water-tank', label: "Château d'eau", category: 'eau', svgPath: WATER_TANK },
+  { key: 'sewage', label: 'Assainissement', category: 'eau', svgPath: SEWAGE },
+  { key: 'dam', label: 'Barrage', category: 'eau', svgPath: DAM },
+  { key: 'water-pump', label: 'Pompe à eau', category: 'eau', svgPath: WATER_PUMP },
+  { key: 'borehole', label: 'Forage', category: 'eau', svgPath: BOREHOLE },
+  {
+    key: 'water-treatment',
+    label: "Station de traitement d'eau",
+    category: 'eau',
+    svgPath: WATER_TREATMENT,
+  },
+  {
+    key: 'irrigation-canal',
+    label: "Canal d'irrigation",
+    category: 'eau',
+    svgPath: IRRIGATION_CANAL,
+  },
+  // Sécurité
+  {
+    key: 'fire-extinguisher',
+    label: 'Extincteur',
+    category: 'securite',
+    svgPath: FIRE_EXTINGUISHER,
+  },
+  { key: 'cctv', label: 'Vidéosurveillance', category: 'securite', svgPath: CCTV },
+  { key: 'alarm', label: 'Alarme', category: 'securite', svgPath: ALARM },
+  { key: 'helmet', label: 'Protection/Chantier', category: 'securite', svgPath: HELMET },
+  { key: 'barrier', label: 'Barrière de sécurité', category: 'securite', svgPath: BARRIER },
+  { key: 'checkpoint', label: 'Poste de contrôle', category: 'securite', svgPath: CHECKPOINT },
+  { key: 'watchtower', label: 'Tour de guet', category: 'securite', svgPath: WATCHTOWER },
+  { key: 'handcuffs', label: 'Sécurité publique', category: 'securite', svgPath: HANDCUFFS },
+  // Culture
+  { key: 'theatre-masks', label: 'Théâtre', category: 'culture', svgPath: THEATRE_MASKS },
+  { key: 'art-gallery', label: "Galerie d'art", category: 'culture', svgPath: ART_GALLERY },
+  { key: 'monument', label: 'Monument', category: 'culture', svgPath: MONUMENT },
+  { key: 'sculpture', label: 'Sculpture', category: 'culture', svgPath: SCULPTURE },
+  { key: 'amphitheater', label: 'Amphithéâtre', category: 'culture', svgPath: AMPHITHEATER },
+  { key: 'gallery-frame', label: 'Exposition', category: 'culture', svgPath: GALLERY_FRAME },
+  { key: 'palace', label: 'Palais', category: 'culture', svgPath: PALACE },
+  { key: 'heritage-site', label: 'Site patrimonial', category: 'culture', svgPath: HERITAGE_SITE },
+  // Sport
+  { key: 'football', label: 'Football', category: 'sport', svgPath: FOOTBALL },
+  { key: 'basketball', label: 'Basketball', category: 'sport', svgPath: BASKETBALL },
+  { key: 'tennis', label: 'Tennis', category: 'sport', svgPath: TENNIS },
+  { key: 'volleyball', label: 'Volleyball', category: 'sport', svgPath: VOLLEYBALL },
+  {
+    key: 'athletics-track',
+    label: "Piste d'athlétisme",
+    category: 'sport',
+    svgPath: ATHLETICS_TRACK,
+  },
+  { key: 'boxing', label: 'Boxe', category: 'sport', svgPath: BOXING },
+  { key: 'cycling-track', label: 'Piste cyclable', category: 'sport', svgPath: CYCLING_TRACK },
+  { key: 'golf', label: 'Golf', category: 'sport', svgPath: GOLF },
+  { key: 'table-tennis', label: 'Tennis de table', category: 'sport', svgPath: TABLE_TENNIS },
+  { key: 'martial-arts', label: 'Arts martiaux', category: 'sport', svgPath: MARTIAL_ARTS },
+  { key: 'archery', label: "Tir à l'arc", category: 'sport', svgPath: ARCHERY },
+  { key: 'skateboard', label: 'Skatepark', category: 'sport', svgPath: SKATEBOARD },
+  // Technologie
+  { key: 'computer', label: 'Ordinateur', category: 'technologie', svgPath: COMPUTER },
+  { key: 'server', label: 'Serveur/Data center', category: 'technologie', svgPath: SERVER },
+  {
+    key: 'satellite-dish',
+    label: 'Antenne parabolique',
+    category: 'technologie',
+    svgPath: SATELLITE_DISH,
+  },
+  { key: 'drone', label: 'Drone', category: 'technologie', svgPath: DRONE },
+  { key: 'printer', label: 'Imprimerie', category: 'technologie', svgPath: PRINTER },
+  { key: 'router', label: 'Routeur réseau', category: 'technologie', svgPath: ROUTER },
+  { key: 'smartphone', label: 'Téléphonie mobile', category: 'technologie', svgPath: SMARTPHONE },
+  { key: 'laptop', label: 'Espace numérique', category: 'technologie', svgPath: LAPTOP },
+  { key: 'robot', label: 'Robotique', category: 'technologie', svgPath: ROBOT },
+  // Immobilier
+  {
+    key: 'apartment-building',
+    label: "Immeuble d'habitation",
+    category: 'immobilier',
+    svgPath: APARTMENT_BUILDING,
+  },
+  {
+    key: 'construction-crane',
+    label: 'Chantier de construction',
+    category: 'immobilier',
+    svgPath: CONSTRUCTION_CRANE,
+  },
+  { key: 'land-plot', label: 'Parcelle', category: 'immobilier', svgPath: LAND_PLOT },
+  {
+    key: 'real-estate-sign',
+    label: 'Agence immobilière',
+    category: 'immobilier',
+    svgPath: REAL_ESTATE_SIGN,
+  },
+  { key: 'skyscraper', label: 'Tour/Gratte-ciel', category: 'immobilier', svgPath: SKYSCRAPER },
+  {
+    key: 'house-for-sale',
+    label: 'Bien à vendre',
+    category: 'immobilier',
+    svgPath: HOUSE_FOR_SALE,
+  },
+  { key: 'gate', label: 'Portail', category: 'immobilier', svgPath: GATE },
+  { key: 'fence', label: 'Clôture', category: 'immobilier', svgPath: FENCE },
+  // Industrie
+  {
+    key: 'crane-industrial',
+    label: 'Grue industrielle',
+    category: 'industrie',
+    svgPath: CRANE_INDUSTRIAL,
+  },
+  { key: 'forklift', label: 'Chariot élévateur', category: 'industrie', svgPath: FORKLIFT },
+  { key: 'pipeline', label: 'Pipeline', category: 'industrie', svgPath: PIPELINE },
+  { key: 'container', label: 'Conteneur', category: 'industrie', svgPath: CONTAINER },
+  { key: 'mining', label: 'Site minier', category: 'industrie', svgPath: MINING },
+  { key: 'conveyor', label: 'Convoyeur', category: 'industrie', svgPath: CONVEYOR },
+  {
+    key: 'silo-industrial',
+    label: 'Silo industriel',
+    category: 'industrie',
+    svgPath: SILO_INDUSTRIAL,
+  },
+  { key: 'chimney', label: 'Cheminée industrielle', category: 'industrie', svgPath: CHIMNEY },
+  // Humanitaire
+  { key: 'aid-box', label: "Kit d'aide", category: 'humanitaire', svgPath: AID_BOX },
+  {
+    key: 'refugee-tent',
+    label: 'Camp de réfugiés',
+    category: 'humanitaire',
+    svgPath: REFUGEE_TENT,
+  },
+  {
+    key: 'red-cross-tent',
+    label: "Tente médicale d'urgence",
+    category: 'humanitaire',
+    svgPath: RED_CROSS_TENT,
+  },
+  {
+    key: 'water-truck',
+    label: "Camion-citerne d'eau",
+    category: 'humanitaire',
+    svgPath: WATER_TRUCK,
+  },
+  {
+    key: 'food-distribution',
+    label: 'Distribution alimentaire',
+    category: 'humanitaire',
+    svgPath: FOOD_DISTRIBUTION,
+  },
+  { key: 'ngo-flag', label: 'ONG', category: 'humanitaire', svgPath: NGO_FLAG },
+  {
+    key: 'first-aid-kit',
+    label: 'Trousse de secours',
+    category: 'humanitaire',
+    svgPath: FIRST_AID_KIT,
+  },
+  { key: 'blanket', label: 'Aide matérielle', category: 'humanitaire', svgPath: BLANKET },
+  // Religion
+  { key: 'mosque', label: 'Mosquée', category: 'religion', svgPath: MOSQUE },
+  { key: 'church', label: 'Église', category: 'religion', svgPath: CHURCH },
+  { key: 'temple', label: 'Temple', category: 'religion', svgPath: TEMPLE },
+  { key: 'synagogue', label: 'Synagogue', category: 'religion', svgPath: SYNAGOGUE },
+  { key: 'pagoda', label: 'Pagode', category: 'religion', svgPath: PAGODA },
+  { key: 'shrine', label: 'Sanctuaire', category: 'religion', svgPath: SHRINE },
+  // Tourisme et nature
+  { key: 'waterfall', label: "Chute d'eau", category: 'tourisme', svgPath: WATERFALL },
+  { key: 'cave', label: 'Grotte', category: 'tourisme', svgPath: CAVE },
+  { key: 'beach', label: 'Plage', category: 'tourisme', svgPath: BEACH },
+  {
+    key: 'hiking-trail',
+    label: 'Sentier de randonnée',
+    category: 'tourisme',
+    svgPath: HIKING_TRAIL,
+  },
+  {
+    key: 'national-park-gate',
+    label: 'Entrée de parc national',
+    category: 'tourisme',
+    svgPath: NATIONAL_PARK_GATE,
+  },
+  { key: 'safari', label: 'Safari', category: 'tourisme', svgPath: SAFARI },
+  { key: 'hot-spring', label: 'Source chaude', category: 'tourisme', svgPath: HOT_SPRING },
+  { key: 'canyon', label: 'Canyon', category: 'tourisme', svgPath: CANYON },
+  { key: 'island', label: 'Île', category: 'tourisme', svgPath: ISLAND },
+  { key: 'lighthouse', label: 'Phare', category: 'tourisme', svgPath: LIGHTHOUSE },
+  // Services publics
+  {
+    key: 'post-office',
+    label: 'Bureau de poste',
+    category: 'services-publics',
+    svgPath: POST_OFFICE,
+  },
+  { key: 'voting-box', label: 'Bureau de vote', category: 'services-publics', svgPath: VOTING_BOX },
+  {
+    key: 'civil-registry',
+    label: 'État civil',
+    category: 'services-publics',
+    svgPath: CIVIL_REGISTRY,
+  },
+  { key: 'customs', label: 'Douane', category: 'services-publics', svgPath: CUSTOMS },
+  { key: 'embassy', label: 'Ambassade/Consulat', category: 'services-publics', svgPath: EMBASSY },
+  { key: 'city-hall', label: 'Hôtel de ville', category: 'services-publics', svgPath: CITY_HALL },
+  { key: 'archive', label: 'Archives', category: 'services-publics', svgPath: ARCHIVE },
+  { key: 'notary', label: 'Notaire', category: 'services-publics', svgPath: NOTARY },
+  // Télécommunications
+  {
+    key: 'cell-tower',
+    label: 'Pylône télécom',
+    category: 'telecommunications',
+    svgPath: CELL_TOWER,
+  },
+  {
+    key: 'fiber-cable',
+    label: 'Fibre optique',
+    category: 'telecommunications',
+    svgPath: FIBER_CABLE,
+  },
+  { key: 'radio-tower', label: 'Tour radio', category: 'telecommunications', svgPath: RADIO_TOWER },
+  {
+    key: 'tv-tower',
+    label: 'Tour de télévision',
+    category: 'telecommunications',
+    svgPath: TV_TOWER,
+  },
+  { key: 'satellite', label: 'Satellite', category: 'telecommunications', svgPath: SATELLITE },
+  {
+    key: 'broadcast',
+    label: 'Diffusion/Réseau',
+    category: 'telecommunications',
+    svgPath: BROADCAST,
+  },
+  // Urbanisme
+  { key: 'street-light', label: 'Éclairage public', category: 'urbanisme', svgPath: STREET_LIGHT },
+  {
+    key: 'traffic-light',
+    label: 'Feu de circulation',
+    category: 'urbanisme',
+    svgPath: TRAFFIC_LIGHT,
+  },
+  { key: 'road-sign', label: 'Signalisation routière', category: 'urbanisme', svgPath: ROAD_SIGN },
+  { key: 'roundabout', label: 'Rond-point', category: 'urbanisme', svgPath: ROUNDABOUT },
+  {
+    key: 'pedestrian-crossing',
+    label: 'Passage piéton',
+    category: 'urbanisme',
+    svgPath: PEDESTRIAN_CROSSING,
+  },
+  { key: 'sidewalk', label: 'Trottoir', category: 'urbanisme', svgPath: SIDEWALK },
+  { key: 'sewer-cover', label: "Regard d'égout", category: 'urbanisme', svgPath: SEWER_COVER },
+  { key: 'manhole', label: "Bouche d'accès", category: 'urbanisme', svgPath: MANHOLE },
+  { key: 'bench', label: 'Mobilier urbain', category: 'urbanisme', svgPath: BENCH },
+  { key: 'bus-stop', label: 'Arrêt de bus', category: 'urbanisme', svgPath: BUS_STOP },
+  // Météo
+  { key: 'sun', label: 'Ensoleillé', category: 'meteo', svgPath: SUN },
+  { key: 'rain', label: 'Pluie', category: 'meteo', svgPath: RAIN },
+  { key: 'cloud', label: 'Nuageux', category: 'meteo', svgPath: CLOUD },
+  { key: 'thermometer', label: 'Température', category: 'meteo', svgPath: THERMOMETER },
+  { key: 'wind', label: 'Vent', category: 'meteo', svgPath: WIND },
+  { key: 'storm', label: 'Tempête', category: 'meteo', svgPath: STORM },
+  // Véhicules spécialisés
+  { key: 'fire-truck', label: 'Camion de pompiers', category: 'vehicules', svgPath: FIRE_TRUCK },
+  { key: 'tanker-truck', label: 'Camion-citerne', category: 'vehicules', svgPath: TANKER_TRUCK },
+  { key: 'tram', label: 'Tramway', category: 'vehicules', svgPath: TRAM },
+  { key: 'scooter', label: 'Scooter', category: 'vehicules', svgPath: SCOOTER },
+  { key: 'cable-car', label: 'Téléphérique', category: 'vehicules', svgPath: CABLE_CAR },
+  { key: 'pickup-truck', label: 'Camionnette', category: 'vehicules', svgPath: PICKUP_TRUCK },
 ];
 
 const ICON_CATALOG_MAP: Record<string, string> = Object.fromEntries(

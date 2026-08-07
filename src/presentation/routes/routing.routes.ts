@@ -5,11 +5,13 @@ import {
   routeQuerySchema,
   nearestQuerySchema,
   nearestFeatureQuerySchema,
+  isochroneQuerySchema,
 } from '../schemas/routing.schema.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
 import type { CalculateRouteUseCase } from '../../application/use-cases/routing/calculate-route.use-case.js';
 import type { FindNearestUseCase } from '../../application/use-cases/routing/find-nearest.use-case.js';
 import type { FindNearestFeatureUseCase } from '../../application/use-cases/routing/find-nearest-feature.use-case.js';
+import type { GetIsochroneUseCase } from '../../application/use-cases/routing/get-isochrone.use-case.js';
 
 function parseBody<T>(
   schema: {
@@ -33,6 +35,7 @@ export async function routingRoutes(app: FastifyInstance): Promise<void> {
   const findNearestFeatureUseCase = app.diContainer.resolve<FindNearestFeatureUseCase>(
     'findNearestFeatureUseCase',
   );
+  const getIsochroneUseCase = app.diContainer.resolve<GetIsochroneUseCase>('getIsochroneUseCase');
 
   app.get(
     '/route',
@@ -94,6 +97,31 @@ export async function routingRoutes(app: FastifyInstance): Promise<void> {
         query.lon,
         query.lat,
         query.limit,
+      );
+      return reply.send(successResponse(result));
+    },
+  );
+
+  // GET /api/v1/routing/isochrone?lon=&lat=&profile=&minutes=
+  // Nuage de points atteignables dans le budget de temps donné (durée routée réelle via OSRM
+  // table()) - c'est au client de calculer l'enveloppe (concave hull) à partir de ces points,
+  // voir plan "Itinéraires : altimétrie, isochrones, multimodal" du 2026-08-06.
+  app.get(
+    '/isochrone',
+    {
+      schema: {
+        description: "Nuage de points atteignables dans un budget de temps (base d'isochrone)",
+        tags: ['Itineraire'],
+        querystring: zodToSwagger(isochroneQuerySchema),
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const query = parseBody(isochroneQuerySchema, request.query);
+      const result = await getIsochroneUseCase.execute(
+        query.lon,
+        query.lat,
+        query.profile,
+        query.minutes,
       );
       return reply.send(successResponse(result));
     },

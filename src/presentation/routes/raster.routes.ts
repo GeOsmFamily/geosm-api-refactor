@@ -43,7 +43,13 @@ const downloadSchema = z.object({
 });
 
 const analyzeBodySchema = z.object({
-  type: z.enum(['global', 'zonal']),
+  type: z.enum(['global', 'zonal', 'custom']),
+  // 'zonal' uniquement - sélectionné via GET /geoportail/instances/:id/admin-levels (voir plan
+  // "refonte Statistiques" du 2026-08-05), remplace le défaut implicite sur Instance.adminLevel
+  // qui échouait pour les instances sans niveau configuré (ex. Cameroun).
+  adminLevel: z.coerce.number().int().optional(),
+  // 'custom' uniquement - géométrie GeoJSON dessinée à la main sur la carte.
+  geometry: z.record(z.string(), z.unknown()).optional(),
 });
 
 const pixelValueQuerySchema = z.object({
@@ -188,8 +194,13 @@ export async function rasterRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { layerId } = parseBody(z.object({ layerId: z.string().uuid() }), request.params);
-      const { type } = parseBody(analyzeBodySchema, request.body);
-      const result = await runRasterAnalysisUseCase.execute(layerId, type as RasterAnalysisType);
+      const { type, adminLevel, geometry } = parseBody(analyzeBodySchema, request.body);
+      const result = await runRasterAnalysisUseCase.execute(
+        layerId,
+        type as RasterAnalysisType,
+        adminLevel,
+        geometry,
+      );
       return reply.status(202).send(successResponse(result));
     },
   );

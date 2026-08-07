@@ -25,10 +25,22 @@ function parseBody<T>(
   return result.data as T;
 }
 
+// Contexte carte envoyé à CHAQUE message (pas rempli par Gemini, qui ne connaît pas la vue
+// courante) - voir AssistantMapContext/analyze_map_context, plan "refonte Statistiques" du
+// 2026-08-05. Entièrement optionnel : un client plus ancien (ou sans carte, ex. usage API
+// direct) continue de fonctionner sans, juste sans le contexte ambiant "couches actives/emprise".
+const mapContextSchema = z
+  .object({
+    extent: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional(),
+    activeLayers: z.array(z.object({ id: z.string().uuid(), name: z.string() })).optional(),
+  })
+  .optional();
+
 const chatBodySchema = z.object({
   instanceId: z.string().uuid(),
   conversationId: z.string().uuid(),
   message: z.string().min(1).max(2000),
+  mapContext: mapContextSchema,
 });
 
 const listConversationsQuerySchema = z.object({ instanceId: z.string().uuid() });
@@ -150,7 +162,10 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       preHandler: [app.authenticate],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const { instanceId, conversationId, message } = parseBody(chatBodySchema, request.body);
+      const { instanceId, conversationId, message, mapContext } = parseBody(
+        chatBodySchema,
+        request.body,
+      );
       const userId = (request.user as { sub: string }).sub;
       const result = await assistantChatUseCase.execute(
         userId,
@@ -158,6 +173,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
         conversationId,
         message,
         resolveLang(request),
+        mapContext,
       );
       return reply.send(successResponse(result));
     },

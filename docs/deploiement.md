@@ -221,7 +221,12 @@ OSM_OAUTH_BASE_URL=https://www.openstreetmap.org
 
 # Nominatim/OSRM auto-heberges (Lot P9) - voir section dediee plus bas
 NOMINATIM_URL=http://nominatim:8080
-OSRM_URL=http://osrm:5000
+OSRM_URL=http://osrm-car:5000
+# Multi-profils (voir section OSRM plus bas) - un conteneur par profil, chacun sur son propre
+# jeu de donnees prepare via scripts/setup-osrm-data.sh
+OSRM_URL_CAR=http://osrm-car:5000
+OSRM_URL_BICYCLE=http://osrm-bicycle:5000
+OSRM_URL_FOOT=http://osrm-foot:5000
 NOMINATIM_DB_PASSWORD=<genere - postgres interne au conteneur nominatim, sans rapport avec DATABASE_URL>
 
 # Alerting (Slack et/ou email, utilise par le formulaire de signalement et les jobs critiques)
@@ -291,21 +296,37 @@ reimport complet (pas de mise a jour incrementale configuree par defaut - `REPLI
 fourni dans la config pour qui souhaite passer a des mises a jour differentielles via
 `nominatim replication`, plus econome mais plus complexe a operer).
 
-### OSRM
+### OSRM (multi-profils : voiture, velo, pied)
 
-Contrairement a Nominatim, `osrm-routed` ne sait que **servir** un jeu de donnees deja pret - la
-preparation (extraction du reseau routier + partitionnement, necessaires pour l'algorithme MLD)
-se fait a part, via le script fourni :
+Contrairement a Nominatim, `osrm-routed` ne sait que **servir** un jeu de donnees deja pret, et
+**un seul profil par processus** - le segment `{profile}` de son URL HTTP est accepte mais
+ignore, contrairement au serveur de demo public (`router.project-osrm.org`) qui route en
+interne vers 3 jeux de donnees distincts. `docker-compose.prod.yml` definit donc **3 services**
+(`osrm-car`, `osrm-bicycle`, `osrm-foot`), chacun avec son propre repertoire de donnees et son
+propre port. Chaque profil doit etre prepare **separement**, via le meme script :
 
 ```bash
-PBF_PATH=nominatim-source/region-latest.osm.pbf ./scripts/setup-osrm-data.sh
+PBF_PATH=nominatim-source/region-latest.osm.pbf OSRM_PROFILE=car     ./scripts/setup-osrm-data.sh
+PBF_PATH=nominatim-source/region-latest.osm.pbf OSRM_PROFILE=bicycle ./scripts/setup-osrm-data.sh
+PBF_PATH=nominatim-source/region-latest.osm.pbf OSRM_PROFILE=foot    ./scripts/setup-osrm-data.sh
 ```
 
 Ce script reutilise le meme fichier `.osm.pbf` que Nominatim (le reseau routier OSM est le meme
-jeu de donnees), et produit les fichiers `region-latest.osrm*` dans `./osrm-data/`, montes en
-lecture seule par le service `osrm`. A relancer manuellement apres chaque mise a jour
-significative du reseau routier (bien plus rare qu'une mise a jour des couches thematiques - pas
-de cron par defaut).
+jeu de donnees), et produit les fichiers `region-latest.osrm*` dans `./osrm-data-<profil>/`
+(un repertoire distinct par profil - les 3 partagent le meme nom de fichier de base, ils ne
+peuvent donc pas cohabiter dans un repertoire commun), montes en lecture seule par le service
+correspondant. **Les 3 profils doivent etre prepares avant le premier `docker compose up`** : le
+healthcheck d'un conteneur `osrm-*` dont le repertoire est vide echoue indefiniment, et `api`
+depend des 3 (`depends_on: condition: service_healthy`) - le stack entier ne demarre pas tant
+qu'un seul profil manque. A relancer manuellement apres chaque mise a jour significative du
+reseau routier (bien plus rare qu'une mise a jour des couches thematiques - pas de cron par
+defaut).
+
+> **Migration depuis un deploiement mono-profil existant** : l'ancien service unique `osrm`
+> (repertoire `./osrm-data/`, variable `OSRM_URL`) est remplace par les 3 services ci-dessus.
+> Renommer `./osrm-data/` en `./osrm-data-car/` reutilise directement les donnees deja
+> preparees pour le profil voiture ; il reste a preparer `bicycle` et `foot` separement avant
+> de redemarrer avec la nouvelle configuration.
 
 ### Verification post-import
 
@@ -313,8 +334,11 @@ de cron par defaut).
 # Nominatim : recherche d'une adresse connue
 curl "http://localhost:8081/search?q=Yaound%C3%A9&format=json&countrycodes=cm"
 
-# OSRM : itineraire entre deux points du Cameroun
+# OSRM : itineraire entre deux points du Cameroun, un par profil (ports par defaut
+# OSRM_CAR_PORT=5000, OSRM_BICYCLE_PORT=5001, OSRM_FOOT_PORT=5002)
 curl "http://localhost:5000/route/v1/driving/11.5021,3.8480;9.7043,4.0511"
+curl "http://localhost:5001/route/v1/cycling/11.5021,3.8480;9.7043,4.0511"
+curl "http://localhost:5002/route/v1/walking/11.5021,3.8480;9.7043,4.0511"
 ```
 
 ### Limites administratives (admin_boundaries)

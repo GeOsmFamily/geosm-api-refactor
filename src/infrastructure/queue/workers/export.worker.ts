@@ -26,13 +26,15 @@ export interface LayerExportJobData {
 // que ogr2ogr écrit réellement, pas nécessairement l'extension finale livrée.
 const FORMAT_TO_OGR: Record<
   string,
-  { ogrFormat: 'GPKG' | 'GeoJSON' | 'ESRI Shapefile' | 'KML' | 'CSV'; ext: string }
+  { ogrFormat: 'GPKG' | 'GeoJSON' | 'ESRI Shapefile' | 'KML' | 'CSV' | 'GML'; ext: string }
 > = {
   GEOPACKAGE: { ogrFormat: 'GPKG', ext: '.gpkg' },
   GEOJSON: { ogrFormat: 'GeoJSON', ext: '.geojson' },
   SHAPEFILE: { ogrFormat: 'ESRI Shapefile', ext: '.shp' },
   KML: { ogrFormat: 'KML', ext: '.kml' },
   CSV: { ogrFormat: 'CSV', ext: '.csv' },
+  // GML générique (driver GDAL natif) - PAS conforme INSPIRE, voir ExportFormat côté schema.prisma.
+  GML: { ogrFormat: 'GML', ext: '.gml' },
 };
 
 type ExportWorkerDeps = {

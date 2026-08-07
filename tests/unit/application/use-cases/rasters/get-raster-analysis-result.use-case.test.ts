@@ -13,6 +13,7 @@ describe('GetRasterAnalysisResultUseCase', () => {
           type: 'global',
           status: 'COMPLETED',
           result: { min: 0, max: 387, mean: 7.4, stddev: 22.3, count: 4080794 },
+          narrative: 'Les valeurs sont réparties de façon homogène sur cette zone.',
           error: null,
         }),
       },
@@ -23,6 +24,7 @@ describe('GetRasterAnalysisResultUseCase', () => {
 
     expect(result.status).toBe('COMPLETED');
     expect(result.result).toEqual({ min: 0, max: 387, mean: 7.4, stddev: 22.3, count: 4080794 });
+    expect(result.narrative).toBe('Les valeurs sont réparties de façon homogène sur cette zone.');
   });
 
   it('should throw NotFoundError when the result does not exist', async () => {

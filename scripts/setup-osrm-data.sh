@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# Prépare les fichiers .osrm* servis par le conteneur "osrm" de docker-compose.prod.yml
-# (osrm-routed ne fait que SERVIR un jeu de données déjà prêt, il ne l'importe jamais
-# lui-même). Ce script exécute la préparation en une fois via l'image officielle
-# osrm/osrm-backend : extract (lecture du .osm.pbf + profil de routage) -> partition ->
-# customize (nécessaires pour l'algorithme MLD utilisé par osrm-routed).
+# Prépare les fichiers .osrm* servis par UN des conteneurs osrm-car/osrm-bike/osrm-foot de
+# docker-compose.prod.yml (osrm-routed ne fait que SERVIR un jeu de données déjà prêt, il ne
+# l'importe jamais lui-même). Ce script exécute la préparation en une fois via l'image
+# officielle osrm/osrm-backend : extract (lecture du .osm.pbf + profil de routage) ->
+# partition -> customize (nécessaires pour l'algorithme MLD utilisé par osrm-routed).
+#
+# Multi-profil (voir plan "Itinéraires : altimétrie, isochrones, multimodal" du 2026-08-06) :
+# CHAQUE profil (car/bicycle/foot) a son propre répertoire de données et doit être préparé
+# en relançant ce script une fois PAR profil avant que docker-compose.prod.yml (qui démarre
+# les 3 conteneurs osrm-*) ne puisse démarrer avec succès - un répertoire manquant fait
+# échouer le healthcheck du conteneur correspondant indéfiniment.
 #
 # À relancer manuellement à chaque mise à jour significative des données OSM de la région
 # (par exemple après un nouvel extract Geofabrik) - ce n'est pas automatisé par un cron,
@@ -11,7 +17,10 @@
 # docs/fonctionnalites-detaillees.md), car un changement de réseau routier est bien plus rare
 # qu'une mise à jour des couches thématiques.
 #
-# Usage: PBF_PATH=/chemin/vers/cameroon-latest.osm.pbf ./scripts/setup-osrm-data.sh
+# Usage (une fois par profil) :
+#   PBF_PATH=/chemin/vers/cameroon-latest.osm.pbf OSRM_PROFILE=car ./scripts/setup-osrm-data.sh
+#   PBF_PATH=/chemin/vers/cameroon-latest.osm.pbf OSRM_PROFILE=bicycle ./scripts/setup-osrm-data.sh
+#   PBF_PATH=/chemin/vers/cameroon-latest.osm.pbf OSRM_PROFILE=foot ./scripts/setup-osrm-data.sh
 set -euo pipefail
 
 # Sous Git Bash (Windows), MSYS convertit automatiquement les chemins absolus de type Unix
@@ -20,8 +29,12 @@ set -euo pipefail
 export MSYS_NO_PATHCONV=1
 
 PBF_PATH="${PBF_PATH:?Chemin vers le fichier .osm.pbf requis (variable PBF_PATH)}"
-OSRM_DATA_DIR="${OSRM_DATA_DIR:-./osrm-data}"
 OSRM_PROFILE="${OSRM_PROFILE:-car}" # profils fournis par l'image : car, bicycle, foot
+# Un répertoire distinct par profil (osrm-data-car, osrm-data-bicycle, osrm-data-foot) - les
+# fichiers .osrm* d'osrm-extract/partition/customize partagent tous le même nom de base
+# ("region-latest.osrm*"), ils ne peuvent donc PAS coexister dans un répertoire commun pour
+# 3 profils différents.
+OSRM_DATA_DIR="${OSRM_DATA_DIR:-./osrm-data-${OSRM_PROFILE}}"
 
 if [ ! -f "$PBF_PATH" ]; then
   echo "Fichier introuvable : $PBF_PATH" >&2
@@ -56,4 +69,4 @@ rm -f "$OSRM_ABS_DIR/region-latest.osm.pbf"
 
 echo "Préparation terminée. Fichiers générés dans $OSRM_DATA_DIR :"
 ls -la "$OSRM_ABS_DIR"/region-latest.osrm*
-echo "Démarrer/redémarrer le service 'osrm' de docker-compose.prod.yml pour prendre en compte ces données."
+echo "Démarrer/redémarrer le service osrm-${OSRM_PROFILE} de docker-compose.prod.yml (voir mapping profil -> service) pour prendre en compte ces données."

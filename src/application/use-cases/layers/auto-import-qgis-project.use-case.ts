@@ -33,14 +33,14 @@ type QgisTreeNode = QgisTreeGroupNode | QgisTreeLayerNode;
 
 /**
  * Importe TOUTES les couches d'un projet QGIS d'un coup, en recréant automatiquement la
- * thématique (Group) et sous-thématique (SubGroup) GeOSM correspondant à l'arborescence réelle
+ * thématique (Group) et sous-thématique (SubGroup) GeOsm correspondant à l'arborescence réelle
  * du projet (groupes/sous-dossiers QGIS) - contrairement à CreateLayersFromQgisProjectUseCase
  * (utilisé par l'assistant de création de couche admin), qui exige qu'un unique subGroupId soit
  * choisi manuellement pour toutes les couches sélectionnées. Le style QGIS embarqué dans le
  * projet est déjà préservé sans travail supplémentaire (les couches créées pointent vers le WMS
  * du projet, qui rend avec son style natif - voir CreateLayersFromQgisProjectUseCase).
  *
- * Le modèle GeOSM est strictement Groupe > Sous-groupe > Couche (2 niveaux), alors qu'un projet
+ * Le modèle GeOsm est strictement Groupe > Sous-groupe > Couche (2 niveaux), alors qu'un projet
  * QGIS peut imbriquer des groupes à profondeur arbitraire ou poser des couches directement à la
  * racine/dans un groupe sans sous-dossier - ces cas sont repliés dans un sous-groupe "Général"
  * plutôt que de échouer ou de perdre des couches.
@@ -122,11 +122,11 @@ export class AutoImportQgisProjectUseCase {
       for (const node of nodes) {
         if (node.type === 'group') {
           if (!groupName) {
-            // Groupe de premier niveau du projet QGIS -> devient un Groupe GeOSM. Ses enfants
+            // Groupe de premier niveau du projet QGIS -> devient un Groupe GeOsm. Ses enfants
             // directs (couches sans sous-dossier) tomberont dans un sous-groupe "Général".
             await collect(node.children, node.name, null);
           } else {
-            // Sous-dossier au sein d'un groupe déjà identifié -> devient un Sous-groupe GeOSM.
+            // Sous-dossier au sein d'un groupe déjà identifié -> devient un Sous-groupe GeOsm.
             await collect(node.children, groupName, node.name);
           }
         } else {

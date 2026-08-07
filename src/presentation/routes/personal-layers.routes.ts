@@ -9,6 +9,8 @@ import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 import { config } from '../../config/env.config.js';
+import { appConfig } from '../../config/app.config.js';
+import { signPersonalWmsToken } from '../../infrastructure/utils/personal-wms-token.util.js';
 
 import { StageFileImportUseCase } from '../../application/use-cases/layers/stage-file-import.use-case.js';
 import { ImportPersonalFileUseCase } from '../../application/use-cases/personal-layers/import-personal-file.use-case.js';
@@ -23,17 +25,23 @@ import { ReviewPersonalLayerPublicationUseCase } from '../../application/use-cas
 import { UploadPersonalLayerQmlStyleUseCase } from '../../application/use-cases/personal-layers/upload-personal-layer-qml-style.use-case.js';
 import { PersonalLayerRecord } from '../../infrastructure/database/repositories/prisma-personal-layer.repository.js';
 
-/** Ajoute une URL WMS publique prête à l'emploi pour une donnée QGIS_PROJECT (même construction
- * que côté catalogue, voir CreateLayersFromQgisProjectUseCase) - évite au frontend de connaître
- * QGIS_PUBLIC_URL, qui reste une variable d'env backend. */
+/** Ajoute une URL WMS prête à l'emploi pour une donnée QGIS_PROJECT - contrairement au catalogue
+ * (CreateLayersFromQgisProjectUseCase, données publiques par nature), une donnée PERSONNELLE ne
+ * doit être accessible qu'à son propriétaire : passe par le proxy authentifié
+ * /personal-wms (voir personal-wms.routes.ts) avec un jeton signé embarquant le chemin du
+ * projet, plutôt que d'exposer QGIS_PUBLIC_URL?map=<chemin> en clair (voir plan
+ * "Interopérabilité & sécurité des données" du 2026-08-06 - avant ce correctif, ce chemin
+ * "difficile à deviner" était la SEULE protection, sans aucune vérification réelle). */
 function toDto(record: PersonalLayerRecord): PersonalLayerRecord & { sourceUrl: string | null } {
-  return {
-    ...record,
-    sourceUrl:
-      record.sourceType === 'QGIS_PROJECT' && record.qgisProjectPath
-        ? `${config.QGIS_PUBLIC_URL}?map=${record.qgisProjectPath}`
-        : null,
-  };
+  const sourceUrl =
+    record.sourceType === 'QGIS_PROJECT' && record.qgisProjectPath
+      ? `${appConfig.apiPrefix}/personal-wms?token=${signPersonalWmsToken({
+          userId: record.userId,
+          personalLayerId: record.id,
+          qgisProjectPath: record.qgisProjectPath,
+        })}`
+      : null;
+  return { ...record, sourceUrl };
 }
 
 const IMPORT_ALLOWED_MIMETYPES = [

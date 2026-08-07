@@ -19,6 +19,7 @@ import { PrismaDefaultThemeRepository } from './infrastructure/database/reposito
 import { Argon2PasswordService } from './infrastructure/auth/argon2-password.service.js';
 import { JwtTokenService } from './infrastructure/auth/jwt-token.service.js';
 import { RedisService } from './infrastructure/cache/redis.service.js';
+import { LiveLayerService } from './infrastructure/external-apis/live-layer.service.js';
 
 // Auth use cases
 import { RegisterUseCase } from './application/use-cases/auth/register.use-case.js';
@@ -86,6 +87,7 @@ import { ApplyLayerStyleUseCase } from './application/use-cases/layers/apply-lay
 import { ListOsmTagKeysUseCase } from './application/use-cases/osm/list-osm-tag-keys.use-case.js';
 import { ListOsmTagValuesUseCase } from './application/use-cases/osm/list-osm-tag-values.use-case.js';
 import { UpdateLayerUseCase } from './application/use-cases/layers/update-layer.use-case.js';
+import { GetLiveLayerDataUseCase } from './application/use-cases/layers/get-live-layer-data.use-case.js';
 import { DeleteLayerUseCase } from './application/use-cases/layers/delete-layer.use-case.js';
 
 // BaseMaps use cases
@@ -118,6 +120,10 @@ import { DeleteExportUseCase } from './application/use-cases/exports/delete-expo
 // Location plans use cases
 import { CreateLocationPlanUseCase } from './application/use-cases/location-plans/create-location-plan.use-case.js';
 import { GetLocationPlanUseCase } from './application/use-cases/location-plans/get-location-plan.use-case.js';
+import { GenerateAnalysisReportUseCase } from './application/use-cases/reports/generate-analysis-report.use-case.js';
+import { GetAnalysisReportUseCase } from './application/use-cases/reports/get-analysis-report.use-case.js';
+import { RateAnalysisReportUseCase } from './application/use-cases/reports/rate-analysis-report.use-case.js';
+import { ReportRendererService } from './infrastructure/pdf/report-renderer.service.js';
 
 // Geocoding use cases
 import { SearchGeocodingUseCase } from './application/use-cases/geocoding/search-geocoding.use-case.js';
@@ -128,6 +134,7 @@ import { LookupGeocodingUseCase } from './application/use-cases/geocoding/lookup
 import { CalculateRouteUseCase } from './application/use-cases/routing/calculate-route.use-case.js';
 import { FindNearestUseCase } from './application/use-cases/routing/find-nearest.use-case.js';
 import { FindNearestFeatureUseCase } from './application/use-cases/routing/find-nearest-feature.use-case.js';
+import { GetIsochroneUseCase } from './application/use-cases/routing/get-isochrone.use-case.js';
 
 // Search use cases
 import { GlobalSearchUseCase } from './application/use-cases/search/global-search.use-case.js';
@@ -147,6 +154,8 @@ import { PrismaAssistantConversationRepository } from './infrastructure/database
 // Admin Boundary use cases
 import { FindAdminBoundaryUseCase } from './application/use-cases/geoportail/find-admin-boundary.use-case.js';
 import { FindAdminBoundariesByLevelUseCase } from './application/use-cases/geoportail/find-admin-boundaries-by-level.use-case.js';
+import { GetChoroplethStatsUseCase } from './application/use-cases/geoportail/get-choropleth-stats.use-case.js';
+import { GetGridStatsUseCase } from './application/use-cases/geoportail/get-grid-stats.use-case.js';
 
 // Drawing use cases
 import { PrismaDrawingRepository } from './infrastructure/database/repositories/prisma-drawing.repository.js';
@@ -165,6 +174,11 @@ import { DeleteGeosignetUseCase } from './application/use-cases/geosignets/delet
 import { PrismaCommentRepository } from './infrastructure/database/repositories/prisma-comment.repository.js';
 import { SaveCommentUseCase } from './application/use-cases/comments/save-comment.use-case.js';
 import { AdminListCommentsUseCase } from './application/use-cases/comments/admin-list-comments.use-case.js';
+import { ReviewCommentReportUseCase } from './application/use-cases/comments/review-comment-report.use-case.js';
+import { PrismaNotificationRepository } from './infrastructure/database/repositories/prisma-notification.repository.js';
+import { GetMyNotificationsUseCase } from './application/use-cases/notifications/get-my-notifications.use-case.js';
+import { MarkNotificationReadUseCase } from './application/use-cases/notifications/mark-notification-read.use-case.js';
+import { MarkAllNotificationsReadUseCase } from './application/use-cases/notifications/mark-all-notifications-read.use-case.js';
 import { FlagCommentUseCase } from './application/use-cases/comments/flag-comment.use-case.js';
 import { AdminDeleteCommentUseCase } from './application/use-cases/comments/admin-delete-comment.use-case.js';
 import { GetCommentsUseCase } from './application/use-cases/comments/get-comments.use-case.js';
@@ -183,6 +197,7 @@ import { GetSearchSuggestionsUseCase } from './application/use-cases/search/get-
 import { GetLayerRecommendationsUseCase } from './application/use-cases/search/get-layer-recommendations.use-case.js';
 import { TrackEventUseCase } from './application/use-cases/analytics/track-event.use-case.js';
 import { GetAnalyticsUseCase } from './application/use-cases/analytics/get-analytics.use-case.js';
+import { GetUsageDashboardUseCase } from './application/use-cases/analytics/get-usage-dashboard.use-case.js';
 
 // QGIS Projects use cases
 import { GetQgisProjectUseCase } from './application/use-cases/qgis-projects/get-qgis-project.use-case.js';
@@ -205,6 +220,8 @@ import { SeedDefaultThemesUseCase } from './application/use-cases/default-themes
 
 // Admin use cases
 import { GetDashboardUseCase } from './application/use-cases/admin/get-dashboard.use-case.js';
+import { GetStaleLayersUseCase } from './application/use-cases/admin/get-stale-layers.use-case.js';
+import { SendLayerFreshnessReportUseCase } from './application/use-cases/admin/send-layer-freshness-report.use-case.js';
 import { ListJobsUseCase } from './application/use-cases/admin/list-jobs.use-case.js';
 import { GetSystemHealthUseCase } from './application/use-cases/admin/get-system-health.use-case.js';
 import { SendMonthlyReportUseCase } from './application/use-cases/admin/send-monthly-report.use-case.js';
@@ -269,6 +286,8 @@ import { GetFeatureUseCase } from './application/use-cases/features/get-feature.
 import { AddFeatureUseCase } from './application/use-cases/features/add-feature.use-case.js';
 import { UpdateFeatureUseCase } from './application/use-cases/features/update-feature.use-case.js';
 import { DeleteFeatureUseCase } from './application/use-cases/features/delete-feature.use-case.js';
+import { CountFeaturesInGeometryUseCase } from './application/use-cases/features/count-features-in-geometry.use-case.js';
+import { GetRasterStatsInGeometryUseCase } from './application/use-cases/rasters/get-raster-stats-in-geometry.use-case.js';
 import { GetLayerStatsUseCase } from './application/use-cases/layers/get-layer-stats.use-case.js';
 import { SummarizeViewportUseCase } from './application/use-cases/geoportail/summarize-viewport.use-case.js';
 
@@ -331,6 +350,14 @@ import { ListPendingPersonalLayerPublicationsUseCase } from './application/use-c
 import { ReviewPersonalLayerPublicationUseCase } from './application/use-cases/personal-layers/review-personal-layer-publication.use-case.js';
 import { UploadPersonalLayerQmlStyleUseCase } from './application/use-cases/personal-layers/upload-personal-layer-qml-style.use-case.js';
 
+// FAQ dynamique par instance
+import { PrismaInstanceFaqRepository } from './infrastructure/database/repositories/prisma-instance-faq.repository.js';
+import { GenerateInstanceFaqUseCase } from './application/use-cases/faq/generate-instance-faq.use-case.js';
+import { ScheduledFaqGenerationUseCase } from './application/use-cases/faq/scheduled-faq-generation.use-case.js';
+import { ListDraftInstanceFaqUseCase } from './application/use-cases/faq/list-draft-instance-faq.use-case.js';
+import { ReviewInstanceFaqUseCase } from './application/use-cases/faq/review-instance-faq.use-case.js';
+import { GetPublishedInstanceFaqUseCase } from './application/use-cases/faq/get-published-instance-faq.use-case.js';
+
 // Additional admin use cases
 import { GetJobDetailsUseCase } from './application/use-cases/admin/get-job-details.use-case.js';
 import { RetryJobUseCase } from './application/use-cases/admin/retry-job.use-case.js';
@@ -367,6 +394,8 @@ interface Cradle {
   emailService: SmtpEmailService;
   tokenService: JwtTokenService;
   redisService: RedisService;
+  liveLayerService: LiveLayerService;
+  getLiveLayerDataUseCase: GetLiveLayerDataUseCase;
   // Auth
   registerUseCase: RegisterUseCase;
   loginUseCase: LoginUseCase;
@@ -444,6 +473,10 @@ interface Cradle {
   // Location plans
   createLocationPlanUseCase: CreateLocationPlanUseCase;
   getLocationPlanUseCase: GetLocationPlanUseCase;
+  reportRendererService: ReportRendererService;
+  generateAnalysisReportUseCase: GenerateAnalysisReportUseCase;
+  getAnalysisReportUseCase: GetAnalysisReportUseCase;
+  rateAnalysisReportUseCase: RateAnalysisReportUseCase;
   // Geocoding
   searchGeocodingUseCase: SearchGeocodingUseCase;
   reverseGeocodingUseCase: ReverseGeocodingUseCase;
@@ -452,6 +485,7 @@ interface Cradle {
   calculateRouteUseCase: CalculateRouteUseCase;
   findNearestUseCase: FindNearestUseCase;
   findNearestFeatureUseCase: FindNearestFeatureUseCase;
+  getIsochroneUseCase: GetIsochroneUseCase;
   // Search
   globalSearchUseCase: GlobalSearchUseCase;
   searchLayersUseCase: SearchLayersUseCase;
@@ -482,6 +516,8 @@ interface Cradle {
   seedDefaultThemesUseCase: SeedDefaultThemesUseCase;
   // Admin
   getDashboardUseCase: GetDashboardUseCase;
+  getStaleLayersUseCase: GetStaleLayersUseCase;
+  sendLayerFreshnessReportUseCase: SendLayerFreshnessReportUseCase;
   listJobsUseCase: ListJobsUseCase;
   getJobDetailsUseCase: GetJobDetailsUseCase;
   retryJobUseCase: RetryJobUseCase;
@@ -510,6 +546,8 @@ interface Cradle {
   addFeatureUseCase: AddFeatureUseCase;
   updateFeatureUseCase: UpdateFeatureUseCase;
   deleteFeatureUseCase: DeleteFeatureUseCase;
+  countFeaturesInGeometryUseCase: CountFeaturesInGeometryUseCase;
+  getRasterStatsInGeometryUseCase: GetRasterStatsInGeometryUseCase;
   getLayerStatsUseCase: GetLayerStatsUseCase;
   summarizeViewportUseCase: SummarizeViewportUseCase;
   // Search indexing
@@ -518,6 +556,8 @@ interface Cradle {
   // Admin Boundary
   findAdminBoundaryUseCase: FindAdminBoundaryUseCase;
   findAdminBoundariesByLevelUseCase: FindAdminBoundariesByLevelUseCase;
+  getChoroplethStatsUseCase: GetChoroplethStatsUseCase;
+  getGridStatsUseCase: GetGridStatsUseCase;
   // Drawings
   drawingRepository: PrismaDrawingRepository;
   saveDrawingUseCase: SaveDrawingUseCase;
@@ -537,6 +577,11 @@ interface Cradle {
   replyToCommentUseCase: ReplyToCommentUseCase;
   resolveCommentUseCase: ResolveCommentUseCase;
   adminListCommentsUseCase: AdminListCommentsUseCase;
+  reviewCommentReportUseCase: ReviewCommentReportUseCase;
+  notificationRepository: PrismaNotificationRepository;
+  getMyNotificationsUseCase: GetMyNotificationsUseCase;
+  markNotificationReadUseCase: MarkNotificationReadUseCase;
+  markAllNotificationsReadUseCase: MarkAllNotificationsReadUseCase;
   flagCommentUseCase: FlagCommentUseCase;
   adminDeleteCommentUseCase: AdminDeleteCommentUseCase;
   // Sharing
@@ -549,6 +594,7 @@ interface Cradle {
   getLayerRecommendationsUseCase: GetLayerRecommendationsUseCase;
   trackEventUseCase: TrackEventUseCase;
   getAnalyticsUseCase: GetAnalyticsUseCase;
+  getUsageDashboardUseCase: GetUsageDashboardUseCase;
   incrementViewUseCase: IncrementViewUseCase;
   // Catalog
   getCatalogUseCase: GetCatalogUseCase;
@@ -589,6 +635,13 @@ interface Cradle {
   listPendingPersonalLayerPublicationsUseCase: ListPendingPersonalLayerPublicationsUseCase;
   reviewPersonalLayerPublicationUseCase: ReviewPersonalLayerPublicationUseCase;
   uploadPersonalLayerQmlStyleUseCase: UploadPersonalLayerQmlStyleUseCase;
+  // FAQ dynamique par instance
+  instanceFaqRepository: PrismaInstanceFaqRepository;
+  generateInstanceFaqUseCase: GenerateInstanceFaqUseCase;
+  scheduledFaqGenerationUseCase: ScheduledFaqGenerationUseCase;
+  listDraftInstanceFaqUseCase: ListDraftInstanceFaqUseCase;
+  reviewInstanceFaqUseCase: ReviewInstanceFaqUseCase;
+  getPublishedInstanceFaqUseCase: GetPublishedInstanceFaqUseCase;
   // Adressage
   adressageService: AdressageService;
   getAdresseUseCase: GetAdresseUseCase;
@@ -645,6 +698,9 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     tokenService: asValue(tokenService),
 
     redisService: asFunction(() => new RedisService(), { lifetime: Lifetime.SINGLETON }),
+    liveLayerService: asFunction((c: Cradle) => new LiveLayerService(c.redisService), {
+      lifetime: Lifetime.SINGLETON,
+    }),
     passwordService: asFunction(() => new Argon2PasswordService(), {
       lifetime: Lifetime.SINGLETON,
     }),
@@ -938,6 +994,10 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       (c: Cradle) => new UpdateLayerUseCase(c.layerRepository, c.indexLayerUseCase),
       { lifetime: Lifetime.SCOPED },
     ),
+    getLiveLayerDataUseCase: asFunction(
+      (c: Cradle) => new GetLiveLayerDataUseCase(c.layerRepository, c.liveLayerService),
+      { lifetime: Lifetime.SCOPED },
+    ),
     deleteLayerUseCase: asFunction(
       (c: Cradle) =>
         new DeleteLayerUseCase(
@@ -1054,6 +1114,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
           c.queueService,
           c.postGISService,
           c.geminiService,
+          c.osrmService,
         ),
       { lifetime: Lifetime.SCOPED },
     ),
@@ -1061,6 +1122,21 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       (c: Cradle) => new GetLocationPlanUseCase(c.locationPlanRepository),
       { lifetime: Lifetime.SCOPED },
     ),
+
+    // Analysis reports (rapports IA en PDF, voir plan "refonte Statistiques" du 2026-08-05)
+    reportRendererService: asFunction(() => new ReportRendererService(), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    generateAnalysisReportUseCase: asFunction(
+      (c: Cradle) => new GenerateAnalysisReportUseCase(c.prisma, c.queueService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getAnalysisReportUseCase: asFunction((c: Cradle) => new GetAnalysisReportUseCase(c.prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    rateAnalysisReportUseCase: asFunction((c: Cradle) => new RateAnalysisReportUseCase(c.prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Geocoding use cases
     searchGeocodingUseCase: asFunction(
@@ -1088,6 +1164,9 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
         new FindNearestFeatureUseCase(c.layerRepository, c.postGISService, c.osrmService),
       { lifetime: Lifetime.SCOPED },
     ),
+    getIsochroneUseCase: asFunction((c: Cradle) => new GetIsochroneUseCase(c.osrmService), {
+      lifetime: Lifetime.SCOPED,
+    }),
 
     // Search use cases
     globalSearchUseCase: asFunction((c: Cradle) => new GlobalSearchUseCase(c.meiliSearchService), {
@@ -1111,7 +1190,14 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
           c.spatialAnalysisUseCase,
           c.findNearestFeatureUseCase,
           c.createLocationPlanUseCase,
-          c.getLocationPlanUseCase,
+          c.countFeaturesInGeometryUseCase,
+          c.getRasterStatsInGeometryUseCase,
+          c.summarizeViewportUseCase,
+          c.generateAnalysisReportUseCase,
+          c.trackEventUseCase,
+          c.layerRepository,
+          c.getLayerRecommendationsUseCase,
+          c.getSearchSuggestionsUseCase,
         ),
       { lifetime: Lifetime.SCOPED },
     ),
@@ -1227,6 +1313,18 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
         ),
       { lifetime: Lifetime.SCOPED },
     ),
+    getStaleLayersUseCase: asFunction((c: Cradle) => new GetStaleLayersUseCase(c.prisma), {
+      lifetime: Lifetime.SCOPED,
+    }),
+    sendLayerFreshnessReportUseCase: asFunction(
+      (c: Cradle) =>
+        new SendLayerFreshnessReportUseCase(
+          c.getStaleLayersUseCase,
+          c.emailService,
+          config.ALERT_EMAIL_TO || config.SUPER_ADMIN_EMAIL,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
     listJobsUseCase: asFunction((c: Cradle) => new ListJobsUseCase(c.queueService), {
       lifetime: Lifetime.SCOPED,
     }),
@@ -1298,7 +1396,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     // Phase 4: Layer Import Pipeline
     storageService: asFunction(() => new MinioStorageService(), { lifetime: Lifetime.SINGLETON }),
     queueService: asFunction(() => new QueueService(), { lifetime: Lifetime.SINGLETON }),
-    notificationService: asFunction(() => new NotificationService(), {
+    notificationService: asFunction(() => new NotificationService(prisma), {
       lifetime: Lifetime.SINGLETON,
     }),
 
@@ -1359,6 +1457,14 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       (c: Cradle) => new DeleteFeatureUseCase(c.layerRepository, c.postGISService),
       { lifetime: Lifetime.SCOPED },
     ),
+    countFeaturesInGeometryUseCase: asFunction(
+      (c: Cradle) => new CountFeaturesInGeometryUseCase(c.layerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getRasterStatsInGeometryUseCase: asFunction(
+      (c: Cradle) => new GetRasterStatsInGeometryUseCase(c.layerRepository, c.postGISService),
+      { lifetime: Lifetime.SCOPED },
+    ),
     getLayerStatsUseCase: asFunction(
       (c: Cradle) => new GetLayerStatsUseCase(c.layerRepository, c.postGISService, c.geminiService),
       { lifetime: Lifetime.SCOPED },
@@ -1384,6 +1490,19 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     }),
     findAdminBoundariesByLevelUseCase: asFunction(
       (c: Cradle) => new FindAdminBoundariesByLevelUseCase(c.prisma, c.instanceRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getChoroplethStatsUseCase: asFunction(
+      (c: Cradle) =>
+        new GetChoroplethStatsUseCase(
+          c.layerRepository,
+          c.postGISService,
+          c.findAdminBoundariesByLevelUseCase,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getGridStatsUseCase: asFunction(
+      (c: Cradle) => new GetGridStatsUseCase(c.layerRepository, c.postGISService),
       { lifetime: Lifetime.SCOPED },
     ),
 
@@ -1435,7 +1554,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       lifetime: Lifetime.SCOPED,
     }),
     replyToCommentUseCase: asFunction(
-      (c: Cradle) => new ReplyToCommentUseCase(c.commentRepository),
+      (c: Cradle) => new ReplyToCommentUseCase(c.commentRepository, c.notificationService),
       { lifetime: Lifetime.SCOPED },
     ),
     resolveCommentUseCase: asFunction(
@@ -1451,6 +1570,28 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     }),
     adminDeleteCommentUseCase: asFunction(
       (c: Cradle) => new AdminDeleteCommentUseCase(c.commentRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    reviewCommentReportUseCase: asFunction(
+      (c: Cradle) => new ReviewCommentReportUseCase(c.commentRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+
+    // Centre de notifications unifié (voir plan "Centre de notifications unifié + plan de
+    // scalabilité documenté" du 2026-08-06)
+    notificationRepository: asFunction(() => new PrismaNotificationRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    getMyNotificationsUseCase: asFunction(
+      (c: Cradle) => new GetMyNotificationsUseCase(c.notificationRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    markNotificationReadUseCase: asFunction(
+      (c: Cradle) => new MarkNotificationReadUseCase(c.notificationRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    markAllNotificationsReadUseCase: asFunction(
+      (c: Cradle) => new MarkAllNotificationsReadUseCase(c.notificationRepository),
       { lifetime: Lifetime.SCOPED },
     ),
 
@@ -1477,6 +1618,16 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     getAnalyticsUseCase: asFunction((c: Cradle) => new GetAnalyticsUseCase(c.analyticsRepository), {
       lifetime: Lifetime.SCOPED,
     }),
+    getUsageDashboardUseCase: asFunction(
+      (c: Cradle) =>
+        new GetUsageDashboardUseCase(
+          c.analyticsRepository,
+          c.notificationService,
+          prisma,
+          c.layerRepository,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
     incrementViewUseCase: asFunction(
       (c: Cradle) => new IncrementViewUseCase(c.analyticsRepository),
       { lifetime: Lifetime.SCOPED },
@@ -1572,7 +1723,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       { lifetime: Lifetime.SCOPED },
     ),
     updateFeedbackStatusUseCase: asFunction(
-      (c: Cradle) => new UpdateFeedbackStatusUseCase(c.feedbackRepository),
+      (c: Cradle) => new UpdateFeedbackStatusUseCase(c.feedbackRepository, c.notificationService),
       { lifetime: Lifetime.SCOPED },
     ),
 
@@ -1632,6 +1783,38 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     ),
     uploadPersonalLayerQmlStyleUseCase: asFunction(
       (c: Cradle) => new UploadPersonalLayerQmlStyleUseCase(c.personalLayerRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+
+    // FAQ dynamique par instance
+    instanceFaqRepository: asFunction(() => new PrismaInstanceFaqRepository(prisma), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    generateInstanceFaqUseCase: asFunction(
+      (c: Cradle) =>
+        new GenerateInstanceFaqUseCase(
+          c.assistantConversationRepository,
+          c.instanceFaqRepository,
+          c.geminiService,
+        ),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    scheduledFaqGenerationUseCase: asFunction(
+      (c: Cradle) =>
+        new ScheduledFaqGenerationUseCase(c.instanceRepository, c.generateInstanceFaqUseCase),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    listDraftInstanceFaqUseCase: asFunction(
+      (c: Cradle) => new ListDraftInstanceFaqUseCase(c.instanceFaqRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    reviewInstanceFaqUseCase: asFunction(
+      (c: Cradle) => new ReviewInstanceFaqUseCase(c.instanceFaqRepository),
+      { lifetime: Lifetime.SCOPED },
+    ),
+    getPublishedInstanceFaqUseCase: asFunction(
+      (c: Cradle) =>
+        new GetPublishedInstanceFaqUseCase(c.instanceRepository, c.instanceFaqRepository),
       { lifetime: Lifetime.SCOPED },
     ),
 

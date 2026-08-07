@@ -1,6 +1,29 @@
 x-image: &api-image ${API_IMAGE:?Set API_IMAGE to the GHCR tag pushed by deploy.yml, e.g. ghcr.io/org/geosm-api-refactor:latest}
 x-frontend-image: &frontend-image ${FRONTEND_IMAGE:?Set FRONTEND_IMAGE to the GHCR tag pushed by the frontend repo deploy.yml, e.g. ghcr.io/org/geosm-frontend-refactor:latest}
 
+# Base commune aux 3 conteneurs OSRM mono-profil (voir osrm-car/osrm-bicycle/osrm-foot plus
+# bas) - seuls command/volumes/ports diffèrent par profil, le reste (image, ressources,
+# healthcheck) est strictement identique.
+x-osrm-base: &osrm-base
+  image: osrm/osrm-backend
+  restart: unless-stopped
+  deploy:
+    resources:
+      limits:
+        cpus: '1.0'
+        memory: 2048M
+      reservations:
+        cpus: '0.25'
+        memory: 512M
+  # wget absent de cette image (osrm/osrm-backend) - meme correctif que Nominatim ci-dessous :
+  # simple test de port TCP via /dev/tcp (bash) plutot qu'un binaire HTTP externe.
+  healthcheck:
+    test: ["CMD-SHELL", "bash -c ':> /dev/tcp/localhost/5000' 2>/dev/null || exit 1"]
+    interval: 30s
+    timeout: 10s
+    start_period: 30s
+    retries: 5
+
 services:
   api:
     image: *api-image
@@ -20,7 +43,11 @@ services:
     depends_on:
       nominatim:
         condition: service_healthy
-      osrm:
+      osrm-car:
+        condition: service_healthy
+      osrm-bicycle:
+        condition: service_healthy
+      osrm-foot:
         condition: service_healthy
 
   # Lié à 127.0.0.1 comme les autres services : ce n'est PAS le port public final. Un reverse
@@ -136,33 +163,36 @@ services:
       start_period: 30m
       retries: 5
 
-  osrm:
-    image: osrm/osrm-backend
-    restart: unless-stopped
-    # Les fichiers .osrm* servis ici sont pré-calculés une fois (hors de ce compose) par
-    # scripts/setup-osrm-data.sh, qui exécute osrm-extract/partition/customize - osrm-routed
-    # ne fait que servir un jeu de données déjà prêt, il ne l'importe jamais lui-même.
+  # Un conteneur osrm-routed PAR profil (voir plan "Itinéraires : altimétrie, isochrones,
+  # multimodal" du 2026-08-06) - un seul processus osrm-routed ne sert qu'UN jeu de données
+  # préparé pour UN profil à la fois (le segment {profile} de son URL HTTP est accepté mais
+  # ignoré, contrairement au serveur de démo public router.project-osrm.org qui route en
+  # interne vers 3 jeux de données distincts). Chaque service ci-dessous a son propre
+  # répertoire de données, préparé séparément via `OSRM_PROFILE=<car|bicycle|foot>
+  # ./scripts/setup-osrm-data.sh` - voir ce script pour la procédure complète.
+  osrm-car:
+    <<: *osrm-base
     command: osrm-routed --algorithm mld --max-table-size 1000 /data/region-latest.osrm
     volumes:
-      - ./osrm-data:/data:ro
+      - ./osrm-data-car:/data:ro
     ports:
-      - "127.0.0.1:${OSRM_PORT:-5000}:5000"
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2048M
-        reservations:
-          cpus: '0.25'
-          memory: 512M
-    # wget absent de cette image (osrm/osrm-backend) - meme correctif que Nominatim ci-dessus :
-    # simple test de port TCP via /dev/tcp (bash) plutot qu'un binaire HTTP externe.
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/localhost/5000' 2>/dev/null || exit 1"]
-      interval: 30s
-      timeout: 10s
-      start_period: 30s
-      retries: 5
+      - "127.0.0.1:${OSRM_CAR_PORT:-5000}:5000"
+
+  osrm-bicycle:
+    <<: *osrm-base
+    command: osrm-routed --algorithm mld --max-table-size 1000 /data/region-latest.osrm
+    volumes:
+      - ./osrm-data-bicycle:/data:ro
+    ports:
+      - "127.0.0.1:${OSRM_BICYCLE_PORT:-5001}:5000"
+
+  osrm-foot:
+    <<: *osrm-base
+    command: osrm-routed --algorithm mld --max-table-size 1000 /data/region-latest.osrm
+    volumes:
+      - ./osrm-data-foot:/data:ro
+    ports:
+      - "127.0.0.1:${OSRM_FOOT_PORT:-5002}:5000"
 
 volumes:
   nominatim-data:

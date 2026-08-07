@@ -46,7 +46,7 @@ describe('LinkOsmAccountUseCase', () => {
     );
   });
 
-  it('should throw ConflictError if the OSM account is already linked to a different GeOSM account', async () => {
+  it('should throw ConflictError if the OSM account is already linked to a different GeOsm account', async () => {
     vi.mocked(osmProfileRepository.findByOsmUserId).mockResolvedValue({
       id: 'profile-id',
       userId: 'someone-else',

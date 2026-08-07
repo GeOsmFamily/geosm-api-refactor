@@ -127,6 +127,9 @@ async function main(): Promise<void> {
 
   if (hasRealData) {
     console.log('Données OSM déjà chargées dans les tables osm.planet_osm_*.');
+  } else if (process.env.SKIP_OSM_IMPORT === 'true') {
+    console.log('SKIP_OSM_IMPORT=true : Import PBF OSM ignoré, utilisation des données locales de démonstration...');
+    await createMockOsmSchema(prisma);
   } else {
     console.log('Aucune donnée OSM détectée. Initialisation du téléchargement et import automatique...');
     
@@ -227,7 +230,7 @@ async function main(): Promise<void> {
   // scripts/import-srtm.sh. Ne fait jamais échouer le seed : sans MNT, seul l'outil
   // altimétrie est indisponible, le reste du géoportail fonctionne normalement.
   const instanceBbox = instance.bbox as number[];
-  if (instanceBbox && instanceBbox.length === 4) {
+  if (instanceBbox && instanceBbox.length === 4 && process.env.SKIP_SRTM !== 'true') {
     console.log('Chargement du MNT SRTM pour le profil altimétrique (cela peut prendre plusieurs minutes)...');
     try {
       const [minLon, minLat, maxLon, maxLat] = instanceBbox;
@@ -240,6 +243,8 @@ async function main(): Promise<void> {
       const errMsg = srtmErr instanceof Error ? srtmErr.message : String(srtmErr);
       console.warn('Échec du chargement SRTM (le profil altimétrique restera indisponible) :', errMsg);
     }
+  } else if (process.env.SKIP_SRTM === 'true') {
+    console.log('SKIP_SRTM=true : Chargement du MNT SRTM ignoré.');
   }
 
   // Add admin to instance

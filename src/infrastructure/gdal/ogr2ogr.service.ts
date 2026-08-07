@@ -23,7 +23,7 @@ export interface ImportResult {
 export interface ExportOptions {
   schema: string;
   table: string;
-  format: 'GPKG' | 'GeoJSON' | 'ESRI Shapefile' | 'KML' | 'CSV';
+  format: 'GPKG' | 'GeoJSON' | 'ESRI Shapefile' | 'KML' | 'CSV' | 'GML';
   outputPath: string;
   sql?: string;
   bbox?: [number, number, number, number];
@@ -172,6 +172,7 @@ export class Ogr2OgrService {
       'ESRI Shapefile': 'ESRI Shapefile',
       KML: 'KML',
       CSV: 'CSV',
+      GML: 'GML',
     };
 
     const outputFormat = formatMap[options.format] || 'GPKG';

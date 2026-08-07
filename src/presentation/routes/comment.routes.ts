@@ -21,6 +21,11 @@ const createCommentSchema = z.object({
   text: z.string().min(1).max(1000),
   lat: z.number(),
   lon: z.number(),
+  reportType: z
+    .enum(['FEATURE_CLOSED', 'WRONG_ATTRIBUTE', 'OUTDATED_GEOMETRY', 'OTHER'])
+    .optional(),
+  layerId: z.string().uuid().optional(),
+  featureId: z.string().optional(),
 });
 
 const replyCommentSchema = z.object({

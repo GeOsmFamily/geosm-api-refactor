@@ -271,7 +271,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // GET /auth/osm/link-url - même principe pour lier un compte OSM à un compte GeOSM déjà
+  // GET /auth/osm/link-url - même principe pour lier un compte OSM à un compte GeOsm déjà
   // connecté. Le userId est embarqué dans le state signé (et non lu depuis le header
   // Authorization) car une redirection plein-écran du navigateur ne transporte pas ce header -
   // seul cet appel initial (un fetch, pas une navigation) peut s'authentifier normalement.

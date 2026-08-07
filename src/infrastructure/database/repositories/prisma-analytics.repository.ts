@@ -16,6 +16,16 @@ export interface AnalyticsAggregation {
   count: number;
 }
 
+export interface DailyCount {
+  date: string;
+  count: number;
+}
+
+export interface ToolUsageCount {
+  tool: string;
+  count: number;
+}
+
 export class PrismaAnalyticsRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -97,6 +107,83 @@ export class PrismaAnalyticsRepository {
     return result
       .filter((r) => r.layerId)
       .map((r) => ({ layerId: r.layerId as string, count: r._count.id }));
+  }
+
+  /**
+   * Série temporelle du nombre total d'événements par jour (tableau de bord d'usage admin,
+   * voir plan du 2026-08-05) - `instanceId` null = toutes instances (vue plateforme
+   * SUPER_ADMIN).
+   */
+  async getDailyCounts(instanceId: string | null, startDate: Date): Promise<DailyCount[]> {
+    const instanceFilter = instanceId
+      ? Prisma.sql`AND instance_id = ${instanceId}::uuid`
+      : Prisma.empty;
+    const rows = await this.prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+      SELECT date_trunc('day', created_at) AS day, COUNT(*) AS count
+      FROM analytics_events
+      WHERE created_at >= ${startDate}
+      ${instanceFilter}
+      GROUP BY day
+      ORDER BY day ASC
+    `;
+    return rows.map((r) => ({ date: r.day.toISOString().slice(0, 10), count: Number(r.count) }));
+  }
+
+  /** Même principe que getDailyCounts, mais utilisateurs distincts (anonymes exclus). */
+  async getDailyActiveUsers(instanceId: string | null, startDate: Date): Promise<DailyCount[]> {
+    const instanceFilter = instanceId
+      ? Prisma.sql`AND instance_id = ${instanceId}::uuid`
+      : Prisma.empty;
+    const rows = await this.prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+      SELECT date_trunc('day', created_at) AS day, COUNT(DISTINCT user_id) AS count
+      FROM analytics_events
+      WHERE created_at >= ${startDate} AND user_id IS NOT NULL
+      ${instanceFilter}
+      GROUP BY day
+      ORDER BY day ASC
+    `;
+    return rows.map((r) => ({ date: r.day.toISOString().slice(0, 10), count: Number(r.count) }));
+  }
+
+  /** Variante de getAggregatedStats avec instanceId optionnel (vue plateforme globale). */
+  async getEventBreakdown(
+    instanceId: string | null,
+    startDate: Date,
+  ): Promise<AnalyticsAggregation[]> {
+    const instanceFilter = instanceId
+      ? Prisma.sql`AND instance_id = ${instanceId}::uuid`
+      : Prisma.empty;
+    const rows = await this.prisma.$queryRaw<{ event_type: string; count: bigint }[]>`
+      SELECT event_type, COUNT(*) AS count
+      FROM analytics_events
+      WHERE created_at >= ${startDate}
+      ${instanceFilter}
+      GROUP BY event_type
+      ORDER BY count DESC
+    `;
+    return rows.map((r) => ({ eventType: r.event_type, count: Number(r.count) }));
+  }
+
+  /** Détail des outils de l'agent IA réellement invoqués (event_type 'assistant_tool_used',
+   * voir AssistantChatUseCase.executeDataTool), classés par fréquence. */
+  async getToolUsageBreakdown(
+    instanceId: string | null,
+    startDate: Date,
+  ): Promise<ToolUsageCount[]> {
+    const instanceFilter = instanceId
+      ? Prisma.sql`AND instance_id = ${instanceId}::uuid`
+      : Prisma.empty;
+    const rows = await this.prisma.$queryRaw<{ tool: string | null; count: bigint }[]>`
+      SELECT metadata->>'tool' AS tool, COUNT(*) AS count
+      FROM analytics_events
+      WHERE event_type = 'assistant_tool_used' AND created_at >= ${startDate}
+      ${instanceFilter}
+      GROUP BY tool
+      ORDER BY count DESC
+    `;
+    return rows
+      .filter((r) => r.tool)
+      .map((r) => ({ tool: r.tool as string, count: Number(r.count) }));
   }
 
   /**

@@ -27,11 +27,27 @@ export interface OSRMTableResult {
   durations: (number | null)[][];
 }
 
+// Profils applicatifs (déjà utilisés côté frontend, ex. routing-tool.component.ts) vers les
+// variables d'env OSRM_URL_* dédiées à un conteneur mono-profil - voir env.config.ts.
+const PROFILE_URL_ENV_KEY: Record<string, 'OSRM_URL_CAR' | 'OSRM_URL_BICYCLE' | 'OSRM_URL_FOOT'> = {
+  driving: 'OSRM_URL_CAR',
+  cycling: 'OSRM_URL_BICYCLE',
+  walking: 'OSRM_URL_FOOT',
+};
+
 export class OSRMService {
   private readonly baseUrl: string;
 
   constructor() {
     this.baseUrl = config.OSRM_URL;
+  }
+
+  /** Résout l'URL du conteneur OSRM dédié à ce profil si configurée (déploiement prod
+   * multi-profils), sinon retombe sur OSRM_URL (déploiement mono-profil, dev contre le
+   * serveur de démo public qui gère déjà les 3 profils lui-même). */
+  private resolveBaseUrl(profile: string): string {
+    const envKey = PROFILE_URL_ENV_KEY[profile];
+    return (envKey && config[envKey]) || this.baseUrl;
   }
 
   // Span manuel commun aux 3 appels OSRM - l'auto-instrumentation OTel existante ne couvre que
@@ -61,7 +77,9 @@ export class OSRMService {
       if (options?.steps) params.set('steps', 'true');
       if (options?.geometries) params.set('geometries', options.geometries);
       const qs = params.toString() ? `?${params}` : '';
-      const response = await fetch(`${this.baseUrl}/route/v1/${profile}/${coordStr}${qs}`);
+      const response = await fetch(
+        `${this.resolveBaseUrl(profile)}/route/v1/${profile}/${coordStr}${qs}`,
+      );
       if (!response.ok) throw new Error(`OSRM route failed: ${response.statusText}`);
       return response.json() as Promise<OSRMRouteResult>;
     });
@@ -70,7 +88,7 @@ export class OSRMService {
   async nearest(lon: number, lat: number, number = 1): Promise<OSRMNearestResult> {
     return this.traced('osrm.nearest', async () => {
       const response = await fetch(
-        `${this.baseUrl}/nearest/v1/driving/${lon},${lat}?number=${number}`,
+        `${this.resolveBaseUrl('driving')}/nearest/v1/driving/${lon},${lat}?number=${number}`,
       );
       if (!response.ok) throw new Error(`OSRM nearest failed: ${response.statusText}`);
       return response.json() as Promise<OSRMNearestResult>;
@@ -92,7 +110,9 @@ export class OSRMService {
       params.set('sources', sources.join(';'));
       params.set('destinations', destinations.join(';'));
       params.set('annotations', 'distance,duration');
-      const response = await fetch(`${this.baseUrl}/table/v1/${profile}/${coordStr}?${params}`);
+      const response = await fetch(
+        `${this.resolveBaseUrl(profile)}/table/v1/${profile}/${coordStr}?${params}`,
+      );
       if (!response.ok) throw new Error(`OSRM table failed: ${response.statusText}`);
       return response.json() as Promise<OSRMTableResult>;
     });

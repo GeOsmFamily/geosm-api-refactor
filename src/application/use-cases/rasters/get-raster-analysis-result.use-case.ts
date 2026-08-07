@@ -7,6 +7,7 @@ export interface RasterAnalysisResultDTO {
   type: string;
   status: string;
   result: unknown;
+  narrative: string | null;
   error: string | null;
 }
 
@@ -23,6 +24,7 @@ export class GetRasterAnalysisResultUseCase {
       type: row.type,
       status: row.status,
       result: row.result,
+      narrative: row.narrative,
       error: row.error,
     };
   }

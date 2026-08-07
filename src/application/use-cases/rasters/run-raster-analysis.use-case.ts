@@ -7,7 +7,7 @@ import { createChildLogger } from '../../../infrastructure/observability/logger.
 
 const logger = createChildLogger('RunRasterAnalysisUseCase');
 
-export type RasterAnalysisType = 'global' | 'zonal';
+export type RasterAnalysisType = 'global' | 'zonal' | 'custom';
 
 export interface RunRasterAnalysisResult {
   resultId: string;
@@ -25,13 +25,21 @@ export class RunRasterAnalysisUseCase {
     private readonly queueService: QueueService,
   ) {}
 
-  async execute(layerId: string, type: RasterAnalysisType): Promise<RunRasterAnalysisResult> {
+  async execute(
+    layerId: string,
+    type: RasterAnalysisType,
+    adminLevel?: number,
+    geometry?: Record<string, unknown>,
+  ): Promise<RunRasterAnalysisResult> {
     const layer = await this.layerRepository.findById(layerId);
     if (!layer) throw new NotFoundError('Layer', layerId);
 
     const isRaster = layer.metadata?.['source'] === 'raster';
     if (!isRaster || !layer.schemaName || !layer.tableName) {
       throw new ValidationError("Cette couche n'est pas un raster analysable", {});
+    }
+    if (type === 'custom' && !geometry) {
+      throw new ValidationError("Une géométrie est requise pour une analyse de type 'custom'", {});
     }
 
     const created = await this.prisma.rasterAnalysisResult.create({
@@ -43,6 +51,8 @@ export class RunRasterAnalysisUseCase {
       layerId,
       type,
       instanceId: layer.instanceId,
+      adminLevel,
+      geometry,
     });
 
     logger.info('Raster analysis job enqueued', { resultId: created.id, layerId, type });

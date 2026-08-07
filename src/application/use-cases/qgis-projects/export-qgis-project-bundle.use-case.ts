@@ -25,7 +25,7 @@ export interface ExportQgisProjectBundleResult {
  * Empaquette un projet QGIS complet (projet + toutes les couches + leur donnée actuelle + leurs
  * styles) en une seule archive .zip téléchargeable et directement ouvrable dans QGIS Desktop -
  * contrairement au projet "live" servi par QGIS Server, ce paquet ne dépend plus de la base
- * PostGIS de GeOSM (voir export_offline_bundle.py, basé sur QgsOfflineEditing).
+ * PostGIS de GeOsm (voir export_offline_bundle.py, basé sur QgsOfflineEditing).
  */
 export class ExportQgisProjectBundleUseCase {
   constructor(

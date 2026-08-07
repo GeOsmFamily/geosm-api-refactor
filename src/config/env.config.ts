@@ -14,7 +14,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   HOST: z.string().default('0.0.0.0'),
   API_PREFIX: z.string().default('/api/v1'),
-  APP_NAME: z.string().default('GeOSM API'),
+  APP_NAME: z.string().default('GeOsm API'),
   APP_URL: z.string().url().default('http://localhost:3000'),
 
   DATABASE_URL: z.string(),
@@ -73,7 +73,15 @@ const envSchema = z.object({
   QGIS_STYLES_DIR: z.string().default('/var/www/qgis/styles'),
   DATA_DIR: z.string().default('/tmp/geosm-data'),
   NOMINATIM_URL: z.string().default('http://localhost:8081'),
+  // Repli mono-profil (dev - un seul serveur de démo public gère les 3 profils selon le
+  // segment d'URL, voir OSRMService) - une prod multi-profils définit en plus les 3 variables
+  // suivantes, chacune pointant vers son propre conteneur osrm-routed (voir
+  // docker-compose.prod.yml : osrm-car/osrm-bicycle/osrm-foot). Non définies = OSRM_URL sert
+  // les 3 profils (déploiement mono-profil existant, rétro-compatible).
   OSRM_URL: z.string().default('http://localhost:5000'),
+  OSRM_URL_CAR: z.string().optional(),
+  OSRM_URL_BICYCLE: z.string().optional(),
+  OSRM_URL_FOOT: z.string().optional(),
   // Import OSM programmé (voir ScheduledOsmImportUseCase) : chemin du fichier .osm.pbf à
   // ré-importer périodiquement (déposé manuellement/par un job externe sur ce chemin - il
   // n'existe pas de téléchargement automatique depuis Geofabrik ou l'API OSM dans ce code).
@@ -86,6 +94,10 @@ const envSchema = z.object({
   // à l'import OSM, un backup ne dépend d'aucune configuration externe pour être utile).
   BACKUP_CRON: z.string().default('0 3 * * *'),
   BACKUP_RETENTION_DAYS: z.coerce.number().default(30),
+
+  // Génération hebdomadaire de FAQ en DRAFT par instance (voir ScheduledFaqGenerationUseCase) -
+  // actif par défaut, ne dépend d'aucune configuration externe (comme le backup).
+  FAQ_GENERATION_CRON: z.string().default('0 6 * * 1'),
 
   // Google Gemini (assistant IA) - optionnel : les fonctionnalites IA sont desactivees
   // proprement (erreur explicite a l'appel, pas de crash au demarrage) si absent.

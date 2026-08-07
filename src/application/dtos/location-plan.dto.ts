@@ -15,4 +15,8 @@ export interface CreateLocationPlanDTO {
   includeGrid?: boolean;
   includeNorthArrow?: boolean;
   autoFillWithAI?: boolean;
+  /** Point de départ optionnel - si fourni (avec originLat), déclenche le calcul d'un
+   * itinéraire d'accès (OSRM + altimétrie + rédaction IA), voir CreateLocationPlanUseCase. */
+  originLon?: number;
+  originLat?: number;
 }

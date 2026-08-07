@@ -12,6 +12,7 @@ import {
 } from '../../application/use-cases/analytics/track-event.use-case.js';
 import { GetAnalyticsUseCase } from '../../application/use-cases/analytics/get-analytics.use-case.js';
 import { IncrementViewUseCase } from '../../application/use-cases/analytics/increment-view.use-case.js';
+import { GetUsageDashboardUseCase } from '../../application/use-cases/analytics/get-usage-dashboard.use-case.js';
 
 function parseBody<T>(
   schema: {
@@ -46,11 +47,19 @@ const getAnalyticsQuerySchema = z.object({
   endDate: z.coerce.date().optional(),
 });
 
+const getUsageDashboardQuerySchema = z.object({
+  instanceId: z.string().uuid().optional(),
+  days: z.coerce.number().int().min(1).max(90).default(30),
+});
+
 export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   const trackEventUseCase = app.diContainer.resolve<TrackEventUseCase>('trackEventUseCase');
   const getAnalyticsUseCase = app.diContainer.resolve<GetAnalyticsUseCase>('getAnalyticsUseCase');
   const incrementViewUseCase =
     app.diContainer.resolve<IncrementViewUseCase>('incrementViewUseCase');
+  const getUsageDashboardUseCase = app.diContainer.resolve<GetUsageDashboardUseCase>(
+    'getUsageDashboardUseCase',
+  );
 
   // POST /api/v1/analytics/track
   // authenticateOptional (et non authenticate) : la route reste utilisable sans être connecté
@@ -117,6 +126,29 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
       const { instanceId, startDate, endDate } = parseBody(getAnalyticsQuerySchema, request.query);
       const stats = await getAnalyticsUseCase.execute(instanceId, startDate, endDate);
       return reply.send(successResponse(stats));
+    },
+  );
+
+  // GET /api/v1/analytics/usage-dashboard (admin) - voir plan "tableau de bord analytique"
+  // du 2026-08-05. instanceId omis = vue plateforme (SUPER_ADMIN uniquement, en pratique un
+  // ADMIN_INSTANCE fournira toujours le sien - même posture que instance.routes.ts, qui ne
+  // vérifie pas non plus l'appartenance de l'instance au-delà du rôle).
+  app.get(
+    '/usage-dashboard',
+    {
+      schema: {
+        description: "Tableau de bord d'usage de la plateforme (admin)",
+        tags: ['Analytiques'],
+        security: [{ bearerAuth: [] }],
+        querystring: zodToSwagger(getUsageDashboardQuerySchema),
+      },
+      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { instanceId, days } = parseBody(getUsageDashboardQuerySchema, request.query);
+      const lang = (request.headers['accept-language'] as string | undefined)?.slice(0, 2) ?? 'fr';
+      const dashboard = await getUsageDashboardUseCase.execute(instanceId ?? null, days, lang);
+      return reply.send(successResponse(dashboard));
     },
   );
 }

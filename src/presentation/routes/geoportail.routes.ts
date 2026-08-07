@@ -15,6 +15,7 @@ import { SummarizeViewportUseCase } from '../../application/use-cases/geoportail
 import { SearchBoundariesUseCase } from '../../application/use-cases/geoportail/search-boundaries.use-case.js';
 import { GetBoundaryUseCase } from '../../application/use-cases/geoportail/get-boundary.use-case.js';
 import { ImportBoundariesUseCase } from '../../application/use-cases/geoportail/import-boundaries.use-case.js';
+import { FindAdminBoundariesByLevelUseCase } from '../../application/use-cases/geoportail/find-admin-boundaries-by-level.use-case.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { Role } from '../../domain/enums.js';
 import { randomUUID } from 'crypto';
@@ -50,10 +51,29 @@ const layerIdParamSchema = z.object({ layerId: z.string().uuid() });
 
 const layerStatsQuerySchema = z.object({
   narrative: z.coerce.boolean().optional().default(false),
+  // "Zone visible" au lieu de toute la couche - voir plan "refonte Statistiques" du
+  // 2026-08-05, même format que GET /layers/:id/features (comma-separated).
+  bbox: z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (!v) return undefined;
+      const parts = v.split(',').map(Number);
+      if (parts.length !== 4 || parts.some(isNaN)) return undefined;
+      return parts as unknown as [number, number, number, number];
+    }),
 });
 
 const summarizeViewBodySchema = z.object({
   layerIds: z.array(z.string().uuid()).min(1).max(50),
+  // Restreint l'agrégation à l'emprise visible sur la carte au lieu de toute la couche - voir
+  // MapService.getCurrentExtent(), même paramètre que analyze_map_context côté assistant IA
+  // (plan "refonte Statistiques" du 2026-08-05, section G : le panneau Statistiques appelle
+  // directement ce même endpoint plutôt que de dupliquer la logique via le chat).
+  extent: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional(),
+  // Zone dessinée à la main - prime sur `extent` quand fournie (voir
+  // StatisticsToolComponent.startDrawZoneForMultiLayer côté frontend).
+  geometry: z.record(z.string(), z.unknown()).optional(),
 });
 
 const adminBoundaryQuerySchema = z.object({
@@ -119,6 +139,8 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
   const summarizeViewportUseCase = app.diContainer.resolve<SummarizeViewportUseCase>(
     'summarizeViewportUseCase',
   );
+  const findAdminBoundariesByLevelUseCase =
+    app.diContainer.resolve<FindAdminBoundariesByLevelUseCase>('findAdminBoundariesByLevelUseCase');
 
   // POST /api/v1/geoportail/altitude
   app.post(
@@ -203,8 +225,13 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { layerId } = parseBody(layerIdParamSchema, request.params);
-      const { narrative } = parseBody(layerStatsQuerySchema, request.query);
-      const stats = await getLayerStatsUseCase.execute(layerId, narrative, resolveLang(request));
+      const { narrative, bbox } = parseBody(layerStatsQuerySchema, request.query);
+      const stats = await getLayerStatsUseCase.execute(
+        layerId,
+        narrative,
+        resolveLang(request),
+        bbox,
+      );
       return reply.send(successResponse(stats));
     },
   );
@@ -225,8 +252,13 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
       preHandler: [app.authenticate],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const { layerIds } = parseBody(summarizeViewBodySchema, request.body);
-      const summary = await summarizeViewportUseCase.execute(layerIds);
+      const { layerIds, extent, geometry } = parseBody(summarizeViewBodySchema, request.body);
+      const summary = await summarizeViewportUseCase.execute(
+        layerIds,
+        resolveLang(request),
+        extent,
+        geometry,
+      );
       return reply.send(successResponse(summary));
     },
   );
@@ -287,6 +319,27 @@ export async function geoportailRoutes(app: FastifyInstance): Promise<void> {
       const { table, q, limit } = parseBody(searchBoundariesQuerySchema, request.query);
       const results = await searchBoundariesUseCase.execute(table, q, limit);
       return reply.send(successResponse(results));
+    },
+  );
+
+  // GET /api/v1/geoportail/instances/:id/admin-levels - niveaux administratifs (admin_level)
+  // réellement disponibles pour une instance, indépendamment de Instance.adminLevel qui peut
+  // être vide (ex. l'instance racine "Cameroun") - alimente le sélecteur de niveau du panneau
+  // Statistiques raster "par zone" (voir FindAdminBoundariesByLevelUseCase.findAvailableLevels).
+  app.get(
+    '/instances/:id/admin-levels',
+    {
+      schema: {
+        description: 'Lister les niveaux administratifs disponibles pour une instance',
+        tags: ['Geoportail'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = parseBody(z.object({ id: z.string().uuid() }), request.params);
+      const levels = await findAdminBoundariesByLevelUseCase.findAvailableLevels(id);
+      return reply.send(successResponse(levels));
     },
   );
 

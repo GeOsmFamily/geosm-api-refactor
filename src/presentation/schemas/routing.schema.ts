@@ -21,6 +21,14 @@ export const nearestFeatureQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(10).optional().default(3),
 });
 
+export const isochroneQuerySchema = z.object({
+  lon: z.coerce.number().min(-180).max(180),
+  lat: z.coerce.number().min(-90).max(90),
+  profile: z.string().optional().default('driving'),
+  minutes: z.coerce.number().positive().max(180),
+});
+
 export type RouteQuery = z.infer<typeof routeQuerySchema>;
 export type NearestQuery = z.infer<typeof nearestQuerySchema>;
 export type NearestFeatureQuery = z.infer<typeof nearestFeatureQuerySchema>;
+export type IsochroneQuery = z.infer<typeof isochroneQuerySchema>;
