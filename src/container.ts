@@ -122,6 +122,7 @@ import { CreateLocationPlanUseCase } from './application/use-cases/location-plan
 import { GetLocationPlanUseCase } from './application/use-cases/location-plans/get-location-plan.use-case.js';
 import { GenerateAnalysisReportUseCase } from './application/use-cases/reports/generate-analysis-report.use-case.js';
 import { GetAnalysisReportUseCase } from './application/use-cases/reports/get-analysis-report.use-case.js';
+import { ListMyAnalysisReportsUseCase } from './application/use-cases/reports/list-my-analysis-reports.use-case.js';
 import { RateAnalysisReportUseCase } from './application/use-cases/reports/rate-analysis-report.use-case.js';
 import { ReportRendererService } from './infrastructure/pdf/report-renderer.service.js';
 
@@ -476,6 +477,7 @@ interface Cradle {
   reportRendererService: ReportRendererService;
   generateAnalysisReportUseCase: GenerateAnalysisReportUseCase;
   getAnalysisReportUseCase: GetAnalysisReportUseCase;
+  listMyAnalysisReportsUseCase: ListMyAnalysisReportsUseCase;
   rateAnalysisReportUseCase: RateAnalysisReportUseCase;
   // Geocoding
   searchGeocodingUseCase: SearchGeocodingUseCase;
@@ -1134,6 +1136,10 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     getAnalysisReportUseCase: asFunction((c: Cradle) => new GetAnalysisReportUseCase(c.prisma), {
       lifetime: Lifetime.SCOPED,
     }),
+    listMyAnalysisReportsUseCase: asFunction(
+      (c: Cradle) => new ListMyAnalysisReportsUseCase(c.prisma),
+      { lifetime: Lifetime.SCOPED },
+    ),
     rateAnalysisReportUseCase: asFunction((c: Cradle) => new RateAnalysisReportUseCase(c.prisma), {
       lifetime: Lifetime.SCOPED,
     }),
