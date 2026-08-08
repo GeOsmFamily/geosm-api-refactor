@@ -5,6 +5,7 @@ import { ValidationError } from '../../domain/errors/validation.error.js';
 import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { GenerateAnalysisReportUseCase } from '../../application/use-cases/reports/generate-analysis-report.use-case.js';
 import { GetAnalysisReportUseCase } from '../../application/use-cases/reports/get-analysis-report.use-case.js';
+import { ListMyAnalysisReportsUseCase } from '../../application/use-cases/reports/list-my-analysis-reports.use-case.js';
 import { RateAnalysisReportUseCase } from '../../application/use-cases/reports/rate-analysis-report.use-case.js';
 import type { MinioStorageService } from '../../infrastructure/storage/minio.service.js';
 
@@ -51,6 +52,9 @@ export async function analysisReportRoutes(app: FastifyInstance): Promise<void> 
   const getAnalysisReportUseCase = app.diContainer.resolve<GetAnalysisReportUseCase>(
     'getAnalysisReportUseCase',
   );
+  const listMyAnalysisReportsUseCase = app.diContainer.resolve<ListMyAnalysisReportsUseCase>(
+    'listMyAnalysisReportsUseCase',
+  );
   const rateAnalysisReportUseCase = app.diContainer.resolve<RateAnalysisReportUseCase>(
     'rateAnalysisReportUseCase',
   );
@@ -82,6 +86,26 @@ export async function analysisReportRoutes(app: FastifyInstance): Promise<void> 
         geometry,
       );
       return reply.status(202).send(successResponse(result));
+    },
+  );
+
+  // Historique des rapports de l'utilisateur courant - voir ListMyAnalysisReportsUseCase pour
+  // le pourquoi (le tiroir de tâches en temps réel n'est pas une source de vérité fiable, un
+  // rapport généré pendant une coupure WebSocket restait invisible malgré un succès serveur).
+  app.get(
+    '/',
+    {
+      schema: {
+        description: "Lister mes rapports d'analyse récents",
+        tags: ["Rapports d'analyse"],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.user!.sub;
+      const result = await listMyAnalysisReportsUseCase.execute(userId);
+      return reply.send(successResponse(result));
     },
   );
 

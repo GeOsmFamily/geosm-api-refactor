@@ -22,6 +22,10 @@ const envSchema = z.object({
   REDIS_HOST: z.string().default('localhost'),
   REDIS_PORT: z.coerce.number().default(6379),
   REDIS_PASSWORD: z.string().default(''),
+  // Index de base logique Redis (0-15) - permet de partager une seule instance Redis entre
+  // plusieurs projets locaux sans collision de clés, voir plan "Redis + MinIO partagés entre
+  // tous les projets locaux" du 2026-08-07. Défaut 0 = comportement inchangé pour un Redis dédié.
+  REDIS_DB: z.coerce.number().int().min(0).max(15).default(0),
 
   JWT_ACCESS_SECRET: z.string(),
   JWT_REFRESH_SECRET: z.string(),
