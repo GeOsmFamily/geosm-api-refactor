@@ -2,14 +2,18 @@ import type { Job } from 'bullmq';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { logger } from '../../observability/logger.js';
 import type { IInstanceRepository } from '../../../domain/repositories/instance.repository.js';
+import type { IBaseMapRepository } from '../../../domain/repositories/base-map.repository.js';
+import { BaseMapType } from '../../../domain/enums.js';
 import type {
   SummarizeViewportUseCase,
   LayerSummaryEntry,
 } from '../../../application/use-cases/geoportail/summarize-viewport.use-case.js';
 import { formatLayerForPrompt } from '../../../application/use-cases/geoportail/summarize-viewport.use-case.js';
+import type { ReverseGeocodingUseCase } from '../../../application/use-cases/geocoding/reverse-geocoding.use-case.js';
 import type { GeminiService } from '../../external-apis/gemini.service.js';
 import type { ReportRendererService } from '../../pdf/report-renderer.service.js';
-import { buildReportHtml } from '../../pdf/report-template.js';
+import { buildReportHtml, resolveZoneBbox } from '../../pdf/report-template.js';
+import type { ZoneBasemapService, ZoneBasemapResult } from '../../pdf/zone-basemap.service.js';
 import { localize } from '../../../application/utils/localize.js';
 
 export interface AnalysisReportJobData {
@@ -25,7 +29,10 @@ export interface AnalysisReportJobData {
 type AnalysisReportWorkerDeps = {
   prisma: PrismaClient;
   instanceRepository: IInstanceRepository;
+  baseMapRepository: IBaseMapRepository;
   summarizeViewportUseCase: SummarizeViewportUseCase;
+  reverseGeocodingUseCase: ReverseGeocodingUseCase;
+  zoneBasemapService: ZoneBasemapService;
   geminiService: GeminiService;
   reportRendererService: ReportRendererService;
   storageService: {
@@ -33,6 +40,61 @@ type AnalysisReportWorkerDeps = {
   };
   notificationService: { notifyUser: (userId: string, event: string, data: unknown) => void };
 };
+
+const SUPPORTED_BASEMAP_TYPES = new Set<string>([BaseMapType.XYZ, BaseMapType.WMS]);
+
+/** Nom de lieu + fond de carte réel pour la section "Zone analysée" (voir report-template.ts) -
+ * jamais bloquant : une erreur de géocodage ou de récupération du fond de carte ne doit jamais
+ * faire échouer la génération du rapport, elle dégrade juste cette section (contour schématique
+ * de secours, ou pas de nom de lieu affiché) - même philosophie que le repli Gemini ci-dessous. */
+async function resolveZoneContext(
+  deps: Pick<
+    AnalysisReportWorkerDeps,
+    'baseMapRepository' | 'reverseGeocodingUseCase' | 'zoneBasemapService'
+  >,
+  instanceId: string,
+  bbox: [number, number, number, number],
+  reportId: string,
+): Promise<{
+  placeName: string | null;
+  basemap: ZoneBasemapResult | null;
+  basemapAttribution: string | null;
+}> {
+  const [minLon, minLat, maxLon, maxLat] = bbox;
+  const centerLon = (minLon + maxLon) / 2;
+  const centerLat = (minLat + maxLat) / 2;
+
+  let placeName: string | null = null;
+  try {
+    const result = await deps.reverseGeocodingUseCase.execute(centerLat, centerLon);
+    placeName = result.display_name;
+  } catch (error) {
+    logger.warn('Géocodage inverse indisponible pour le rapport (nom de lieu omis)', {
+      reportId,
+      error: error instanceof Error ? error.message : error,
+    });
+  }
+
+  let basemap: ZoneBasemapResult | null = null;
+  let basemapAttribution: string | null = null;
+  try {
+    const instanceBasemaps = await deps.baseMapRepository.findByInstance(instanceId);
+    const candidates =
+      instanceBasemaps.length > 0 ? instanceBasemaps : await deps.baseMapRepository.findDefaults();
+    const chosen = candidates.find((b) => SUPPORTED_BASEMAP_TYPES.has(b.type));
+    if (chosen) {
+      basemap = await deps.zoneBasemapService.fetchForZone(bbox, chosen);
+      if (basemap) basemapAttribution = chosen.attribution;
+    }
+  } catch (error) {
+    logger.warn('Fond de carte indisponible pour le rapport (contour schématique utilisé)', {
+      reportId,
+      error: error instanceof Error ? error.message : error,
+    });
+  }
+
+  return { placeName, basemap, basemapAttribution };
+}
 
 /** Rapport plus long/structuré que la synthèse courte du chat (SummarizeViewportUseCase) -
  * même esprit "croiser les couches, pas les lister", mais avec des sections explicites
@@ -107,12 +169,22 @@ export function createAnalysisReportProcessor(deps: AnalysisReportWorkerDeps) {
         progress: 70,
       });
 
+      const bbox = resolveZoneBbox(extent, geometry);
+      const { placeName, basemap, basemapAttribution } = bbox
+        ? await resolveZoneContext(deps, instanceId, bbox, reportId)
+        : { placeName: null, basemap: null, basemapAttribution: null };
+
       const html = buildReportHtml({
         topic,
         instanceName,
         generatedAt: new Date(),
         perLayer: summary.perLayer,
         narrative,
+        extent,
+        geometry,
+        placeName,
+        basemap,
+        basemapAttribution,
       });
       const pdfBuffer = await deps.reportRendererService.renderHtmlToPdf(html);
 
