@@ -394,9 +394,11 @@ sudo a2enmod proxy proxy_http proxy_wstunnel headers rewrite ssl
 sudo systemctl restart apache2
 ```
 
-`proxy_wstunnel` n'est pas strictement necessaire aujourd'hui (aucune fonctionnalite front-end
-n'utilise le canal WebSocket cote client actuellement), mais l'activer par defaut evite une
-etape de configuration oubliee le jour ou ce sera le cas.
+`proxy_wstunnel` est **necessaire** : le tiroir de notifications/taches du front-end (avancement
+des exports, plans de localisation, rapports d'analyse IA) est pousse en temps reel via
+WebSocket (`/ws/`, voir `NotificationService` cote API). Un incident de production a deja ete
+cause par l'absence de ce module + du bloc nginx correspondant (voir note ci-dessous) : le canal
+WS echouait silencieusement, laissant le tiroir de taches vide sans erreur explicite cote client.
 
 **2. Definir `FRONTEND_PORT` dans `.env`** (le port interne que nginx, dans le conteneur
 `frontend`, va publier sur le VPS - Apache doit cibler ce meme port) :
@@ -432,6 +434,16 @@ FRONTEND_PORT=8080
     CustomLog ${APACHE_LOG_DIR}/geosm-access.log combined
 </VirtualHost>
 ```
+
+**Important - cote nginx du conteneur `frontend`, pas seulement Apache** : le `RewriteRule`
+ci-dessus ne fait que relayer la requete WS jusqu'au port 8080 (nginx, dans le conteneur
+`frontend`) ; il faut EN PLUS que le `nginx.conf` du depot frontend definisse un bloc
+`location ^~ /ws/` qui relaie vers l'API (`http://api:3000`) avec `proxy_http_version 1.1` et les
+en-tetes `Upgrade`/`Connection: upgrade`, sans quoi nginx n'a nulle part ou router la requete une
+fois recue (c'est exactement la cause de l'incident mentionne plus haut - le `RewriteRule`
+Apache etait deja correct, seul ce bloc nginx manquait). Verifier apres tout redeploiement du
+frontend que ce bloc est bien present dans l'image (`docker exec <conteneur-frontend> cat
+/etc/nginx/conf.d/default.conf | grep -A5 '/ws/'`).
 
 ```bash
 sudo a2ensite geosm.app.conf

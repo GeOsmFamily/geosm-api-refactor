@@ -254,9 +254,18 @@ async function bootstrap(): Promise<void> {
       instanceRepository: app.diContainer.resolve(
         'instanceRepository',
       ) as import('./domain/repositories/instance.repository.js').IInstanceRepository,
+      baseMapRepository: app.diContainer.resolve(
+        'baseMapRepository',
+      ) as import('./domain/repositories/base-map.repository.js').IBaseMapRepository,
       summarizeViewportUseCase: app.diContainer.resolve(
         'summarizeViewportUseCase',
       ) as import('./application/use-cases/geoportail/summarize-viewport.use-case.js').SummarizeViewportUseCase,
+      reverseGeocodingUseCase: app.diContainer.resolve(
+        'reverseGeocodingUseCase',
+      ) as import('./application/use-cases/geocoding/reverse-geocoding.use-case.js').ReverseGeocodingUseCase,
+      zoneBasemapService: app.diContainer.resolve(
+        'zoneBasemapService',
+      ) as import('./infrastructure/pdf/zone-basemap.service.js').ZoneBasemapService,
       geminiService: app.diContainer.resolve(
         'geminiService',
       ) as import('./infrastructure/external-apis/gemini.service.js').GeminiService,

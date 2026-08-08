@@ -125,6 +125,7 @@ import { GetAnalysisReportUseCase } from './application/use-cases/reports/get-an
 import { ListMyAnalysisReportsUseCase } from './application/use-cases/reports/list-my-analysis-reports.use-case.js';
 import { RateAnalysisReportUseCase } from './application/use-cases/reports/rate-analysis-report.use-case.js';
 import { ReportRendererService } from './infrastructure/pdf/report-renderer.service.js';
+import { ZoneBasemapService } from './infrastructure/pdf/zone-basemap.service.js';
 
 // Geocoding use cases
 import { SearchGeocodingUseCase } from './application/use-cases/geocoding/search-geocoding.use-case.js';
@@ -475,6 +476,7 @@ interface Cradle {
   createLocationPlanUseCase: CreateLocationPlanUseCase;
   getLocationPlanUseCase: GetLocationPlanUseCase;
   reportRendererService: ReportRendererService;
+  zoneBasemapService: ZoneBasemapService;
   generateAnalysisReportUseCase: GenerateAnalysisReportUseCase;
   getAnalysisReportUseCase: GetAnalysisReportUseCase;
   listMyAnalysisReportsUseCase: ListMyAnalysisReportsUseCase;
@@ -1127,6 +1129,9 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
 
     // Analysis reports (rapports IA en PDF, voir plan "refonte Statistiques" du 2026-08-05)
     reportRendererService: asFunction(() => new ReportRendererService(), {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    zoneBasemapService: asFunction(() => new ZoneBasemapService(), {
       lifetime: Lifetime.SINGLETON,
     }),
     generateAnalysisReportUseCase: asFunction(

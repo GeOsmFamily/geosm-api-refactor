@@ -43,6 +43,7 @@
 37. [Geosignets (Signets de Carte)](#37-geosignets-signets-de-carte)
 38. [Sauvegardes Automatiques de la Base de Donnees](#38-sauvegardes-automatiques-de-la-base-de-donnees)
 39. [Bouton "Infos" et Formulaire de Signalement](#39-bouton-infos-et-formulaire-de-signalement)
+40. [Rapports d'Analyse IA (PDF)](#40-rapports-danalyse-ia-pdf)
 
 ---
 
@@ -522,6 +523,21 @@ POST /api/v1/instances/:instanceId/layers
   "subGroupId": "uuid-sous-groupe-education"
 }
 ```
+
+> **Assistant de creation de couche (multi-source)** : cote front-end, la creation manuelle
+> ci-dessus est aussi accessible via un assistant guide (`layer-creation-wizard`) qui propose
+> 3 sources de donnees au choix :
+> - **Fichier** : upload direct (Shapefile zippe, GeoJSON, GPKG...), voir section 10 (Import de
+>   Donnees).
+> - **Extraction OSM** : requete Overpass sur une zone/des tags donnes, materialisee en table
+>   PostGIS (`POST /api/v1/osm/create-table`, voir section 7).
+> - **Projet QGIS** : upload d'un `.qgz`/`.zip` et publication (totale ou selective) des couches
+>   qu'il expose via son propre WMS, sans creer de table PostGIS geree par GeOsm (voir section 11,
+>   `POST /api/v1/instances/:instanceId/qgis-project/upload` et endpoints associes).
+>
+> Quelle que soit la source, l'assistant propose ensuite un choix de style (couleur + icone parmi
+> un catalogue d'icones generiques, voir `GET /api/v1/admin/icons/catalog` et
+> `POST /api/v1/admin/icons/generate`, section 29.4).
 
 ### 5.4 Mise a Jour d'une Couche
 
@@ -1128,9 +1144,17 @@ Integration du service OSRM (Open Source Routing Machine) pour le calcul d'itine
 **Cas d'usage** : L'utilisateur trace un itineraire de Douala a Yaounde et voit la distance (240 km), la duree estimee et le trace sur la carte.
 
 **Implementation technique** :
-- Route : `GET /api/v1/routing/route?coordinates=9.7,4.05;11.52,3.87&profile=car&alternatives=true&steps=true` (`routing.routes.ts`)
+- Route : `GET /api/v1/routing/route?coordinates=9.7,4.05;11.52,3.87&profile=driving&alternatives=true&steps=true` (`routing.routes.ts`)
 - Use case : `CalculateRouteUseCase` -> `OSRMService.route()`
 - Service : requete HTTP vers l'instance OSRM configuree
+
+> **Multi-profils** : `profile` accepte `driving` (defaut), `cycling` ou `walking` (memes noms que
+> les profils OSRM standards). Chaque profil pointe vers sa **propre** instance OSRM (graphe de
+> routage construit avec un profil Lua different), configuree separement via
+> `OSRM_URL_CAR`/`OSRM_URL_BICYCLE`/`OSRM_URL_FOOT` (voir README) - `OSRMService.resolveBaseUrl()`
+> retombe sur `OSRM_URL` (profil unique) si la variable dediee au profil demande n'est pas
+> definie, pour rester compatible avec un deploiement mono-profil (ex. contre un serveur de
+> demonstration public qui gere deja les 3 profils lui-meme).
 
 ### 15.2 Point le Plus Proche
 
@@ -1773,6 +1797,64 @@ Voir [Section 7.1 - Import des Donnees OSM Brutes](#71-import-des-donnees-osm-br
 - Queue : `scheduled-osm-import`, cron configurable via `OSM_IMPORT_CRON` (defaut `0 2 1 * *` -- le 1er de chaque mois a 02h00)
 - Use case : `ScheduledOsmImportUseCase` (`application/use-cases/admin/scheduled-osm-import.use-case.ts`) -> `ImportOsmDataUseCase.execute({ pbfPath, append: true })` -> pour chaque instance active, pour chaque couche, `ResyncLayerUseCase.execute()` (les couches non derivees d'OSM par defaut sont ignorees sans erreur bloquante)
 - Worker : `createScheduledOsmImportProcessor` (`infrastructure/queue/workers/scheduled-osm-import.worker.ts`)
+
+### 29.11 Fraicheur des Couches et Reindexation
+
+**Description** : `GET /api/v1/admin/layers/freshness` retourne un rapport de fraicheur pour
+toutes les couches de toutes les instances (date de derniere synchronisation vs source, couches
+potentiellement perimees) - vue d'ensemble plutot que de verifier couche par couche (voir
+section 5.8). `POST /api/v1/admin/search/reindex-layers` reindexe toutes les couches de toutes
+les instances dans MeiliSearch, pour rattraper un index desynchronise sans devoir resynchroniser
+chaque couche individuellement.
+
+- Route : `GET /api/v1/admin/layers/freshness` (SUPER_ADMIN)
+- Route : `POST /api/v1/admin/search/reindex-layers` (SUPER_ADMIN)
+
+### 29.12 Catalogue d'Icones et Apercu Base de Donnees
+
+**Description** : `GET /api/v1/admin/icons/catalog` liste le catalogue d'icones generiques
+disponibles (utilise par le selecteur d'icones de l'assistant de creation de couche, voir section
+5.3) - complementaire a la generation d'icones SVG a la volee (section 29.4).
+`GET /api/v1/admin/database/overview` retourne la taille totale de la base et la liste des tables
+(tous schemas) triee par taille, pour reperer les tables volumineuses ou orphelines.
+`POST /api/v1/admin/database/purge-orphan-tables` supprime **definitivement** les tables PostGIS
+orphelines (non liees a aucune couche ni instance active) - operation irreversible, reservee au
+super-admin, a utiliser apres verification via l'apercu ci-dessus.
+
+- Route : `GET /api/v1/admin/icons/catalog` (SUPER_ADMIN, ADMIN_INSTANCE, EDITOR)
+- Route : `GET /api/v1/admin/database/overview` (SUPER_ADMIN)
+- Route : `POST /api/v1/admin/database/purge-orphan-tables` (SUPER_ADMIN)
+
+### 29.13 Moderation de Contenu (Commentaires, Signalements, FAQ)
+
+**Description** : Trois files de moderation distinctes de leurs equivalents "usage normal" :
+
+- **Commentaires** (`/api/v1/admin/comments`, SUPER_ADMIN/ADMIN_INSTANCE) : lister pour
+  moderation (filtres `flagged`/`resolved`/`reportType`), signaler/lever un signalement, trancher
+  un signalement citoyen structure (`POST /:id/review`, approuve/refuse), supprimer. Distinct de
+  `/api/v1/comments` (creer/repondre/resoudre/supprimer son propre commentaire, usage utilisateur
+  normal).
+- **Signalements utilisateur** (`/api/v1/admin/feedback`, SUPER_ADMIN/ADMIN_INSTANCE) : suivi des
+  signalements bug/suggestion/demande de fonctionnalite soumis via le bouton "Infos" (voir
+  section 39) - lister avec filtres type/statut, mettre a jour le statut (`NEW`/`REVIEWED`/
+  `CLOSED`) avec note admin.
+- **FAQ generees par IA** (`/api/v1/instances/:instanceId/faq/admin`, SUPER_ADMIN/
+  ADMIN_INSTANCE/EDITOR) : une FAQ generee automatiquement (job `faq-generation`, voir
+  `GenerateInstanceFaqUseCase`) reste `DRAFT` et n'est jamais visible publiquement avant revue -
+  elle peut refleter des questions sensibles posees par de vrais visiteurs. Lister les FAQ en
+  attente de revue pour une instance, publier ou refuser (`POST /:id/review`).
+
+### 29.14 Supervision Docker (Lecture Seule)
+
+**Description** : Visibilite en lecture seule de l'infrastructure Docker (conteneurs, stats
+CPU/memoire, logs) - decision produit deliberee : **aucune** action de cycle de vie (start/stop/
+restart) n'est exposee. Passe par `docker-socket-proxy` plutot que le socket Docker brut, pour
+limiter la surface d'attaque meme en lecture. Reserve a SUPER_ADMIN (l'infrastructure est
+globale, pas scopee par instance, contrairement au reste de l'administration).
+
+- Route : `GET /api/v1/admin/docker/containers` (SUPER_ADMIN) -- liste
+- Route : `GET /api/v1/admin/docker/containers/:id/stats` (SUPER_ADMIN) -- CPU/memoire
+- Route : `GET /api/v1/admin/docker/containers/:id/logs?tail=200` (SUPER_ADMIN) -- derniers logs
 - Enregistrement : au demarrage du serveur (`server.ts`), pas via une route HTTP
 - Verification de l'enregistrement (introspection BullMQ) : `QueueService.getRepeatableJobs('scheduled-osm-import')`, ou directement via Redis : `redis-cli KEYS "bull:scheduled-osm-import:repeat:*"`
 
@@ -2086,6 +2168,86 @@ Bouton "Infos" dans le header du geoportail, ouvrant un panneau avec les credits
 
 - Script : `npm run generate:guide` (frontend) -> `scripts/generate-guide.mjs`
 - Fichiers servis statiquement : `assets/docs/geosm-guide-fr.pdf`, `assets/docs/geosm-guide-en.pdf`
+
+---
+
+## 40. Rapports d'Analyse IA (PDF)
+
+Rapport d'analyse structure et redige par IA, en PDF, sur un sujet libre croisant plusieurs
+couches actives sur une zone donnee - complementaire a la synthese courte du chat (section 36) et
+aux plans de localisation (section 35), mais pour un document autonome plus long, avec sections
+explicites (contexte, methode, resultats, conclusion). Declenchable directement via l'API ou
+via l'outil `generate_analysis_report` de l'assistant IA.
+
+### 40.1 Generation d'un Rapport
+
+**Description** : Genere un rapport d'analyse IA en PDF de maniere asynchrone (job BullMQ), sur
+un sujet donne, a partir de plusieurs couches actives et d'une zone (emprise carte ou geometrie
+dessinee a la main). La progression est poussee en temps reel via WebSocket (voir section 30).
+
+**Cas d'usage** : Un utilisateur trace une zone d'etude sur la carte, active les couches
+"Ecoles", "Hopitaux" et "Population", saisit le sujet "Acces aux services de base" et genere un
+rapport PDF qui croise ces couches (ex. ratio habitants par etablissement) plutot que de les
+lister separement.
+
+**Implementation technique** :
+- Route : `POST /api/v1/analysis-reports` (authentifie)
+- Use case : `GenerateAnalysisReportUseCase` -> cree la ligne `AnalysisReport` (statut `PENDING`)
+  -> `QueueService.addJob('analysis-report', 'generate', ...)`
+- Worker : `createAnalysisReportProcessor` (`infrastructure/queue/workers/analysis-report.worker.ts`)
+  -> `SummarizeViewportUseCase` (agregation des couches sur la zone) -> `GeminiService` (redaction
+  longue, avec repli sur la synthese courte si Gemini echoue) -> `buildReportHtml` ->
+  `ReportRendererService` (Puppeteer/Chromium, HTML -> PDF) -> upload MinIO
+
+### 40.2 Section "Zone Analysee" (Nom de Lieu + Fond de Carte Reel)
+
+**Description** : Le PDF inclut une section montrant concretement la zone etudiee, pas
+seulement des coordonnees brutes : un nom de lieu lisible (geocodage inverse sur le centre de la
+zone) et un vrai fond de carte avec le contour de la zone dessine par-dessus, pour que le lecteur
+puisse reconnaitre le secteur.
+
+**Implementation technique** :
+- Nom de lieu : `ReverseGeocodingUseCase` -> `NominatimService.reverse()` (Nominatim self-hoste,
+  voir section 14) sur le centre de la bbox/geometrie - jamais bloquant, le rapport part sans nom
+  de lieu si le geocodage echoue.
+- Fond de carte : `ZoneBasemapService` (`infrastructure/pdf/zone-basemap.service.ts`) recupere le
+  fond de carte par defaut de l'instance (voir section 27) et :
+  - **XYZ** (ex. OpenStreetMap) : mosaique de tuiles Web Mercator autour de la zone, assemblees et
+    rognees cote client PDF (CSS, via Chromium) plutot que par composition d'image cote serveur
+    (aucune bibliotheque d'image type `sharp` installee dans ce projet).
+  - **WMS** : une seule requete `GetMap` dimensionnee exactement sur la bbox (pas de tuilage).
+  - **WMTS/MAPBOX** : non supporte, repli automatique sur le contour schematique (voir ci-dessous).
+- Repli : si aucun fond de carte n'est recuperable (echec reseau, type non supporte, aucun fond de
+  carte configure), le rapport part quand meme avec un contour schematique simple (polygone sur
+  fond neutre) plutot que d'echouer entierement - meme philosophie "jamais bloquant" que le repli
+  Gemini ci-dessus.
+
+### 40.3 Section "Repartition des Donnees"
+
+**Description** : Graphique en barres montrant la part de chaque couche vectorielle dans le total
+d'entites analysees (ex. 65% de routes, 25% d'ecoles, 10% d'hopitaux). Les couches raster sont
+listees a part (agregats continus min/max/moyenne/somme, pas d'"entites" comparables a un compte
+brut) plutot que d'etre forcees dans le meme pourcentage.
+
+- Implementation : `buildDistributionChart` (`infrastructure/pdf/report-template.ts`)
+
+### 40.4 Historique Persiste ("Mes Rapports")
+
+**Description** : Le tiroir de taches temps reel (WebSocket) ne montre que les evenements recus
+pendant que l'onglet est ouvert - un rapport termine pendant une deconnexion WebSocket y reste
+invisible bien que genere avec succes cote serveur. Une liste "Mes rapports recents", persistee
+en base et interrogeable a la demande, sert de filet de securite independant du canal temps reel.
+
+- Route : `GET /api/v1/analysis-reports` (authentifie, rapports de l'utilisateur courant
+  uniquement)
+- Use case : `ListMyAnalysisReportsUseCase`
+
+### 40.5 Telechargement et Notation
+
+- Route : `GET /api/v1/analysis-reports/:id/download` (authentifie) -- flux PDF
+- Route : `POST /api/v1/analysis-reports/:id/rate` (authentifie, reserve a l'auteur du rapport) --
+  note +1/-1 avec commentaire optionnel (voir plan "Gouvernance citoyenne & qualite IA")
+- Use case : `RateAnalysisReportUseCase`
 
 ---
 
