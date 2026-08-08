@@ -225,6 +225,7 @@ Toutes les variables sont validees au demarrage avec Zod. Les variables sans val
 | `REDIS_HOST` | Hote Redis | `localhost` | Non |
 | `REDIS_PORT` | Port Redis | `6379` | Non |
 | `REDIS_PASSWORD` | Mot de passe Redis | `""` | Non |
+| `REDIS_DB` | Index de base logique Redis (0-15) - permet de partager une seule instance Redis entre plusieurs projets locaux sans collision (ex: `1` pour GeOSM, chaque autre projet local avec son propre index) | `0` | Non |
 
 ### Authentification JWT
 
@@ -289,7 +290,10 @@ Toutes les variables sont validees au demarrage avec Zod. Les variables sans val
 | `QGIS_STYLES_DIR` | Repertoire des fichiers de styles QGIS | `/var/www/qgis/styles` | Non |
 | `DATA_DIR` | Repertoire temporaire de donnees | `/tmp/geosm-data` | Non |
 | `NOMINATIM_URL` | URL du service de geocodage Nominatim | `http://localhost:8081` | Non |
-| `OSRM_URL` | URL du service de routage OSRM | `http://localhost:5000` | Non |
+| `OSRM_URL` | URL de repli du service de routage OSRM (profil unique, ancien format) | `http://localhost:5000` | Non |
+| `OSRM_URL_CAR` | URL OSRM du profil voiture (voir `docs/deploiement.md` pour la config multi-profils) | `http://localhost:5000` | Non |
+| `OSRM_URL_BICYCLE` | URL OSRM du profil velo | - | Non |
+| `OSRM_URL_FOOT` | URL OSRM du profil pieton (utilise aussi par les plans de localisation PyQGIS) | - | Non |
 | `OSM_IMPORT_PBF_PATH` | Chemin du fichier `.osm.pbf` reimporte par le job planifie mensuel (voir `ScheduledOsmImportUseCase`). Non defini = job no-op | - | Non |
 | `OSM_IMPORT_CRON` | Pattern cron du job d'import OSM programme | `0 2 1 * *` (1er du mois, 02h00) | Non |
 

@@ -918,6 +918,62 @@ Recharger le projet QGIS.
 - **Auth** : Oui (SUPER_ADMIN, ADMIN_INSTANCE)
 - **Reponse** : Succes
 
+> **Assistant de creation de couche (multi-source)** : cote front-end, l'assistant de creation
+> de couche (`layer-creation-wizard`) propose 3 sources - fichier (upload direct), extraction OSM
+> (voir `POST /osm/create-table`), et projet QGIS (endpoints ci-dessous), avec un choix de style
+> (couleur/icone, voir `GET /admin/icons/catalog` et `POST /admin/icons/generate`) commun aux
+> trois. Un projet QGIS uploade ici NE cree PAS de table PostGIS geree par GeOsm : la donnee
+> reste dans les sources propres du projet, servie via son propre WMS.
+
+### `POST /upload`
+
+Uploader un projet QGIS (`.qgz` autonome, ou `.zip` contenant un `.qgs` + ses donnees) pour la
+source "Projet QGIS" de l'assistant de creation de couche.
+
+- **Auth** : Oui (SUPER_ADMIN, ADMIN_INSTANCE)
+- **Corps** : `multipart/form-data` - fichier (`.qgz`/`.qgs`/`.zip`, 200 Mo max) + champs `name`, `description` (optionnel)
+- **Reponse** : `201` Detail du projet uploade
+
+### `GET /:qgisProjectId/layers`
+
+Lister les couches exposees par le WMS d'un projet QGIS uploade (pour choisir lesquelles publier).
+
+- **Auth** : Oui
+- **Reponse** : Liste des couches disponibles
+
+### `POST /:qgisProjectId/layers/confirm`
+
+Publie une ou plusieurs couches GeOsm depuis les couches selectionnees d'un projet QGIS uploade.
+
+- **Auth** : Oui (SUPER_ADMIN, ADMIN_INSTANCE, EDITOR)
+- **Corps** :
+  ```json
+  {
+    "subGroupId": "uuid",
+    "layers": [{ "layerName": "string", "displayName": "string", "geometryType": "Point|LineString|Polygon|..." }]
+  }
+  ```
+- **Reponse** : `201` Couches creees
+
+### `POST /:qgisProjectId/auto-import`
+
+Importe automatiquement TOUTES les couches d'un projet QGIS d'un coup, en recreant
+automatiquement la thematique/sous-thematique GeOsm depuis l'arborescence reelle du projet -
+alternative a `/layers/confirm` pour publier un projet complet sans choisir manuellement un
+sous-groupe par couche.
+
+- **Auth** : Oui (SUPER_ADMIN, ADMIN_INSTANCE, EDITOR)
+- **Reponse** : `201` Couches creees
+
+### `GET /:qgisProjectId/export`
+
+Telecharge un projet QGIS complet (projet + toutes les couches + leur donnee actuelle + leurs
+styles) en une archive `.zip` autonome, utilisable directement dans QGIS Desktop (plus de
+dependance a la base PostGIS de GeOsm).
+
+- **Auth** : Oui (SUPER_ADMIN, ADMIN_INSTANCE)
+- **Reponse** : Archive `.zip`
+
 ---
 
 ## Proxy WMS/WFS
@@ -1492,6 +1548,75 @@ Executer une operation spatiale.
 
 ---
 
+## Rapports d'analyse (`/api/v1/analysis-reports`)
+
+Rapports d'analyse IA en PDF (voir plan "refonte Statistiques" du 2026-08-05) - meme pattern que
+les plans de localisation : generation asynchrone (BullMQ) puis telechargement proxy depuis
+MinIO. Declenchable directement via cette API ou via l'outil `generate_analysis_report` de
+l'assistant IA (`POST /assistant/chat`).
+
+### `POST /`
+
+Genere un rapport d'analyse IA (job asynchrone).
+
+- **Auth** : Oui
+- **Corps** :
+  ```json
+  {
+    "instanceId": "uuid",
+    "topic": "string (1-200 caracteres)",
+    "layerIds": ["uuid", "... (1-20)"],
+    "extent": "[minLon, minLat, maxLon, maxLat] (optionnel)",
+    "geometry": "GeoJSON Polygon/MultiPolygon (optionnel, prioritaire sur extent si fourni)"
+  }
+  ```
+- **Reponse** : `202` `{ "reportId": "uuid" }` - suivre la progression via le canal WebSocket
+  (`analysis-report:progress`/`:completed`/`:failed`, voir `NotificationService`) ou en pollant
+  `GET /:id`.
+
+> **Contenu du PDF** : synthese redigee par Gemini (croisement des couches, pas une simple
+> liste), une section "Zone analysee" avec nom de lieu (geocodage inverse Nominatim sur le
+> centre de la zone) et un vrai fond de carte (mosaique de tuiles XYZ ou image WMS selon le
+> fond de carte par defaut de l'instance, avec repli sur un contour schematique si aucun fond de
+> carte n'est recuperable), une section "Repartition des donnees" (part de chaque couche
+> vectorielle dans le total d'entites analysees), et le detail par couche (voir
+> `zone-basemap.service.ts`/`report-template.ts`).
+
+### `GET /`
+
+Liste mes rapports d'analyse recents (historique persiste - independant du tiroir de taches
+temps reel, qui ne montre que les evenements WebSocket recus pendant que l'onglet est ouvert).
+
+- **Auth** : Oui (rapports de l'utilisateur courant uniquement)
+- **Reponse** : `[{ id, topic, status, fileSize, createdAt, updatedAt }, ...]` (max 100, tries par
+  date de creation decroissante)
+
+### `GET /:id`
+
+Statut/resultat d'un rapport d'analyse.
+
+- **Auth** : Oui
+- **Reponse** : Detail (statut `PENDING | PROCESSING | COMPLETED | FAILED`, `resultJson`,
+  `filePath`, `fileSize`) ou `404`
+
+### `GET /:id/download`
+
+Telecharge le PDF d'un rapport d'analyse termine.
+
+- **Auth** : Oui
+- **Reponse** : Flux PDF (`Content-Type: application/pdf`) ou `400` si le rapport n'est pas
+  encore `COMPLETED`
+
+### `POST /:id/rate`
+
+Note la pertinence d'un rapport d'analyse IA (+1/-1) - reserve a l'auteur du rapport.
+
+- **Auth** : Oui
+- **Corps** : `{ "rating": 1 | -1, "ratingComment": "string (optionnel, max 500)" }`
+- **Reponse** : Succes
+
+---
+
 ## Rasters (`/api/v1/rasters`)
 
 ### `POST /upload`
@@ -1530,6 +1655,13 @@ Statistiques du tableau de bord.
 
 - **Reponse** : Compteurs (instances, utilisateurs, exports, themes)
 
+### `GET /layers/freshness`
+
+Rapport de fraicheur de toutes les couches (derniere synchronisation vs source, couches
+potentiellement perimees).
+
+- **Reponse** : Liste par couche avec date de derniere synchro et statut de fraicheur
+
 ### `GET /jobs`
 
 Liste des jobs en arriere-plan.
@@ -1566,6 +1698,13 @@ Importer des donnees OSM (PBF).
 
 > **Import OSM programme** : un job BullMQ recurrent (`scheduled-osm-import`, cron configurable via `OSM_IMPORT_CRON`, defaut `0 2 1 * *`) reimporte automatiquement le fichier au chemin `OSM_IMPORT_PBF_PATH` puis resynchronise toutes les couches par defaut de toutes les instances actives (voir `POST /:id/resync` sur les couches). Pas de nouvel endpoint HTTP -- s'enregistre au demarrage du serveur. Sans `OSM_IMPORT_PBF_PATH`, le job tourne mais ne fait rien (no-op loggue).
 
+### `POST /search/reindex-layers`
+
+Rattrapage : reindexe toutes les couches de toutes les instances dans MeiliSearch (rattrape un
+index desynchronise sans devoir resynchroniser chaque couche individuellement).
+
+- **Reponse** : Nombre de couches reindexees
+
 ### `GET /health`
 
 Sante du systeme (BD, Redis, etc.).
@@ -1583,6 +1722,14 @@ Declenche immediatement un backup Postgres complet (dump vers MinIO, retention a
 Vider le cache Redis.
 
 - **Reponse** : Message de confirmation
+
+### `GET /icons/catalog`
+
+Liste le catalogue d'icones generiques disponibles (utilise par le selecteur d'icones de
+l'assistant de creation de couche cote front-end).
+
+- **Auth** : Oui (SUPER_ADMIN, ADMIN_INSTANCE, EDITOR)
+- **Reponse** : `[{ key, label, category }, ...]`
 
 ### `POST /icons/generate`
 
@@ -1607,6 +1754,20 @@ Generer des icones SVG.
 Configuration de la base de donnees.
 
 - **Reponse** : Configuration
+
+### `GET /database/overview`
+
+Apercu de la base de donnees : taille totale et liste des tables (tous schemas), triee par
+taille.
+
+- **Reponse** : `{ totalSizeBytes, tables: [{ schema, name, sizeBytes, rowEstimate }, ...] }`
+
+### `POST /database/purge-orphan-tables`
+
+Supprime definitivement les tables PostGIS orphelines (non liees a aucune couche ni instance
+active). **Operation irreversible.**
+
+- **Reponse** : Liste des tables supprimees
 
 ### `POST /instances/template`
 
@@ -1634,6 +1795,117 @@ Supprimer une sequence.
 
 - **Corps** : `{ "name": "string" }`
 - **Reponse** : Succes
+
+---
+
+## Moderation des commentaires (`/api/v1/admin/comments`)
+
+File de moderation de contenu, distincte de `/api/v1/comments` (usage utilisateur normal :
+creer/repondre/resoudre/supprimer son propre commentaire) - reservee a SUPER_ADMIN/ADMIN_INSTANCE.
+
+### `GET /`
+
+Liste les commentaires pour moderation.
+
+- **Requete** : `?page&limit&instanceId&flagged&resolved&reportType` (`reportType` : `FEATURE_CLOSED | WRONG_ATTRIBUTE | OUTDATED_GEOMETRY | OTHER`)
+- **Reponse** : Liste paginee
+
+### `POST /:id/flag`
+
+Signale un commentaire.
+
+- **Corps** : `{ "reason": "string (optionnel, max 500)" }`
+- **Reponse** : Commentaire mis a jour
+
+### `POST /:id/unflag`
+
+Leve le signalement d'un commentaire.
+
+- **Reponse** : Commentaire mis a jour
+
+### `POST /:id/review`
+
+Approuve ou refuse un signalement citoyen structure (distinct de flag/unflag qui ne fait que
+reperer sans trancher).
+
+- **Corps** : `{ "decision": "APPROVE | REJECT", "reviewNote": "string (optionnel)" }`
+- **Reponse** : Resultat de la revue
+
+### `DELETE /:id`
+
+Supprime un commentaire (moderation).
+
+- **Reponse** : `204`
+
+---
+
+## Signalements utilisateur (`/api/v1/admin/feedback`)
+
+Suivi admin des signalements (bug/suggestion/demande de fonctionnalite) soumis par les
+utilisateurs - reserve a SUPER_ADMIN/ADMIN_INSTANCE.
+
+### `GET /`
+
+Liste les signalements.
+
+- **Requete** : `?page&limit&type&status` (`type` : `BUG | SUGGESTION | FEATURE_REQUEST` ; `status` : `NEW | REVIEWED | CLOSED`)
+- **Reponse** : Liste paginee
+
+### `PATCH /:id`
+
+Met a jour le statut d'un signalement.
+
+- **Corps** : `{ "status": "NEW | REVIEWED | CLOSED", "adminNotes": "string (optionnel, max 2000)" }`
+- **Reponse** : Signalement mis a jour
+
+---
+
+## Supervision Docker (`/api/v1/admin/docker`)
+
+Visibilite **en lecture seule** des conteneurs Docker de l'infrastructure (decision produit :
+pas de start/stop/restart, explicitement refuse) - passe par `docker-socket-proxy` (jamais le
+socket brut), reserve a SUPER_ADMIN (l'infra est globale, pas scopee par instance).
+
+### `GET /containers`
+
+Liste les conteneurs Docker.
+
+- **Reponse** : Liste (nom, image, statut, ports)
+
+### `GET /containers/:id/stats`
+
+Statistiques CPU/memoire d'un conteneur.
+
+- **Reponse** : `{ cpuPercent, memoryUsageBytes, memoryLimitBytes, ... }`
+
+### `GET /containers/:id/logs`
+
+Derniers logs d'un conteneur.
+
+- **Requete** : `?tail` (1-2000, defaut selon le service)
+- **Reponse** : Lignes de logs
+
+---
+
+## Revue des FAQ generees (`/api/v1/instances/:instanceId/faq/admin`)
+
+Revue admin des FAQ generees automatiquement par l'IA (voir `GenerateInstanceFaqUseCase`, job
+`faq-generation`) - une FAQ `DRAFT` n'est jamais visible publiquement avant validation, car elle
+peut refleter des questions sensibles posees par de vrais visiteurs. Reserve a
+SUPER_ADMIN/ADMIN_INSTANCE/EDITOR.
+
+### `GET /`
+
+Liste les FAQ generees en attente de revue pour cette instance.
+
+- **Reponse** : Liste des FAQ `DRAFT`
+
+### `POST /:id/review`
+
+Publie ou refuse une FAQ generee automatiquement.
+
+- **Corps** : `{ "decision": "PUBLISH | REJECT", "question": "string (optionnel)", "answer": "string (optionnel)" }`
+- **Reponse** : Resultat de la revue
 
 ---
 
