@@ -1,0 +1,45 @@
+{
+  "name": "GeOSM API (backend)",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+
+  "forwardPorts": [3000, 5432, 6379, 9000, 9001, 7700, 8380],
+  "portsAttributes": {
+    "3000": { "label": "API (npm run dev)", "onAutoForward": "notify" },
+    "5432": { "label": "PostgreSQL/PostGIS" },
+    "6379": { "label": "Redis" },
+    "9000": { "label": "MinIO (S3 API)" },
+    "9001": { "label": "MinIO Console" },
+    "7700": { "label": "MeiliSearch" },
+    "8380": { "label": "QGIS Server (OWS)" }
+  },
+
+  // Chaine complete et deterministe : clone -> conteneur pret a coder, sans jamais toucher un
+  // vrai serveur externe (SKIP_OSM_IMPORT/SKIP_SRTM font retomber le seed sur des donnees
+  // factices locales autour de Yaounde plutot que de telecharger un extract OSM/SRTM reel -
+  // voir prisma/seed.ts). "-n" sur le cp : ne jamais ecraser un .env deja personnalise si le
+  // conteneur est reconstruit.
+  "postCreateCommand": "cp -n .env.example .env && npm ci && npm run db:generate && npm run db:push && SKIP_OSM_IMPORT=true SKIP_SRTM=true npm run db:seed",
+
+  "postAttachCommand": "echo 'Pret. Lancez : npm run dev  (voir l onglet Ports de VS Code pour l URL locale du port 3000 une fois redirige)'",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "prisma.prisma",
+        "ms-azuretools.vscode-docker",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg"
+      ],
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "eslint.workingDirectories": ["/workspace"]
+      }
+    }
+  }
+}

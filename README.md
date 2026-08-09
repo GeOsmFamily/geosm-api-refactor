@@ -15,7 +15,7 @@
 
 La plateforme couvre le cycle de vie complet des donnees geographiques : import (OSM via osm2pgsql, fichiers vectoriels via ogr2ogr), stockage (PostGIS), stylisation (SLD/Mapbox GL), visualisation (WMS/WFS via QGIS Server), edition de features, analyse spatiale, export multi-format et partage. Elle integre egalement un **assistant IA conversationnel** (Gemini, function-calling) capable de piloter la recherche, l'analyse spatiale et la generation de plans de localisation en langage naturel, et permet de se connecter en un clic via **OpenStreetMap (OAuth 2.0)**.
 
-Ce depot contient l'**API REST backend** construite avec Fastify 5, suivant les principes de la **Clean Architecture** (Architecture Hexagonale). Voir [`docs/fonctionnalites-detaillees.md`](docs/fonctionnalites-detaillees.md) pour le detail exhaustif de chaque fonctionnalite, [`docs/reference-api.md`](docs/reference-api.md) pour la reference complete des endpoints, et [`CHANGELOG.md`](CHANGELOG.md) pour l'historique des changements.
+Ce depot contient l'**API REST backend** construite avec Fastify 5, suivant les principes de la **Clean Architecture** (Architecture Hexagonale). Voir [`docs/fonctionnalites-detaillees.md`](docs/fonctionnalites-detaillees.md) pour le detail exhaustif de chaque fonctionnalite, [`docs/reference-api.md`](docs/reference-api.md) pour la reference complete des endpoints, [`CHANGELOG.md`](CHANGELOG.md) pour l'historique des changements, [`docs/adr/`](docs/adr/README.md) pour le *pourquoi* des choix d'architecture, et [`docs/rfc/`](docs/rfc/README.md) pour les propositions de changements structurants en discussion (ex. une eventuelle marketplace de plugins PyQGIS).
 
 ---
 

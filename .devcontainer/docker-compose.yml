@@ -1,0 +1,116 @@
+# Stack de developpement isolee (VS Code Dev Containers / Codespaces) - volontairement separee
+# du docker-compose.yml a la racine du depot plutot que reutilisee telle quelle : ce fichier n'a
+# besoin que des services necessaires pour developper/tester (pas de frontend, pas de monitoring
+# Grafana/Prometheus/Jaeger/Graylog), et le service "api" y est remplace par un conteneur de dev
+# (voir Dockerfile) qui reste inactif ("sleep infinity") pendant que VS Code s'y attache - c'est
+# le contributeur qui lance "npm run dev" lui-meme dans le terminal integre, pas ce compose.
+#
+# Les noms de service (postgres/redis/minio/meilisearch/qgis-server) sont volontairement
+# IDENTIQUES a ceux du docker-compose.yml racine : le `.env.example` du depot les cible deja par
+# ces noms d'hote, donc un simple `cp .env.example .env` fonctionne ici sans aucune adaptation.
+#
+# Volontairement AUCUN `ports:` publie sur l'hote sur les services ci-dessous (postgres 5432,
+# redis 6379, minio 9000, meilisearch 7700, qgis-server 8380, api 3000 sont des ports tres
+# communement deja pris par autre chose sur la machine d'un contributeur - y compris un
+# deploiement local "classique" de CE MEME projet via le docker-compose.yml racine). La
+# communication entre conteneurs du meme projet Compose ne necessite PAS de `ports:` (seul le
+# reseau interne suffit) ; l'acces depuis l'hote (navigateur, client SQL...) passe par le
+# "port forwarding" automatique de VS Code Dev Containers (voir forwardPorts dans
+# devcontainer.json), qui ne bloque jamais sur un port deja occupe puisqu'il ne fait pas de
+# binding fixe sur l'hote.
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    # "env_file" (pas juste le "cp .env.example .env" du postCreateCommand) : c'est ce qui
+    # peuple reellement process.env dans le conteneur des son demarrage. src/config/env.config.ts
+    # lit process.env directement (aucun chargement de .env par l'application elle-meme,
+    # contrairement a la CLI Prisma qui a son propre mecanisme) - sans cette ligne, "npm run dev"
+    # echoue au demarrage avec "Invalid environment variables" meme apres avoir copie .env.example
+    # en .env (verifie en conditions reelles). Pointe directement sur .env.example (toujours
+    # present des le premier clone, contrairement a .env qui n'existe qu'apres postCreateCommand)
+    # plutot que .env, pour eviter un probleme d'oeuf-et-poule au tout premier "docker compose up".
+    env_file:
+      - ../.env.example
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      meilisearch:
+        condition: service_healthy
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: geosm
+      POSTGRES_USER: geosm
+      POSTGRES_PASSWORD: geosm_secret
+    volumes:
+      - devcontainer-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U geosm']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - devcontainer-miniodata:/data
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    environment:
+      MEILI_MASTER_KEY: geosm-meilisearch-dev-key-2026
+      MEILI_ENV: development
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:7700/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      start_period: 15s
+      retries: 5
+
+  # Sert les couches issues d'un projet QGIS uploade (voir section 11 de
+  # docs/fonctionnalites-detaillees.md) - fonctionne a vide, aucune donnee reelle requise pour
+  # demarrer (les volumes se remplissent au fil de l'usage via l'API).
+  qgis-server:
+    image: 3liz/qgis-map-server:3.34
+    volumes:
+      - devcontainer-qgis-projects:/projects
+      - devcontainer-data:/data:ro
+    environment:
+      QGSRV_SERVER_WORKERS: 1
+      QGSRV_CACHE_ROOTDIR: /projects
+      QGSRV_LOGGING_LEVEL: WARNING
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --no-verbose --tries=1 -O /dev/null http://localhost:8080/ || exit 1']
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+
+volumes:
+  devcontainer-pgdata:
+  devcontainer-miniodata:
+  devcontainer-qgis-projects:
+  devcontainer-data:

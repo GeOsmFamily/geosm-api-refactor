@@ -15,6 +15,12 @@ Merci de votre interet pour contribuer a GeOSM API. Ce document fournit les dire
    git checkout -b feat/nom-de-votre-fonctionnalite
    ```
 4. **Installer les dependances** et configurer votre environnement (voir [README.md](./README.md))
+   - **Raccourci recommande** : ouvrez le depot dans VS Code avec l'extension *Dev Containers*
+     (ou dans GitHub Codespaces) et choisissez "Reopen in Container". Le `.devcontainer/`
+     fournit PostgreSQL/PostGIS, Redis, MinIO, MeiliSearch et QGIS Server deja configures, et
+     initialise automatiquement la base avec des donnees de demonstration locales (aucun
+     extract OSM reel a telecharger) - pas besoin d'installer GDAL/QGIS/osm2pgsql a la main sur
+     votre machine. Une fois le conteneur pret : `npm run dev`.
 5. **Effectuer vos modifications**, ecrire les tests et verifier que tout passe
 6. **Pousser** votre branche et ouvrir une **Pull Request**
 
@@ -42,6 +48,13 @@ npm run format      # Formater automatiquement le code avec Prettier
 ## Directives architecturales
 
 Ce projet suit la **Clean Architecture** (Architecture Hexagonale). Placez votre code dans la couche appropriee.
+
+> **Pourquoi, pas seulement comment** : avant de remettre en question un choix structurant
+> (pourquoi PostGIS en SQL brut a certains endroits plutot que Prisma partout, pourquoi deux
+> moteurs de PDF differents, pourquoi une seule base pour plusieurs pays...), consultez
+> [`docs/adr/`](docs/adr/README.md) - la raison est peut-etre deja documentee. Si vous proposez
+> vous-meme un changement structurant, ajoutez-y une ADR : ca fait gagner du temps a la
+> prochaine personne qui se posera la meme question.
 
 ### Couche Domaine (`src/domain/`)
 
