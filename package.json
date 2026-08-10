@@ -52,7 +52,7 @@
     "gelf-pro": "^1.4.0",
     "ioredis": "^5.4.0",
     "minio": "^8.0.7",
-    "nodemailer": "^9.0.3",
+    "nodemailer": "^9.0.4",
     "prisma": "^6.0.0",
     "prom-client": "^15.0.0",
     "puppeteer-core": "^25.5.0",
