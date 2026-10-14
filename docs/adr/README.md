@@ -23,6 +23,7 @@ redecouvrir la raison en cassant quelque chose. Une ADR courte (une page) evite 
 | [0004](0004-bullmq-for-async-work.md) | BullMQ/Redis pour tout le travail asynchrone | Accepte |
 | [0005](0005-two-pdf-pipelines.md) | Deux moteurs de PDF distincts (PyQGIS vs Puppeteer/HTML) | Accepte |
 | [0006](0006-minio-object-storage.md) | MinIO (S3-compatible) plutot qu'un stockage cloud proprietaire | Accepte |
+| [0007](0007-geosm-family-v2-cadrage.md) | GeOsm Family v2 : decisions de cadrage (reseau social geolocalise) | Accepte |
 
 ## Proposer une nouvelle ADR
 
