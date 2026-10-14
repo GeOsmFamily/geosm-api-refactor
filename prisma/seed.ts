@@ -7,8 +7,8 @@ import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { CreateInstanceUseCase } from '../src/application/use-cases/instances/create-instance.use-case.js';
 import { PrismaInstanceRepository } from '../src/infrastructure/database/repositories/prisma-instance.repository.js';
-import { PrismaGroupRepository } from '../src/infrastructure/database/repositories/prisma-group.repository.js';
-import { PrismaSubGroupRepository } from '../src/infrastructure/database/repositories/prisma-sub-group.repository.js';
+import { PrismaLayerGroupRepository } from '../src/infrastructure/database/repositories/prisma-layer-group.repository.js';
+import { PrismaLayerSubGroupRepository } from '../src/infrastructure/database/repositories/prisma-layer-sub-group.repository.js';
 import { PrismaLayerRepository } from '../src/infrastructure/database/repositories/prisma-layer.repository.js';
 import { OsmQueryService } from '../src/infrastructure/database/osm-query.service.js';
 import { Osm2pgsqlService } from '../src/infrastructure/osm/osm2pgsql.service.js';
@@ -259,15 +259,15 @@ async function main(): Promise<void> {
   // Initialiser les couches par défaut et charger les données OSM
   console.log('Initializing default layers and importing OSM data for Cameroon (this might take a moment)...');
   const instanceRepository = new PrismaInstanceRepository(prisma);
-  const groupRepository = new PrismaGroupRepository(prisma);
-  const subGroupRepository = new PrismaSubGroupRepository(prisma);
+  const layerGroupRepository = new PrismaLayerGroupRepository(prisma);
+  const layerSubGroupRepository = new PrismaLayerSubGroupRepository(prisma);
   const layerRepository = new PrismaLayerRepository(prisma);
   const osmQueryService = new OsmQueryService(prisma);
 
   const createInstanceUseCase = new CreateInstanceUseCase(
     instanceRepository,
-    groupRepository,
-    subGroupRepository,
+    layerGroupRepository,
+    layerSubGroupRepository,
     layerRepository,
     osmQueryService,
     new QGISProjectService(),

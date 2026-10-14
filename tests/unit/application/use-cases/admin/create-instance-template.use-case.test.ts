@@ -6,7 +6,7 @@ import { Instance } from '../../../../../src/domain/entities/instance.entity.js'
 describe('CreateInstanceTemplateUseCase', () => {
   let useCase: CreateInstanceTemplateUseCase;
   let instanceRepository: IInstanceRepository;
-  let prisma: { group: { create: ReturnType<typeof vi.fn> } };
+  let prisma: { layerGroup: { create: ReturnType<typeof vi.fn> } };
   const now = new Date();
 
   const mockInstance = new Instance({
@@ -23,11 +23,11 @@ describe('CreateInstanceTemplateUseCase', () => {
       findInstanceUsers: vi.fn(), addInstanceUser: vi.fn(), removeInstanceUser: vi.fn(),
       changeInstanceUserRole: vi.fn(), findInstanceUser: vi.fn(),
     };
-    // Anciennement une insertion SQL brute vers une table "Group" inexistante (bug corrigé,
+    // Anciennement une insertion SQL brute vers une table "LayerGroup" inexistante (bug corrigé,
     // voir plan "Interopérabilité & sécurité des données" du 2026-08-06) - remplacée par de
-    // vrais appels Prisma Client, donc ce test mocke maintenant prisma.group.create() plutôt
+    // vrais appels Prisma Client, donc ce test mocke maintenant prisma.layerGroup.create() plutôt
     // que $executeRawUnsafe (qui aurait masqué le bug initial sans jamais l'exercer réellement).
-    prisma = { group: { create: vi.fn().mockResolvedValue({ id: 'group-1' }) } };
+    prisma = { layerGroup: { create: vi.fn().mockResolvedValue({ id: 'group-1' }) } };
     useCase = new CreateInstanceTemplateUseCase(instanceRepository, prisma as any);
   });
 
@@ -35,8 +35,8 @@ describe('CreateInstanceTemplateUseCase', () => {
     const result = await useCase.execute({ name: 'Test', slug: 'test' });
     expect(result).toBe(mockInstance);
     expect(instanceRepository.create).toHaveBeenCalled();
-    expect(prisma.group.create).toHaveBeenCalledTimes(4);
-    expect(prisma.group.create).toHaveBeenCalledWith(
+    expect(prisma.layerGroup.create).toHaveBeenCalledTimes(4);
+    expect(prisma.layerGroup.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ name: 'Environnement', slug: 'environnement', instanceId: 'inst-1' }),
       }),
@@ -46,6 +46,6 @@ describe('CreateInstanceTemplateUseCase', () => {
   it('should create instance with custom thematiques', async () => {
     const result = await useCase.execute({ name: 'Test', slug: 'test', thematiques: ['A', 'B'] });
     expect(result).toBe(mockInstance);
-    expect(prisma.group.create).toHaveBeenCalledTimes(2);
+    expect(prisma.layerGroup.create).toHaveBeenCalledTimes(2);
   });
 });

@@ -21,8 +21,8 @@ describe.skipIf(shouldSkip)('App Boot Integration', () => {
     const { authRoutes } = await import('../../src/presentation/routes/auth.routes.js');
     const { userRoutes } = await import('../../src/presentation/routes/user.routes.js');
     const { instanceRoutes } = await import('../../src/presentation/routes/instance.routes.js');
-    const { groupRoutes } = await import('../../src/presentation/routes/group.routes.js');
-    const { subGroupRoutes } = await import('../../src/presentation/routes/sub-group.routes.js');
+    const { layerGroupRoutes } = await import('../../src/presentation/routes/layer-group.routes.js');
+    const { layerSubGroupRoutes } = await import('../../src/presentation/routes/layer-sub-group.routes.js');
     const { layerRoutes } = await import('../../src/presentation/routes/layer.routes.js');
     const { baseMapRoutes } = await import('../../src/presentation/routes/base-map.routes.js');
     const { styleRoutes } = await import('../../src/presentation/routes/style.routes.js');
@@ -72,8 +72,8 @@ describe.skipIf(shouldSkip)('App Boot Integration', () => {
     await app.register(authRoutes, { prefix: `${prefix}/auth` });
     await app.register(userRoutes, { prefix: `${prefix}/users` });
     await app.register(instanceRoutes, { prefix: `${prefix}/instances` });
-    await app.register(groupRoutes, { prefix: `${prefix}/instances/:instanceId/groups` });
-    await app.register(subGroupRoutes, { prefix: `${prefix}/groups/:groupId/sub-groups` });
+    await app.register(layerGroupRoutes, { prefix: `${prefix}/instances/:instanceId/groups` });
+    await app.register(layerSubGroupRoutes, { prefix: `${prefix}/groups/:groupId/sub-groups` });
     await app.register(layerRoutes, { prefix: `${prefix}/instances/:instanceId/layers` });
     await app.register(baseMapRoutes, { prefix: `${prefix}/instances/:instanceId/base-maps` });
     await app.register(styleRoutes, { prefix: `${prefix}/layers/:layerId/style` });

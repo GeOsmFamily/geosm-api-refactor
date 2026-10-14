@@ -17,7 +17,7 @@ describe('CreateLayerUseCase', () => {
 
   beforeEach(() => {
     layerRepository = {
-      findById: vi.fn(), findBySlug: vi.fn(), findBySubGroup: vi.fn(), findByInstance: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
+      findById: vi.fn(), findBySlug: vi.fn(), findByLayerSubGroup: vi.fn(), findByInstance: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
     };
     instanceRepository = {
       findById: vi.fn(), findBySlug: vi.fn(), findAll: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),

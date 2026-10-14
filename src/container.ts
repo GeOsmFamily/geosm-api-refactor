@@ -7,8 +7,8 @@ import type { FastifyInstance } from 'fastify';
 import { PrismaUserRepository } from './infrastructure/database/repositories/prisma-user.repository.js';
 import { PrismaRefreshTokenRepository } from './infrastructure/database/repositories/prisma-refresh-token.repository.js';
 import { PrismaInstanceRepository } from './infrastructure/database/repositories/prisma-instance.repository.js';
-import { PrismaGroupRepository } from './infrastructure/database/repositories/prisma-group.repository.js';
-import { PrismaSubGroupRepository } from './infrastructure/database/repositories/prisma-sub-group.repository.js';
+import { PrismaLayerGroupRepository } from './infrastructure/database/repositories/prisma-layer-group.repository.js';
+import { PrismaLayerSubGroupRepository } from './infrastructure/database/repositories/prisma-layer-sub-group.repository.js';
 import { PrismaLayerRepository } from './infrastructure/database/repositories/prisma-layer.repository.js';
 import { PrismaBaseMapRepository } from './infrastructure/database/repositories/prisma-base-map.repository.js';
 import { PrismaLayerStyleRepository } from './infrastructure/database/repositories/prisma-layer-style.repository.js';
@@ -61,20 +61,20 @@ import { AddInstanceUserUseCase } from './application/use-cases/instances/add-in
 import { RemoveInstanceUserUseCase } from './application/use-cases/instances/remove-instance-user.use-case.js';
 import { ChangeInstanceUserRoleUseCase } from './application/use-cases/instances/change-instance-user-role.use-case.js';
 
-// Groups use cases
-import { ListGroupsUseCase } from './application/use-cases/groups/list-groups.use-case.js';
-import { GetGroupUseCase } from './application/use-cases/groups/get-group.use-case.js';
-import { CreateGroupUseCase } from './application/use-cases/groups/create-group.use-case.js';
-import { UpdateGroupUseCase } from './application/use-cases/groups/update-group.use-case.js';
-import { DeleteGroupUseCase } from './application/use-cases/groups/delete-group.use-case.js';
-import { ReorderGroupsUseCase } from './application/use-cases/groups/reorder-groups.use-case.js';
+// LayerGroups use cases
+import { ListLayerGroupsUseCase } from './application/use-cases/layer-groups/list-layer-groups.use-case.js';
+import { GetLayerGroupUseCase } from './application/use-cases/layer-groups/get-layer-group.use-case.js';
+import { CreateLayerGroupUseCase } from './application/use-cases/layer-groups/create-layer-group.use-case.js';
+import { UpdateLayerGroupUseCase } from './application/use-cases/layer-groups/update-layer-group.use-case.js';
+import { DeleteLayerGroupUseCase } from './application/use-cases/layer-groups/delete-layer-group.use-case.js';
+import { ReorderLayerGroupsUseCase } from './application/use-cases/layer-groups/reorder-layer-groups.use-case.js';
 
-// SubGroups use cases
-import { ListSubGroupsUseCase } from './application/use-cases/sub-groups/list-sub-groups.use-case.js';
-import { GetSubGroupUseCase } from './application/use-cases/sub-groups/get-sub-group.use-case.js';
-import { CreateSubGroupUseCase } from './application/use-cases/sub-groups/create-sub-group.use-case.js';
-import { UpdateSubGroupUseCase } from './application/use-cases/sub-groups/update-sub-group.use-case.js';
-import { DeleteSubGroupUseCase } from './application/use-cases/sub-groups/delete-sub-group.use-case.js';
+// LayerSubGroups use cases
+import { ListLayerSubGroupsUseCase } from './application/use-cases/layer-sub-groups/list-layer-sub-groups.use-case.js';
+import { GetLayerSubGroupUseCase } from './application/use-cases/layer-sub-groups/get-layer-sub-group.use-case.js';
+import { CreateLayerSubGroupUseCase } from './application/use-cases/layer-sub-groups/create-layer-sub-group.use-case.js';
+import { UpdateLayerSubGroupUseCase } from './application/use-cases/layer-sub-groups/update-layer-sub-group.use-case.js';
+import { DeleteLayerSubGroupUseCase } from './application/use-cases/layer-sub-groups/delete-layer-sub-group.use-case.js';
 
 // Layers use cases
 import { ListLayersUseCase } from './application/use-cases/layers/list-layers.use-case.js';
@@ -373,8 +373,8 @@ interface Cradle {
   userRepository: PrismaUserRepository;
   refreshTokenRepository: PrismaRefreshTokenRepository;
   instanceRepository: PrismaInstanceRepository;
-  groupRepository: PrismaGroupRepository;
-  subGroupRepository: PrismaSubGroupRepository;
+  layerGroupRepository: PrismaLayerGroupRepository;
+  layerSubGroupRepository: PrismaLayerSubGroupRepository;
   layerRepository: PrismaLayerRepository;
   baseMapRepository: PrismaBaseMapRepository;
   layerStyleRepository: PrismaLayerStyleRepository;
@@ -431,19 +431,19 @@ interface Cradle {
   addInstanceUserUseCase: AddInstanceUserUseCase;
   removeInstanceUserUseCase: RemoveInstanceUserUseCase;
   changeInstanceUserRoleUseCase: ChangeInstanceUserRoleUseCase;
-  // Groups
-  listGroupsUseCase: ListGroupsUseCase;
-  getGroupUseCase: GetGroupUseCase;
-  createGroupUseCase: CreateGroupUseCase;
-  updateGroupUseCase: UpdateGroupUseCase;
-  deleteGroupUseCase: DeleteGroupUseCase;
-  reorderGroupsUseCase: ReorderGroupsUseCase;
-  // SubGroups
-  listSubGroupsUseCase: ListSubGroupsUseCase;
-  getSubGroupUseCase: GetSubGroupUseCase;
-  createSubGroupUseCase: CreateSubGroupUseCase;
-  updateSubGroupUseCase: UpdateSubGroupUseCase;
-  deleteSubGroupUseCase: DeleteSubGroupUseCase;
+  // LayerGroups
+  listLayerGroupsUseCase: ListLayerGroupsUseCase;
+  getLayerGroupUseCase: GetLayerGroupUseCase;
+  createLayerGroupUseCase: CreateLayerGroupUseCase;
+  updateLayerGroupUseCase: UpdateLayerGroupUseCase;
+  deleteLayerGroupUseCase: DeleteLayerGroupUseCase;
+  reorderLayerGroupsUseCase: ReorderLayerGroupsUseCase;
+  // LayerSubGroups
+  listLayerSubGroupsUseCase: ListLayerSubGroupsUseCase;
+  getLayerSubGroupUseCase: GetLayerSubGroupUseCase;
+  createLayerSubGroupUseCase: CreateLayerSubGroupUseCase;
+  updateLayerSubGroupUseCase: UpdateLayerSubGroupUseCase;
+  deleteLayerSubGroupUseCase: DeleteLayerSubGroupUseCase;
   // Layers
   listLayersUseCase: ListLayersUseCase;
   getLayerUseCase: GetLayerUseCase;
@@ -720,10 +720,10 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     instanceRepository: asFunction(() => new PrismaInstanceRepository(prisma), {
       lifetime: Lifetime.SINGLETON,
     }),
-    groupRepository: asFunction(() => new PrismaGroupRepository(prisma), {
+    layerGroupRepository: asFunction(() => new PrismaLayerGroupRepository(prisma), {
       lifetime: Lifetime.SINGLETON,
     }),
-    subGroupRepository: asFunction(() => new PrismaSubGroupRepository(prisma), {
+    layerSubGroupRepository: asFunction(() => new PrismaLayerSubGroupRepository(prisma), {
       lifetime: Lifetime.SINGLETON,
     }),
     layerRepository: asFunction(() => new PrismaLayerRepository(prisma), {
@@ -904,8 +904,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       (c: Cradle) =>
         new CreateInstanceUseCase(
           c.instanceRepository,
-          c.groupRepository,
-          c.subGroupRepository,
+          c.layerGroupRepository,
+          c.layerSubGroupRepository,
           c.layerRepository,
           c.osmQueryService,
           c.qgisProjectService,
@@ -940,45 +940,45 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       { lifetime: Lifetime.SCOPED },
     ),
 
-    // Groups use cases
-    listGroupsUseCase: asFunction((c: Cradle) => new ListGroupsUseCase(c.groupRepository), {
+    // LayerGroups use cases
+    listLayerGroupsUseCase: asFunction((c: Cradle) => new ListLayerGroupsUseCase(c.layerGroupRepository), {
       lifetime: Lifetime.SCOPED,
     }),
-    getGroupUseCase: asFunction((c: Cradle) => new GetGroupUseCase(c.groupRepository), {
+    getLayerGroupUseCase: asFunction((c: Cradle) => new GetLayerGroupUseCase(c.layerGroupRepository), {
       lifetime: Lifetime.SCOPED,
     }),
-    createGroupUseCase: asFunction(
-      (c: Cradle) => new CreateGroupUseCase(c.groupRepository, c.instanceRepository),
+    createLayerGroupUseCase: asFunction(
+      (c: Cradle) => new CreateLayerGroupUseCase(c.layerGroupRepository, c.instanceRepository),
       { lifetime: Lifetime.SCOPED },
     ),
-    updateGroupUseCase: asFunction((c: Cradle) => new UpdateGroupUseCase(c.groupRepository), {
+    updateLayerGroupUseCase: asFunction((c: Cradle) => new UpdateLayerGroupUseCase(c.layerGroupRepository), {
       lifetime: Lifetime.SCOPED,
     }),
-    deleteGroupUseCase: asFunction((c: Cradle) => new DeleteGroupUseCase(c.groupRepository), {
+    deleteLayerGroupUseCase: asFunction((c: Cradle) => new DeleteLayerGroupUseCase(c.layerGroupRepository), {
       lifetime: Lifetime.SCOPED,
     }),
-    reorderGroupsUseCase: asFunction((c: Cradle) => new ReorderGroupsUseCase(c.groupRepository), {
+    reorderLayerGroupsUseCase: asFunction((c: Cradle) => new ReorderLayerGroupsUseCase(c.layerGroupRepository), {
       lifetime: Lifetime.SCOPED,
     }),
 
-    // SubGroups use cases
-    listSubGroupsUseCase: asFunction(
-      (c: Cradle) => new ListSubGroupsUseCase(c.subGroupRepository),
+    // LayerSubGroups use cases
+    listLayerSubGroupsUseCase: asFunction(
+      (c: Cradle) => new ListLayerSubGroupsUseCase(c.layerSubGroupRepository),
       { lifetime: Lifetime.SCOPED },
     ),
-    getSubGroupUseCase: asFunction((c: Cradle) => new GetSubGroupUseCase(c.subGroupRepository), {
+    getLayerSubGroupUseCase: asFunction((c: Cradle) => new GetLayerSubGroupUseCase(c.layerSubGroupRepository), {
       lifetime: Lifetime.SCOPED,
     }),
-    createSubGroupUseCase: asFunction(
-      (c: Cradle) => new CreateSubGroupUseCase(c.subGroupRepository, c.groupRepository),
+    createLayerSubGroupUseCase: asFunction(
+      (c: Cradle) => new CreateLayerSubGroupUseCase(c.layerSubGroupRepository, c.layerGroupRepository),
       { lifetime: Lifetime.SCOPED },
     ),
-    updateSubGroupUseCase: asFunction(
-      (c: Cradle) => new UpdateSubGroupUseCase(c.subGroupRepository),
+    updateLayerSubGroupUseCase: asFunction(
+      (c: Cradle) => new UpdateLayerSubGroupUseCase(c.layerSubGroupRepository),
       { lifetime: Lifetime.SCOPED },
     ),
-    deleteSubGroupUseCase: asFunction(
-      (c: Cradle) => new DeleteSubGroupUseCase(c.subGroupRepository),
+    deleteLayerSubGroupUseCase: asFunction(
+      (c: Cradle) => new DeleteLayerSubGroupUseCase(c.layerSubGroupRepository),
       { lifetime: Lifetime.SCOPED },
     ),
 
@@ -1258,8 +1258,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
     autoImportQgisProjectUseCase: asFunction(
       (c: Cradle) =>
         new AutoImportQgisProjectUseCase(
-          c.groupRepository,
-          c.subGroupRepository,
+          c.layerGroupRepository,
+          c.layerSubGroupRepository,
           c.qgisProjectRepository,
           c.qgisProjectService,
           c.createLayersFromQgisProjectUseCase,
@@ -1783,8 +1783,8 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
         new ReviewPersonalLayerPublicationUseCase(
           c.personalLayerRepository,
           c.layerRepository,
-          c.groupRepository,
-          c.subGroupRepository,
+          c.layerGroupRepository,
+          c.layerSubGroupRepository,
           c.instanceRepository,
           c.postGISService,
           c.qgisProjectService,

@@ -419,7 +419,7 @@ Changer le role d'un utilisateur dans l'instance.
 
 ---
 
-## Groupes (`/api/v1/instances/:instanceId/groups`)
+## Groupes (`/api/v1/instances/:instanceId/layer-groups`)
 
 ### `GET /`
 
@@ -476,7 +476,7 @@ Reordonnancer les groupes.
 
 ---
 
-## Sous-groupes (`/api/v1/groups/:groupId/sub-groups`)
+## Sous-groupes (`/api/v1/layer-groups/:groupId/layer-sub-groups`)
 
 ### `GET /`
 

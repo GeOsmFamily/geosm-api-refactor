@@ -20,16 +20,18 @@ chemin `/d/...` les 165 fichiers echouent avec `Cannot read properties of undefi
 $env:DATABASE_URL='postgresql://u:p@localhost:5432/test'
 $env:JWT_ACCESS_SECRET='<32+ caracteres>'
 $env:JWT_REFRESH_SECRET='<32+ caracteres>'
+$env:ENCRYPTION_KEY='<64 caracteres hexadecimaux>'
 npx vitest run
 ```
 
-Resultat de reference : **160 fichiers passent, 648 tests passent**. Echecs connus, sans lien
-avec le code metier (environnement local) :
+Resultat de reference au depart : **160 fichiers, 648 tests passent**. Apres l'etape 0.2 (avec
+une `ENCRYPTION_KEY` valide) : **163 fichiers, 662 tests passent**. Echecs connus, sans lien avec
+le code metier (environnement local) :
 
 | Test | Cause |
 |---|---|
 | `tests/docker/validate-docker.test.ts` (2) | `docker-compose.yml` ne declare pas `redis` ni ses volumes |
-| `auth/osm-login`, `auth/link-osm-account` (5) | `ENCRYPTION_KEY` factice au mauvais format |
+| `auth/osm-login`, `auth/link-osm-account` (5) | passent avec une `ENCRYPTION_KEY` de 64 caracteres hexadecimaux |
 | `tests/load/basic-load.test.ts` | exige un serveur en marche |
 
 Toute regression se mesure par rapport a ce tableau.

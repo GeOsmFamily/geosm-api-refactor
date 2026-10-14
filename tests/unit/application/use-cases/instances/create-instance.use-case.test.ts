@@ -1,24 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateInstanceUseCase } from '../../../../../src/application/use-cases/instances/create-instance.use-case.js';
 import type { IInstanceRepository } from '../../../../../src/domain/repositories/instance.repository.js';
-import type { IGroupRepository } from '../../../../../src/domain/repositories/group.repository.js';
-import type { ISubGroupRepository } from '../../../../../src/domain/repositories/sub-group.repository.js';
+import type { ILayerGroupRepository } from '../../../../../src/domain/repositories/layer-group.repository.js';
+import type { ILayerSubGroupRepository } from '../../../../../src/domain/repositories/layer-sub-group.repository.js';
 import type { ILayerRepository } from '../../../../../src/domain/repositories/layer.repository.js';
 import type { OsmQueryService } from '../../../../../src/infrastructure/database/osm-query.service.js';
 import type { IQgisProjectRepository } from '../../../../../src/domain/repositories/qgis-project.repository.js';
 import type { IBaseMapRepository } from '../../../../../src/domain/repositories/base-map.repository.js';
 import { ConflictError } from '../../../../../src/domain/errors/conflict.error.js';
 import { Instance } from '../../../../../src/domain/entities/instance.entity.js';
-import { Group } from '../../../../../src/domain/entities/group.entity.js';
-import { SubGroup } from '../../../../../src/domain/entities/sub-group.entity.js';
+import { LayerGroup } from '../../../../../src/domain/entities/layer-group.entity.js';
+import { LayerSubGroup } from '../../../../../src/domain/entities/layer-sub-group.entity.js';
 import { Layer } from '../../../../../src/domain/entities/layer.entity.js';
 import { GeometryType, SourceType } from '../../../../../src/domain/enums.js';
 
 describe('CreateInstanceUseCase', () => {
   let useCase: CreateInstanceUseCase;
   let instanceRepository: IInstanceRepository;
-  let groupRepository: IGroupRepository;
-  let subGroupRepository: ISubGroupRepository;
+  let layerGroupRepository: ILayerGroupRepository;
+  let layerSubGroupRepository: ILayerSubGroupRepository;
   let layerRepository: ILayerRepository;
   let osmQueryService: OsmQueryService;
   let qgisProjectRepository: IQgisProjectRepository;
@@ -30,14 +30,14 @@ describe('CreateInstanceUseCase', () => {
       findById: vi.fn(), findBySlug: vi.fn(), findAll: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
       findInstanceUsers: vi.fn(), addInstanceUser: vi.fn(), removeInstanceUser: vi.fn(), changeInstanceUserRole: vi.fn(), findInstanceUser: vi.fn(),
     };
-    groupRepository = {
+    layerGroupRepository = {
       findById: vi.fn(), findBySlug: vi.fn(), findByInstance: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), updateOrder: vi.fn(),
     };
-    subGroupRepository = {
-      findById: vi.fn(), findBySlug: vi.fn(), findByGroup: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
+    layerSubGroupRepository = {
+      findById: vi.fn(), findBySlug: vi.fn(), findByLayerGroup: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
     };
     layerRepository = {
-      findById: vi.fn(), findBySlug: vi.fn(), findBySubGroup: vi.fn(), findByInstance: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
+      findById: vi.fn(), findBySlug: vi.fn(), findByLayerSubGroup: vi.fn(), findByInstance: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
     };
     osmQueryService = {
       queryFeatures: vi.fn(), createTable: vi.fn(), getTableStats: vi.fn(),
@@ -68,8 +68,8 @@ describe('CreateInstanceUseCase', () => {
 
     useCase = new CreateInstanceUseCase(
       instanceRepository,
-      groupRepository,
-      subGroupRepository,
+      layerGroupRepository,
+      layerSubGroupRepository,
       layerRepository,
       osmQueryService,
       mockQgisProjectService,
@@ -102,11 +102,11 @@ describe('CreateInstanceUseCase', () => {
     });
     vi.mocked(instanceRepository.create).mockResolvedValue(created);
 
-    const mockGroup = new Group({ id: 'grp-id', name: '{}', slug: 'test-grp', description: null, icon: 'icon', color: 'color', order: 1, isActive: true, instanceId: 'id', createdAt: now, updatedAt: now });
-    vi.mocked(groupRepository.create).mockResolvedValue(mockGroup);
+    const mockLayerGroup = new LayerGroup({ id: 'grp-id', name: '{}', slug: 'test-grp', description: null, icon: 'icon', color: 'color', order: 1, isActive: true, instanceId: 'id', createdAt: now, updatedAt: now });
+    vi.mocked(layerGroupRepository.create).mockResolvedValue(mockLayerGroup);
 
-    const mockSubGroup = new SubGroup({ id: 'subgrp-id', name: '{}', slug: 'test-subgrp', description: null, icon: null, order: 1, isActive: true, groupId: 'grp-id', createdAt: now, updatedAt: now });
-    vi.mocked(subGroupRepository.create).mockResolvedValue(mockSubGroup);
+    const mockLayerSubGroup = new LayerSubGroup({ id: 'subgrp-id', name: '{}', slug: 'test-subgrp', description: null, icon: null, order: 1, isActive: true, groupId: 'grp-id', createdAt: now, updatedAt: now });
+    vi.mocked(layerSubGroupRepository.create).mockResolvedValue(mockLayerSubGroup);
 
     const mockLayer = new Layer({
       id: 'lyr-id', name: '{}', slug: 'test-lyr', description: null, geometryType: GeometryType.POINT, sourceType: SourceType.WMS,
@@ -130,8 +130,8 @@ describe('CreateInstanceUseCase', () => {
     // Attendre un court instant pour s'assurer que les promesses en arrière-plan se résolvent dans le test
     await new Promise(resolve => setTimeout(resolve, 50));
 
-    expect(groupRepository.create).toHaveBeenCalled();
-    expect(subGroupRepository.create).toHaveBeenCalled();
+    expect(layerGroupRepository.create).toHaveBeenCalled();
+    expect(layerSubGroupRepository.create).toHaveBeenCalled();
     expect(layerRepository.create).toHaveBeenCalled();
     expect(osmQueryService.createTable).toHaveBeenCalled();
   });

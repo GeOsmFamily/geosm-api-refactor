@@ -18,7 +18,7 @@ export class PrismaLayerRepository implements ILayerRepository {
     return record ? this.toDomain(record) : null;
   }
 
-  async findBySubGroup(subGroupId: string): Promise<Layer[]> {
+  async findByLayerSubGroup(subGroupId: string): Promise<Layer[]> {
     const records = await this.prisma.layer.findMany({
       where: { subGroupId },
       orderBy: { order: 'asc' },

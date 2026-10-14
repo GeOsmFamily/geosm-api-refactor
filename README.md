@@ -375,10 +375,10 @@ L'API est servie sous le prefixe `/api/v1`. La documentation interactive Swagger
 ### Instances (`/api/v1/instances`)
 - CRUD + gestion des utilisateurs par instance
 
-### Groupes (`/api/v1/instances/:instanceId/groups`)
+### Groupes (`/api/v1/instances/:instanceId/layer-groups`)
 - CRUD + reordonnancement
 
-### Sous-groupes (`/api/v1/groups/:groupId/sub-groups`)
+### Sous-groupes (`/api/v1/layer-groups/:groupId/layer-sub-groups`)
 - CRUD complet
 
 ### Couches (`/api/v1/instances/:instanceId/layers`)

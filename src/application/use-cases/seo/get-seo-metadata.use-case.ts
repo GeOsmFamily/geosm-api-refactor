@@ -20,7 +20,7 @@ export class GetSeoMetadataUseCase {
     const instance = await this.prisma.instance.findUnique({
       where: { slug: instanceSlug },
       include: {
-        groups: {
+        layerGroups: {
           select: { name: true },
           take: 10,
         },
@@ -29,7 +29,7 @@ export class GetSeoMetadataUseCase {
 
     if (!instance) return null;
 
-    const keywords = instance.groups.map((g) => g.name);
+    const keywords = instance.layerGroups.map((g) => g.name);
 
     return {
       title: `${instance.name} - GeoSM`,

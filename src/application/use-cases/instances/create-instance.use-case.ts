@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { IInstanceRepository } from '../../../domain/repositories/instance.repository.js';
-import { IGroupRepository } from '../../../domain/repositories/group.repository.js';
-import { ISubGroupRepository } from '../../../domain/repositories/sub-group.repository.js';
+import { ILayerGroupRepository } from '../../../domain/repositories/layer-group.repository.js';
+import { ILayerSubGroupRepository } from '../../../domain/repositories/layer-sub-group.repository.js';
 import { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
 import {
   OsmQueryService,
@@ -94,8 +94,8 @@ const LAYER_SVG_CONFIG: Record<
 export class CreateInstanceUseCase {
   constructor(
     private readonly instanceRepository: IInstanceRepository,
-    private readonly groupRepository: IGroupRepository,
-    private readonly subGroupRepository: ISubGroupRepository,
+    private readonly layerGroupRepository: ILayerGroupRepository,
+    private readonly layerSubGroupRepository: ILayerSubGroupRepository,
     private readonly layerRepository: ILayerRepository,
     private readonly osmQueryService: OsmQueryService,
     private readonly qgisProjectService: QGISProjectService,
@@ -196,12 +196,12 @@ export class CreateInstanceUseCase {
     }
     logger.info("Fonds de carte par défaut créés pour l'instance", { instanceId });
 
-    // ─── Étape 2 : Création de toutes les thématiques (Groupes) ───────────────
-    const createdGroups = new Map<number, string>(); // categoryId -> groupId
+    // ─── Étape 2 : Création de toutes les thématiques (LayerGroupes) ───────────────
+    const createdLayerGroups = new Map<number, string>(); // categoryId -> groupId
 
     for (const cat of defaultCategories) {
       const groupSlug = `${instanceSlug}-${cat.slug}`;
-      const group = await this.groupRepository.create({
+      const group = await this.layerGroupRepository.create({
         id: uuidv4(),
         name: JSON.stringify(cat.name),
         slug: groupSlug,
@@ -212,22 +212,22 @@ export class CreateInstanceUseCase {
         isActive: true,
         instanceId,
       });
-      createdGroups.set(cat.id, group.id);
-      logger.debug("Groupe créé pour l'instance", { groupSlug, groupId: group.id });
+      createdLayerGroups.set(cat.id, group.id);
+      logger.debug("LayerGroupe créé pour l'instance", { groupSlug, groupId: group.id });
     }
 
-    // ─── Étape 3 : Création des sous-thématiques (Sous-Groupes) par défaut ───
-    const createdSubGroups = new Map<number, string>(); // categoryId -> subGroupId
+    // ─── Étape 3 : Création des sous-thématiques (Sous-LayerGroupes) par défaut ───
+    const createdLayerSubGroups = new Map<number, string>(); // categoryId -> subGroupId
 
     for (const cat of defaultCategories) {
-      const groupId = createdGroups.get(cat.id) ?? '';
+      const groupId = createdLayerGroups.get(cat.id) ?? '';
       const subGroupSlug = `${instanceSlug}-${cat.slug}-default`;
       const subGroupName = {
         fr: `${cat.name.fr} - Général`,
         en: `${cat.name.en} - General`,
       };
 
-      const subGroup = await this.subGroupRepository.create({
+      const subGroup = await this.layerSubGroupRepository.create({
         id: uuidv4(),
         name: JSON.stringify(subGroupName),
         slug: subGroupSlug,
@@ -237,7 +237,7 @@ export class CreateInstanceUseCase {
         isActive: true,
         groupId,
       });
-      createdSubGroups.set(cat.id, subGroup.id);
+      createdLayerSubGroups.set(cat.id, subGroup.id);
       logger.debug('Sous-groupe par défaut créé pour le groupe', {
         subGroupSlug,
         subGroupId: subGroup.id,
@@ -246,7 +246,7 @@ export class CreateInstanceUseCase {
 
     // ─── Étape 4 : Création des couches, import OSM, SVG et QGIS layer ───────
     for (const layerConfig of defaultLayers) {
-      const subGroupId = createdSubGroups.get(layerConfig.categoryId) ?? '';
+      const subGroupId = createdLayerSubGroups.get(layerConfig.categoryId) ?? '';
       const layerSlug = `${instanceSlug}-${layerConfig.slug}`;
       const dbTableName = `${instanceSlug}_${layerConfig.slug}`.replace(/\W/g, '');
 

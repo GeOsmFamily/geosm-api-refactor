@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import { IGroupRepository } from '../../../domain/repositories/group.repository.js';
-import { ISubGroupRepository } from '../../../domain/repositories/sub-group.repository.js';
+import { ILayerGroupRepository } from '../../../domain/repositories/layer-group.repository.js';
+import { ILayerSubGroupRepository } from '../../../domain/repositories/layer-sub-group.repository.js';
 import { IQgisProjectRepository } from '../../../domain/repositories/qgis-project.repository.js';
 import { QGISProjectService } from '../../../infrastructure/qgis/qgis-project.service.js';
 import {
@@ -33,22 +33,22 @@ type QgisTreeNode = QgisTreeGroupNode | QgisTreeLayerNode;
 
 /**
  * Importe TOUTES les couches d'un projet QGIS d'un coup, en recréant automatiquement la
- * thématique (Group) et sous-thématique (SubGroup) GeOsm correspondant à l'arborescence réelle
+ * thématique (LayerGroup) et sous-thématique (LayerSubGroup) GeOsm correspondant à l'arborescence réelle
  * du projet (groupes/sous-dossiers QGIS) - contrairement à CreateLayersFromQgisProjectUseCase
  * (utilisé par l'assistant de création de couche admin), qui exige qu'un unique subGroupId soit
  * choisi manuellement pour toutes les couches sélectionnées. Le style QGIS embarqué dans le
  * projet est déjà préservé sans travail supplémentaire (les couches créées pointent vers le WMS
  * du projet, qui rend avec son style natif - voir CreateLayersFromQgisProjectUseCase).
  *
- * Le modèle GeOsm est strictement Groupe > Sous-groupe > Couche (2 niveaux), alors qu'un projet
+ * Le modèle GeOsm est strictement LayerGroupe > Sous-groupe > Couche (2 niveaux), alors qu'un projet
  * QGIS peut imbriquer des groupes à profondeur arbitraire ou poser des couches directement à la
  * racine/dans un groupe sans sous-dossier - ces cas sont repliés dans un sous-groupe "Général"
  * plutôt que de échouer ou de perdre des couches.
  */
 export class AutoImportQgisProjectUseCase {
   constructor(
-    private readonly groupRepository: IGroupRepository,
-    private readonly subGroupRepository: ISubGroupRepository,
+    private readonly layerGroupRepository: ILayerGroupRepository,
+    private readonly layerSubGroupRepository: ILayerSubGroupRepository,
     private readonly qgisProjectRepository: IQgisProjectRepository,
     private readonly qgisProjectService: QGISProjectService,
     private readonly createLayersFromQgisProjectUseCase: CreateLayersFromQgisProjectUseCase,
@@ -69,15 +69,15 @@ export class AutoImportQgisProjectUseCase {
     const buckets = new Map<string, { subGroupId: string; layers: QgisLayerSelection[] }>();
     const subGroupIdCache = new Map<string, string>();
 
-    const resolveSubGroupId = async (groupName: string, subGroupName: string): Promise<string> => {
+    const resolveLayerSubGroupId = async (groupName: string, subGroupName: string): Promise<string> => {
       const cacheKey = `${groupName}::${subGroupName}`;
       const cached = subGroupIdCache.get(cacheKey);
       if (cached) return cached;
 
       const groupSlug = Slug.create(groupName).value;
-      let group = await this.groupRepository.findBySlug(groupSlug, instanceId);
+      let group = await this.layerGroupRepository.findBySlug(groupSlug, instanceId);
       if (!group) {
-        group = await this.groupRepository.create({
+        group = await this.layerGroupRepository.create({
           id: uuidv4(),
           instanceId,
           name: groupName,
@@ -88,13 +88,13 @@ export class AutoImportQgisProjectUseCase {
           order: 0,
           isActive: true,
         });
-        logger.info("Groupe créé depuis l'arborescence QGIS", { groupName, instanceId });
+        logger.info("LayerGroupe créé depuis l'arborescence QGIS", { groupName, instanceId });
       }
 
       const subGroupSlug = Slug.create(subGroupName).value;
-      let subGroup = await this.subGroupRepository.findBySlug(subGroupSlug, group.id);
+      let subGroup = await this.layerSubGroupRepository.findBySlug(subGroupSlug, group.id);
       if (!subGroup) {
-        subGroup = await this.subGroupRepository.create({
+        subGroup = await this.layerSubGroupRepository.create({
           id: uuidv4(),
           groupId: group.id,
           name: subGroupName,
@@ -122,7 +122,7 @@ export class AutoImportQgisProjectUseCase {
       for (const node of nodes) {
         if (node.type === 'group') {
           if (!groupName) {
-            // Groupe de premier niveau du projet QGIS -> devient un Groupe GeOsm. Ses enfants
+            // LayerGroupe de premier niveau du projet QGIS -> devient un LayerGroupe GeOsm. Ses enfants
             // directs (couches sans sous-dossier) tomberont dans un sous-groupe "Général".
             await collect(node.children, node.name, null);
           } else {
@@ -130,9 +130,9 @@ export class AutoImportQgisProjectUseCase {
             await collect(node.children, groupName, node.name);
           }
         } else {
-          const resolvedGroup = groupName ?? DEFAULT_GROUP_NAME;
-          const resolvedSubGroup = subGroupName ?? DEFAULT_SUBGROUP_NAME;
-          const subGroupId = await resolveSubGroupId(resolvedGroup, resolvedSubGroup);
+          const resolvedLayerGroup = groupName ?? DEFAULT_GROUP_NAME;
+          const resolvedLayerSubGroup = subGroupName ?? DEFAULT_SUBGROUP_NAME;
+          const subGroupId = await resolveLayerSubGroupId(resolvedLayerGroup, resolvedLayerSubGroup);
 
           const bucketKey = subGroupId;
           if (!buckets.has(bucketKey)) buckets.set(bucketKey, { subGroupId, layers: [] });
@@ -164,7 +164,7 @@ export class AutoImportQgisProjectUseCase {
     logger.info('Import automatique de projet QGIS terminé', {
       instanceId,
       qgisProjectId,
-      groupsAndSubGroups: buckets.size,
+      groupsAndLayerSubGroups: buckets.size,
       layersCreated: created.length,
     });
 

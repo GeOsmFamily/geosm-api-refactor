@@ -43,7 +43,7 @@ describe('RunRasterAnalysisUseCase', () => {
     layerRepository = {
       findById: vi.fn(),
       findBySlug: vi.fn(),
-      findBySubGroup: vi.fn(),
+      findByLayerSubGroup: vi.fn(),
       findByInstance: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),

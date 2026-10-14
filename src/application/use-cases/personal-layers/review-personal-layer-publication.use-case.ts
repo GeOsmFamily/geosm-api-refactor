@@ -5,8 +5,8 @@ import {
   PersonalLayerRecord,
 } from '../../../infrastructure/database/repositories/prisma-personal-layer.repository.js';
 import { ILayerRepository } from '../../../domain/repositories/layer.repository.js';
-import { IGroupRepository } from '../../../domain/repositories/group.repository.js';
-import { ISubGroupRepository } from '../../../domain/repositories/sub-group.repository.js';
+import { ILayerGroupRepository } from '../../../domain/repositories/layer-group.repository.js';
+import { ILayerSubGroupRepository } from '../../../domain/repositories/layer-sub-group.repository.js';
 import { IInstanceRepository } from '../../../domain/repositories/instance.repository.js';
 import { PostGISService } from '../../../infrastructure/database/postgis.service.js';
 import { QGISProjectService } from '../../../infrastructure/qgis/qgis-project.service.js';
@@ -32,7 +32,7 @@ export interface ReviewPersonalLayerPublicationInput {
 }
 
 /**
- * Valide ou refuse une demande de publication. Sur validation : résout/crée le Group+SubGroup
+ * Valide ou refuse une demande de publication. Sur validation : résout/crée le LayerGroup+LayerSubGroup
  * cible (même logique de find-or-create que AutoImportQgisProjectUseCase), puis, selon la source :
  *  - FILE : promeut la table "personal_data"."pl_<uuid>" vers le schéma catalogue de l'instance
  *    (même séquence ALTER TABLE SET SCHEMA / RENAME / CREATE INDEX que
@@ -47,8 +47,8 @@ export class ReviewPersonalLayerPublicationUseCase {
   constructor(
     private readonly personalLayerRepository: PrismaPersonalLayerRepository,
     private readonly layerRepository: ILayerRepository,
-    private readonly groupRepository: IGroupRepository,
-    private readonly subGroupRepository: ISubGroupRepository,
+    private readonly layerGroupRepository: ILayerGroupRepository,
+    private readonly layerSubGroupRepository: ILayerSubGroupRepository,
     private readonly instanceRepository: IInstanceRepository,
     private readonly postGISService: PostGISService,
     private readonly qgisProjectService: QGISProjectService,
@@ -80,9 +80,9 @@ export class ReviewPersonalLayerPublicationUseCase {
     const finalSubGroupName = input.overrideSubGroupName ?? layer.subGroupName;
 
     const groupSlug = Slug.create(finalGroupName).value;
-    let group = await this.groupRepository.findBySlug(groupSlug, layer.instanceId);
+    let group = await this.layerGroupRepository.findBySlug(groupSlug, layer.instanceId);
     if (!group) {
-      group = await this.groupRepository.create({
+      group = await this.layerGroupRepository.create({
         id: uuidv4(),
         instanceId: layer.instanceId,
         name: finalGroupName,
@@ -96,9 +96,9 @@ export class ReviewPersonalLayerPublicationUseCase {
     }
 
     const subGroupSlug = Slug.create(finalSubGroupName).value;
-    let subGroup = await this.subGroupRepository.findBySlug(subGroupSlug, group.id);
+    let subGroup = await this.layerSubGroupRepository.findBySlug(subGroupSlug, group.id);
     if (!subGroup) {
-      subGroup = await this.subGroupRepository.create({
+      subGroup = await this.layerSubGroupRepository.create({
         id: uuidv4(),
         groupId: group.id,
         name: finalSubGroupName,

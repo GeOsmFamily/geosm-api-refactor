@@ -23,8 +23,9 @@ import { authRoutes } from './presentation/routes/auth.routes.js';
 import { healthRoutes } from './presentation/routes/health.routes.js';
 import { userRoutes } from './presentation/routes/user.routes.js';
 import { instanceRoutes } from './presentation/routes/instance.routes.js';
-import { groupRoutes } from './presentation/routes/group.routes.js';
-import { subGroupRoutes } from './presentation/routes/sub-group.routes.js';
+import { layerGroupRoutes } from './presentation/routes/layer-group.routes.js';
+import { layerSubGroupRoutes } from './presentation/routes/layer-sub-group.routes.js';
+import { legacyLayerGroupRedirects } from './presentation/routes/legacy-layer-group-redirects.js';
 import { layerRoutes } from './presentation/routes/layer.routes.js';
 import { baseMapRoutes } from './presentation/routes/base-map.routes.js';
 import { styleRoutes } from './presentation/routes/style.routes.js';
@@ -355,12 +356,14 @@ async function bootstrap(): Promise<void> {
   await app.register(authRoutes, { prefix: `${appConfig.apiPrefix}/auth` });
   await app.register(userRoutes, { prefix: `${appConfig.apiPrefix}/users` });
   await app.register(instanceRoutes, { prefix: `${appConfig.apiPrefix}/instances` });
-  await app.register(groupRoutes, {
-    prefix: `${appConfig.apiPrefix}/instances/:instanceId/groups`,
+  await app.register(layerGroupRoutes, {
+    prefix: `${appConfig.apiPrefix}/instances/:instanceId/layer-groups`,
   });
-  await app.register(subGroupRoutes, {
-    prefix: `${appConfig.apiPrefix}/groups/:groupId/sub-groups`,
+  await app.register(layerSubGroupRoutes, {
+    prefix: `${appConfig.apiPrefix}/layer-groups/:groupId/layer-sub-groups`,
   });
+  // Temporaire : anciens chemins du catalogue (308), a retirer avant l'etape 3.1 (groupes sociaux).
+  await app.register(legacyLayerGroupRedirects, { apiPrefix: appConfig.apiPrefix });
   await app.register(layerRoutes, {
     prefix: `${appConfig.apiPrefix}/instances/:instanceId/layers`,
   });

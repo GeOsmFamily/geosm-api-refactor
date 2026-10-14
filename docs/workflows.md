@@ -18,9 +18,9 @@ Une instance represente un deploiement geographique (typiquement un pays ou une 
 3. **Creation du projet QGIS** : Un fichier `.qgs` est cree dans `QGIS_PROJECTS_DIR` pour l'instance (via les scripts PyQGIS)
 4. **Ajout d'utilisateurs** : `POST /api/v1/instances/:instanceId/users`
    - Assigner des roles par instance (ADMIN_INSTANCE, EDITOR, VIEWER)
-5. **Creation des groupes** : `POST /api/v1/instances/:instanceId/groups`
+5. **Creation des groupes** : `POST /api/v1/instances/:instanceId/layer-groups`
    - Organiser les couches par thematique (ex: "Transport", "Sante", "Education")
-6. **Creation des sous-groupes** : `POST /api/v1/groups/:groupId/sub-groups`
+6. **Creation des sous-groupes** : `POST /api/v1/layer-groups/:groupId/layer-sub-groups`
    - Sous-categories (ex: sous le groupe "Transport" : "Routes principales", "Pistes")
 7. **Configuration des fonds de carte** : `POST /api/v1/instances/:instanceId/base-maps`
    - Ajouter les tuiles de fond (OSM, satellite, etc.)

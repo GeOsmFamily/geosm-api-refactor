@@ -17,7 +17,7 @@ export interface InstanceTemplateInput {
   slug: string;
   description?: string;
   thematiques?: string[];
-  // Clone le catalogue (Group→SubGroup→Layer→LayerStyle→LayerAction) + les BaseMap d'une
+  // Clone le catalogue (LayerGroup→LayerSubGroup→Layer→LayerStyle→LayerAction) + les BaseMap d'une
   // instance existante, au lieu des thématiques par défaut - voir plan "Interopérabilité &
   // sécurité des données" du 2026-08-06. Ne clone JAMAIS les tables de données PostGIS
   // elles-mêmes (périmètre confirmé avec l'utilisateur) - un Layer cloné référence encore les
@@ -60,7 +60,7 @@ export class CreateInstanceTemplateUseCase {
       return instance;
     }
 
-    // Anciennement une insertion SQL brute visant la table `"Group"` (avec majuscule, entre
+    // Anciennement une insertion SQL brute visant la table `"LayerGroup"` (avec majuscule, entre
     // guillemets) - la vraie table est `groups` (voir @@map côté schema.prisma), avec des
     // colonnes snake_case, pas camelCase, et sans jamais renseigner `slug` (NOT NULL, partie
     // de @@unique([slug, instanceId])) : cette insertion échouait donc déjà systématiquement
@@ -72,7 +72,7 @@ export class CreateInstanceTemplateUseCase {
       'Urbanisme',
     ];
     for (let i = 0; i < defaultThematiques.length; i++) {
-      await this.prisma.group.create({
+      await this.prisma.layerGroup.create({
         data: {
           name: defaultThematiques[i],
           slug: Slug.create(defaultThematiques[i]).value,
@@ -92,7 +92,7 @@ export class CreateInstanceTemplateUseCase {
     return instance;
   }
 
-  /** Clone récursivement Group→SubGroup→Layer→LayerStyle→LayerAction et les BaseMap d'une
+  /** Clone récursivement LayerGroup→LayerSubGroup→Layer→LayerStyle→LayerAction et les BaseMap d'une
    * instance source. Un Layer référençant un QgisProject voit ce projet physiquement dupliqué
    * sur disque (voir cloneQgisProject) pour que la nouvelle instance reste indépendante de la
    * source au niveau du FICHIER de projet (éditer le projet QGIS de l'une n'affecte pas
@@ -105,7 +105,7 @@ export class CreateInstanceTemplateUseCase {
     const source = await this.instanceRepository.findById(sourceInstanceId);
     if (!source) throw new NotFoundError('Instance', sourceInstanceId);
 
-    const groups = await this.prisma.group.findMany({
+    const groups = await this.prisma.layerGroup.findMany({
       where: { instanceId: sourceInstanceId },
       include: {
         subGroups: { include: { layers: { include: { styles: true, actions: true } } } },
@@ -119,7 +119,7 @@ export class CreateInstanceTemplateUseCase {
     let layersCloned = 0;
 
     for (const group of groups) {
-      const newGroup = await this.prisma.group.create({
+      const newLayerGroup = await this.prisma.layerGroup.create({
         data: {
           name: group.name,
           slug: group.slug,
@@ -133,7 +133,7 @@ export class CreateInstanceTemplateUseCase {
       });
 
       for (const subGroup of group.subGroups) {
-        const newSubGroup = await this.prisma.subGroup.create({
+        const newLayerSubGroup = await this.prisma.layerSubGroup.create({
           data: {
             name: subGroup.name,
             slug: subGroup.slug,
@@ -141,7 +141,7 @@ export class CreateInstanceTemplateUseCase {
             icon: subGroup.icon,
             order: subGroup.order,
             isActive: subGroup.isActive,
-            groupId: newGroup.id,
+            groupId: newLayerGroup.id,
           },
         });
 
@@ -174,7 +174,7 @@ export class CreateInstanceTemplateUseCase {
               opacity: layer.opacity,
               order: layer.order,
               metadata: layer.metadata ?? undefined,
-              subGroupId: newSubGroup.id,
+              subGroupId: newLayerSubGroup.id,
               instanceId: targetInstanceId,
               qgisProjectId: newQgisProjectId,
             },

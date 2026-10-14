@@ -45,8 +45,8 @@ describe('RequestPersonalLayerPublicationUseCase', () => {
       status: 'PRIVATE',
       name: 'Mon jeu de données',
       instanceId: 'instance-1',
-      groupName: 'Group',
-      subGroupName: 'SubGroup',
+      groupName: 'LayerGroup',
+      subGroupName: 'LayerSubGroup',
       sourceType: 'FILE',
     };
     const updated = { ...layer, status: 'PENDING_PUBLICATION' };
@@ -72,8 +72,8 @@ describe('RequestPersonalLayerPublicationUseCase', () => {
       status: 'REJECTED',
       name: 'Autre couche',
       instanceId: 'instance-1',
-      groupName: 'Group',
-      subGroupName: 'SubGroup',
+      groupName: 'LayerGroup',
+      subGroupName: 'LayerSubGroup',
       sourceType: 'QGIS_PROJECT',
     };
     repository.findById.mockResolvedValue(layer);

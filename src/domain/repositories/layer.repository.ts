@@ -4,7 +4,7 @@ import { GeometryType } from '../enums.js';
 export interface ILayerRepository {
   findById(id: string): Promise<Layer | null>;
   findBySlug(slug: string, instanceId: string): Promise<Layer | null>;
-  findBySubGroup(subGroupId: string): Promise<Layer[]>;
+  findByLayerSubGroup(subGroupId: string): Promise<Layer[]>;
   findByInstance(
     instanceId: string,
     options?: {

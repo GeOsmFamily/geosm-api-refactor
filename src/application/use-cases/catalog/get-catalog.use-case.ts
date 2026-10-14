@@ -58,7 +58,7 @@ export class GetCatalogUseCase {
     const instances = await this.prisma.instance.findMany({
       where,
       include: {
-        groups: {
+        layerGroups: {
           where: { isActive: true },
           orderBy: { order: 'asc' },
           include: {
@@ -97,7 +97,7 @@ export class GetCatalogUseCase {
       slug: inst.slug,
       description: localize(inst.description, lang),
       logo: inst.logo,
-      groups: inst.groups.map((g) => ({
+      groups: inst.layerGroups.map((g) => ({
         id: g.id,
         name: localize(g.name, lang),
         slug: g.slug,

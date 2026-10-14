@@ -52,7 +52,7 @@ describe('UploadRasterUseCase', () => {
     layerRepository = {
       findById: vi.fn(),
       findBySlug: vi.fn().mockResolvedValue(null),
-      findBySubGroup: vi.fn(),
+      findByLayerSubGroup: vi.fn(),
       findByInstance: vi.fn(),
       create: vi.fn().mockResolvedValue(mockLayer),
       update: vi.fn(),

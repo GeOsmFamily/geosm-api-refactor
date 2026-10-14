@@ -16,7 +16,7 @@ describe('GetSeoMetadataUseCase', () => {
       slug: 'my-instance',
       description: 'A great instance',
       logo: 'https://example.com/logo.png',
-      groups: [{ name: 'Rivers' }, { name: 'Roads' }],
+      layerGroups: [{ name: 'Rivers' }, { name: 'Roads' }],
     });
 
     const result = await useCase.execute('my-instance', 'https://geosm.com');
@@ -43,7 +43,7 @@ describe('GetSeoMetadataUseCase', () => {
       slug: 'test',
       description: null,
       logo: null,
-      groups: [],
+      layerGroups: [],
     });
 
     const result = await useCase.execute('test', 'https://geosm.com');

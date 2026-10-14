@@ -19,7 +19,7 @@ describe('UpdateLayerUseCase', () => {
   });
 
   beforeEach(() => {
-    layerRepository = { findById: vi.fn(), findBySlug: vi.fn(), findBySubGroup: vi.fn(), findByInstance: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() };
+    layerRepository = { findById: vi.fn(), findBySlug: vi.fn(), findByLayerSubGroup: vi.fn(), findByInstance: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() };
     useCase = new UpdateLayerUseCase(layerRepository);
   });
 

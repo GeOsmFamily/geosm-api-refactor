@@ -223,7 +223,7 @@ model Instance {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  groups         Group[]
+  layerGroups    LayerGroup[]
   layers         Layer[]
   baseMaps       BaseMap[]
   qgisProjects   QgisProject[]
@@ -249,7 +249,7 @@ model InstanceUser {
   @@map("instance_users")
 }
 
-model Group {
+model LayerGroup {
   id          String   @id @default(uuid()) @db.Uuid
   name        String
   slug        String
@@ -262,14 +262,14 @@ model Group {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  instance  Instance   @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  subGroups SubGroup[]
+  instance  Instance        @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  subGroups LayerSubGroup[]
 
   @@unique([slug, instanceId])
   @@map("groups")
 }
 
-model SubGroup {
+model LayerSubGroup {
   id          String   @id @default(uuid()) @db.Uuid
   name        String
   slug        String
@@ -281,7 +281,7 @@ model SubGroup {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  group  Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group  LayerGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   layers Layer[]
 
   @@unique([slug, groupId])
@@ -312,7 +312,7 @@ model Layer {
   createdAt     DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @updatedAt @map("updated_at")
 
-  subGroup    SubGroup      @relation(fields: [subGroupId], references: [id], onDelete: Cascade)
+  subGroup    LayerSubGroup @relation(fields: [subGroupId], references: [id], onDelete: Cascade)
   instance    Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   qgisProject QgisProject?  @relation(fields: [qgisProjectId], references: [id], onDelete: SetNull)
   styles                LayerStyle[]

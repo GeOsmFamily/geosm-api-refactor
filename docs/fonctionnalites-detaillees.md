@@ -397,13 +397,13 @@ Les groupes representent des categories thematiques (Transport, Sante, Education
 **Cas d'usage** : Le geoportail affiche le panneau lateral avec les thematiques disponibles pour le Cameroun.
 
 **Implementation technique** :
-- Route : `GET /api/v1/instances/:instanceId/groups` (authentifie) (`group.routes.ts`)
+- Route : `GET /api/v1/instances/:instanceId/layer-groups` (authentifie) (`layer-group.routes.ts`)
 - Use case : `ListGroupsUseCase` -> `GroupRepository.findByInstanceId()`
 - Modele BD : `Group` (id, name, slug, description, icon, color, order, isActive, instanceId)
 
 ### 3.2 Detail d'un Groupe
 
-- Route : `GET /api/v1/instances/:instanceId/groups/:id` (authentifie)
+- Route : `GET /api/v1/instances/:instanceId/layer-groups/:id` (authentifie)
 - Use case : `GetGroupUseCase`
 
 ### 3.3 Creation d'un Groupe
@@ -412,22 +412,22 @@ Les groupes representent des categories thematiques (Transport, Sante, Education
 
 **Cas d'usage** : L'administrateur de l'instance Benin cree le groupe "Agriculture" pour y placer les couches de cultures et zones agricoles.
 
-- Route : `POST /api/v1/instances/:instanceId/groups` (SUPER_ADMIN, ADMIN_INSTANCE)
+- Route : `POST /api/v1/instances/:instanceId/layer-groups` (SUPER_ADMIN, ADMIN_INSTANCE)
 - Use case : `CreateGroupUseCase` -> verifie existence instance -> `GroupRepository.create()`
 
 ```json
-POST /api/v1/instances/:instanceId/groups
+POST /api/v1/instances/:instanceId/layer-groups
 { "name": "Agriculture", "slug": "agriculture", "icon": "agriculture", "color": "#4CAF50" }
 ```
 
 ### 3.4 Mise a Jour d'un Groupe
 
-- Route : `PATCH /api/v1/instances/:instanceId/groups/:id` (SUPER_ADMIN, ADMIN_INSTANCE)
+- Route : `PATCH /api/v1/instances/:instanceId/layer-groups/:id` (SUPER_ADMIN, ADMIN_INSTANCE)
 - Use case : `UpdateGroupUseCase`
 
 ### 3.5 Suppression d'un Groupe
 
-- Route : `DELETE /api/v1/instances/:instanceId/groups/:id` (SUPER_ADMIN, ADMIN_INSTANCE)
+- Route : `DELETE /api/v1/instances/:instanceId/layer-groups/:id` (SUPER_ADMIN, ADMIN_INSTANCE)
 - Use case : `DeleteGroupUseCase` (cascade : supprime sous-groupes et couches)
 
 ### 3.6 Reordonnancement des Groupes
@@ -436,11 +436,11 @@ POST /api/v1/instances/:instanceId/groups
 
 **Cas d'usage** : L'administrateur souhaite mettre la thematique "Sante" avant "Transport" dans le menu.
 
-- Route : `PATCH /api/v1/instances/:instanceId/groups/reorder` (SUPER_ADMIN, ADMIN_INSTANCE)
+- Route : `PATCH /api/v1/instances/:instanceId/layer-groups/reorder` (SUPER_ADMIN, ADMIN_INSTANCE)
 - Use case : `ReorderGroupsUseCase`
 
 ```json
-PATCH /api/v1/instances/:instanceId/groups/reorder
+PATCH /api/v1/instances/:instanceId/layer-groups/reorder
 { "items": [{ "id": "uuid-sante", "order": 0 }, { "id": "uuid-transport", "order": 1 }] }
 ```
 
@@ -456,28 +456,28 @@ Les sous-groupes permettent un second niveau de categorisation au sein d'un grou
 
 **Cas d'usage** : Dans le groupe "Sante", on affiche les sous-groupes "Hopitaux", "Pharmacies", "Centres de sante".
 
-- Route : `GET /api/v1/groups/:groupId/sub-groups` (authentifie) (`sub-group.routes.ts`)
+- Route : `GET /api/v1/layer-groups/:groupId/layer-sub-groups` (authentifie) (`layer-sub-group.routes.ts`)
 - Use case : `ListSubGroupsUseCase`
 - Modele BD : `SubGroup` (id, name, slug, description, icon, order, isActive, groupId)
 
 ### 4.2 Detail d'un Sous-groupe
 
-- Route : `GET /api/v1/groups/:groupId/sub-groups/:id`
+- Route : `GET /api/v1/layer-groups/:groupId/layer-sub-groups/:id`
 
 ### 4.3 Creation d'un Sous-groupe
 
 **Cas d'usage** : L'administrateur cree le sous-groupe "Ecoles primaires" dans le groupe "Education".
 
-- Route : `POST /api/v1/groups/:groupId/sub-groups` (SUPER_ADMIN, ADMIN_INSTANCE)
+- Route : `POST /api/v1/layer-groups/:groupId/layer-sub-groups` (SUPER_ADMIN, ADMIN_INSTANCE)
 - Use case : `CreateSubGroupUseCase` -> verifie existence du groupe parent -> `SubGroupRepository.create()`
 
 ### 4.4 Mise a Jour d'un Sous-groupe
 
-- Route : `PATCH /api/v1/groups/:groupId/sub-groups/:id` (SUPER_ADMIN, ADMIN_INSTANCE)
+- Route : `PATCH /api/v1/layer-groups/:groupId/layer-sub-groups/:id` (SUPER_ADMIN, ADMIN_INSTANCE)
 
 ### 4.5 Suppression d'un Sous-groupe
 
-- Route : `DELETE /api/v1/groups/:groupId/sub-groups/:id` (SUPER_ADMIN, ADMIN_INSTANCE)
+- Route : `DELETE /api/v1/layer-groups/:groupId/layer-sub-groups/:id` (SUPER_ADMIN, ADMIN_INSTANCE)
 - Cascade : supprime les couches associees
 
 ---

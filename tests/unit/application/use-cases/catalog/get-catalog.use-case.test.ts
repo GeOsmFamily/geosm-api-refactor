@@ -14,8 +14,8 @@ describe('GetCatalogUseCase', () => {
     prisma.instance.findMany.mockResolvedValue([
       {
         id: 'i1', name: 'Instance 1', slug: 'inst-1', description: null, logo: null,
-        groups: [{
-          id: 'g1', name: 'Group', slug: 'group', description: null, icon: null, color: null,
+        layerGroups: [{
+          id: 'g1', name: 'LayerGroup', slug: 'group', description: null, icon: null, color: null,
           subGroups: [{
             id: 'sg1', name: 'Sub', slug: 'sub', description: null,
             layers: [{ id: 'l1', name: 'Layer', slug: 'layer', description: null, geometryType: 'Point', sourceType: 'vector' }],

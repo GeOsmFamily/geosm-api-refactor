@@ -343,7 +343,7 @@ L'API est servie sous le prefixe `/api/v1` (configurable via `API_PREFIX`). Au t
 - `DELETE /:instanceId/users/:userId` -- Retirer un utilisateur
 - `PATCH /:instanceId/users/:userId/role` -- Changer le role
 
-### Groups (6 endpoints) -- `/api/v1/instances/:instanceId/groups`
+### Groups (6 endpoints) -- `/api/v1/instances/:instanceId/layer-groups`
 - `GET /` -- Liste
 - `GET /:id` -- Detail
 - `POST /` -- Creation (SUPER_ADMIN, ADMIN_INSTANCE)
@@ -351,7 +351,7 @@ L'API est servie sous le prefixe `/api/v1` (configurable via `API_PREFIX`). Au t
 - `DELETE /:id` -- Suppression
 - `PATCH /reorder` -- Reordonnancement
 
-### Sub-Groups (5 endpoints) -- `/api/v1/groups/:groupId/sub-groups`
+### Sub-Groups (5 endpoints) -- `/api/v1/layer-groups/:groupId/layer-sub-groups`
 - `GET /`, `GET /:id`, `POST /`, `PATCH /:id`, `DELETE /:id`
 
 ### Layers (6 endpoints) -- `/api/v1/instances/:instanceId/layers`

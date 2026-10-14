@@ -70,7 +70,7 @@ const createInstanceTemplateSchema = z.object({
   slug: z.string().min(1),
   description: z.string().optional(),
   thematiques: z.array(z.string()).optional(),
-  // Clone le catalogue (Group→SubGroup→Layer→LayerStyle→LayerAction) + BaseMap d'une instance
+  // Clone le catalogue (LayerGroup→LayerSubGroup→Layer→LayerStyle→LayerAction) + BaseMap d'une instance
   // existante au lieu des thématiques par défaut - voir plan "Interopérabilité & sécurité des
   // données" du 2026-08-06.
   sourceInstanceId: z.string().uuid().optional(),
