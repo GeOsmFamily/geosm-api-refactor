@@ -367,6 +367,7 @@ import { ImportOsmDataUseCase } from './application/use-cases/admin/import-osm-d
 import { ScheduledOsmImportUseCase } from './application/use-cases/admin/scheduled-osm-import.use-case.js';
 import { DatabaseBackupUseCase } from './application/use-cases/admin/database-backup.use-case.js';
 import { config } from './config/env.config.js';
+import { collectDomainRegistrations } from './di/domain-registrations.js';
 
 interface Cradle {
   prisma: PrismaClient;
@@ -1955,4 +1956,7 @@ export async function setupContainer(app: FastifyInstance): Promise<void> {
       lifetime: Lifetime.SCOPED,
     }),
   });
+
+  // Domaines GeOsm Family : un fichier de registrations par domaine (src/di/).
+  diContainer.register(collectDomainRegistrations({ prisma }));
 }

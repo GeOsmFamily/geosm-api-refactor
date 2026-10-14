@@ -36,6 +36,8 @@ le code metier (environnement local) :
 
 Toute regression se mesure par rapport a ce tableau.
 
+Conventions d'observabilite : voir [observability.md](observability.md).
+
 ## Plan
 
 | Phase | Dates | Contenu |

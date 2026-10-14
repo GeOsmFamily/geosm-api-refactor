@@ -1,0 +1,27 @@
+# Regles d'alerte du reseau social GeOsm Family.
+# NON CHARGEES par defaut : ajouter ce fichier a `rule_files` dans prometheus.yml une fois
+# la metrique correspondante exposee (voir docs/v2/observability.md).
+groups:
+  - name: geosm-social
+    rules:
+      # Etape 2.3 : le fil geolocalise se degrade (index spatial, volumetrie).
+      - alert: SocialFeedLatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(geosm_social_feed_query_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Latence P95 du fil social superieure a 500 ms"
+      # Etape 3.5 : le calcul des badges derive (file BullMQ trop longue).
+      - alert: SocialBadgeQueueBacklog
+        expr: jobs_waiting_count{queue="badge-computation"} > 1000
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "File badge-computation en retard"
+      # Etape 2.3 : pic de rejets de moderation (campagne de signalements abusifs ?).
+      - alert: SocialModerationRejectSpike
+        expr: sum(rate(geosm_social_moderation_actions_total{decision="reject"}[15m])) > 0.2
+        for: 15m
+        labels: { severity: info }
+        annotations:
+          summary: "Taux de rejets de moderation anormalement eleve"
