@@ -40,7 +40,7 @@ type QgisTreeNode = QgisTreeGroupNode | QgisTreeLayerNode;
  * projet est déjà préservé sans travail supplémentaire (les couches créées pointent vers le WMS
  * du projet, qui rend avec son style natif - voir CreateLayersFromQgisProjectUseCase).
  *
- * Le modèle GeOsm est strictement LayerGroupe > Sous-groupe > Couche (2 niveaux), alors qu'un projet
+ * Le modèle GeOsm est strictement Groupe > Sous-groupe > Couche (2 niveaux), alors qu'un projet
  * QGIS peut imbriquer des groupes à profondeur arbitraire ou poser des couches directement à la
  * racine/dans un groupe sans sous-dossier - ces cas sont repliés dans un sous-groupe "Général"
  * plutôt que de échouer ou de perdre des couches.
@@ -88,7 +88,7 @@ export class AutoImportQgisProjectUseCase {
           order: 0,
           isActive: true,
         });
-        logger.info("LayerGroupe créé depuis l'arborescence QGIS", { groupName, instanceId });
+        logger.info("Groupe créé depuis l'arborescence QGIS", { groupName, instanceId });
       }
 
       const subGroupSlug = Slug.create(subGroupName).value;
@@ -122,7 +122,7 @@ export class AutoImportQgisProjectUseCase {
       for (const node of nodes) {
         if (node.type === 'group') {
           if (!groupName) {
-            // LayerGroupe de premier niveau du projet QGIS -> devient un LayerGroupe GeOsm. Ses enfants
+            // Groupe de premier niveau du projet QGIS -> devient un Groupe GeOsm. Ses enfants
             // directs (couches sans sous-dossier) tomberont dans un sous-groupe "Général".
             await collect(node.children, node.name, null);
           } else {

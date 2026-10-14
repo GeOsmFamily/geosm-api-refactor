@@ -473,7 +473,7 @@ export const ICON_CATALOG: { key: string; label: string; category: string; svgPa
   // Énergie
   { key: 'wind-turbine', label: 'Éolienne', category: 'energie', svgPath: WIND_TURBINE },
   { key: 'power-line', label: 'Ligne électrique', category: 'energie', svgPath: POWER_LINE },
-  { key: 'generator', label: 'LayerGroupe électrogène', category: 'energie', svgPath: GENERATOR },
+  { key: 'generator', label: 'Groupe électrogène', category: 'energie', svgPath: GENERATOR },
   { key: 'oil-derrick', label: 'Derrick pétrolier', category: 'energie', svgPath: OIL_DERRICK },
   { key: 'battery', label: 'Batterie/Stockage', category: 'energie', svgPath: BATTERY },
   { key: 'power-plant', label: 'Centrale électrique', category: 'energie', svgPath: POWER_PLANT },

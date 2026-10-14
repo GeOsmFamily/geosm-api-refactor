@@ -52,7 +52,7 @@ export async function layerGroupRoutes(app: FastifyInstance): Promise<void> {
     {
       schema: {
         description: 'Lister les groupes',
-        tags: ['LayerGroupes'],
+        tags: ['Groupes'],
         security: [{ bearerAuth: [] }],
       },
       preHandler: [app.authenticate],
@@ -69,7 +69,7 @@ export async function layerGroupRoutes(app: FastifyInstance): Promise<void> {
     {
       schema: {
         description: 'Obtenir un groupe par ID',
-        tags: ['LayerGroupes'],
+        tags: ['Groupes'],
         security: [{ bearerAuth: [] }],
       },
       preHandler: [app.authenticate],
@@ -86,7 +86,7 @@ export async function layerGroupRoutes(app: FastifyInstance): Promise<void> {
     {
       schema: {
         description: 'Créer un groupe',
-        tags: ['LayerGroupes'],
+        tags: ['Groupes'],
         security: [{ bearerAuth: [] }],
         body: zodToSwagger(createLayerGroupSchema),
       },
@@ -105,7 +105,7 @@ export async function layerGroupRoutes(app: FastifyInstance): Promise<void> {
     {
       schema: {
         description: 'Mettre à jour un groupe',
-        tags: ['LayerGroupes'],
+        tags: ['Groupes'],
         security: [{ bearerAuth: [] }],
         body: zodToSwagger(updateLayerGroupSchema),
       },
@@ -124,7 +124,7 @@ export async function layerGroupRoutes(app: FastifyInstance): Promise<void> {
     {
       schema: {
         description: 'Supprimer un groupe',
-        tags: ['LayerGroupes'],
+        tags: ['Groupes'],
         security: [{ bearerAuth: [] }],
       },
       preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN, Role.ADMIN_INSTANCE)],
@@ -141,7 +141,7 @@ export async function layerGroupRoutes(app: FastifyInstance): Promise<void> {
     {
       schema: {
         description: 'Réordonner les groupes',
-        tags: ['LayerGroupes'],
+        tags: ['Groupes'],
         security: [{ bearerAuth: [] }],
         body: zodToSwagger(reorderLayerGroupsSchema),
       },

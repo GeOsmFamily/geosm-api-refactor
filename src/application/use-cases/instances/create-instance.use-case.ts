@@ -196,7 +196,7 @@ export class CreateInstanceUseCase {
     }
     logger.info("Fonds de carte par défaut créés pour l'instance", { instanceId });
 
-    // ─── Étape 2 : Création de toutes les thématiques (LayerGroupes) ───────────────
+    // ─── Étape 2 : Création de toutes les thématiques (Groupes) ───────────────
     const createdLayerGroups = new Map<number, string>(); // categoryId -> groupId
 
     for (const cat of defaultCategories) {
@@ -213,10 +213,10 @@ export class CreateInstanceUseCase {
         instanceId,
       });
       createdLayerGroups.set(cat.id, group.id);
-      logger.debug("LayerGroupe créé pour l'instance", { groupSlug, groupId: group.id });
+      logger.debug("Groupe créé pour l'instance", { groupSlug, groupId: group.id });
     }
 
-    // ─── Étape 3 : Création des sous-thématiques (Sous-LayerGroupes) par défaut ───
+    // ─── Étape 3 : Création des sous-thématiques (Sous-Groupes) par défaut ───
     const createdLayerSubGroups = new Map<number, string>(); // categoryId -> subGroupId
 
     for (const cat of defaultCategories) {

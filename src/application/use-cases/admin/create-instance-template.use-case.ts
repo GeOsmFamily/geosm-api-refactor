@@ -60,7 +60,7 @@ export class CreateInstanceTemplateUseCase {
       return instance;
     }
 
-    // Anciennement une insertion SQL brute visant la table `"LayerGroup"` (avec majuscule, entre
+    // Anciennement une insertion SQL brute visant la table `"Group"` (avec majuscule, entre
     // guillemets) - la vraie table est `groups` (voir @@map côté schema.prisma), avec des
     // colonnes snake_case, pas camelCase, et sans jamais renseigner `slug` (NOT NULL, partie
     // de @@unique([slug, instanceId])) : cette insertion échouait donc déjà systématiquement
