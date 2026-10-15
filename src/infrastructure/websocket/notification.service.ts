@@ -3,6 +3,8 @@ import type { WebSocket } from '@fastify/websocket';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { UnauthorizedError } from '../../domain/errors/unauthorized.error.js';
 import { logger } from '../observability/logger.js';
+import { wsConnectionsActive } from '../observability/metrics.js';
+import { categoryOf } from '../../domain/notifications/social-notification-types.js';
 
 interface WSClient {
   socket: WebSocket;
@@ -51,9 +53,11 @@ export class NotificationService {
         clients.push({ socket, userId });
         this.clients.set(userId, clients);
 
+        wsConnectionsActive.inc({ channel: 'notifications' });
         logger.info('WebSocket client connected', { userId });
 
         socket.on('close', () => {
+          wsConnectionsActive.dec({ channel: 'notifications' });
           const remaining = (this.clients.get(userId) || []).filter((c) => c.socket !== socket);
           if (remaining.length === 0) {
             this.clients.delete(userId);
@@ -87,6 +91,7 @@ export class NotificationService {
    * est tenté.
    */
   async notifyUser(userId: string, event: string, data: unknown): Promise<void> {
+    if (!(await this.isEnabled(userId, event))) return;
     try {
       await this.prisma.notification.create({
         data: { userId, type: event, payload: data as Prisma.InputJsonValue },
@@ -112,6 +117,20 @@ export class NotificationService {
           error: err instanceof Error ? err.message : String(err),
         });
       }
+    }
+  }
+
+  /** Une categorie desactivee dans les preferences coupe la notification (types sociaux seulement). */
+  private async isEnabled(userId: string, event: string): Promise<boolean> {
+    const category = categoryOf(event);
+    if (!category) return true;
+    try {
+      const pref = await this.prisma.notificationPreference.findUnique({
+        where: { userId_category: { userId, category } },
+      });
+      return pref?.enabled ?? true;
+    } catch {
+      return true;
     }
   }
 

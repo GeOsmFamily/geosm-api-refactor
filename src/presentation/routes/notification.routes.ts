@@ -7,6 +7,8 @@ import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { GetMyNotificationsUseCase } from '../../application/use-cases/notifications/get-my-notifications.use-case.js';
 import { MarkNotificationReadUseCase } from '../../application/use-cases/notifications/mark-notification-read.use-case.js';
 import { MarkAllNotificationsReadUseCase } from '../../application/use-cases/notifications/mark-all-notifications-read.use-case.js';
+import { NotificationPreferencesUseCases } from '../../application/use-cases/notifications/notification-preferences.use-case.js';
+import { NOTIFICATION_CATEGORIES } from '../../domain/notifications/social-notification-types.js';
 import { GetUnreadCountersUseCase } from '../../application/use-cases/notifications/get-unread-counters.use-case.js';
 
 function parseBody<T>(
@@ -24,6 +26,9 @@ function parseBody<T>(
   return result.data as T;
 }
 
+const preferencesBodySchema = z.object({
+  preferences: z.record(z.enum(NOTIFICATION_CATEGORIES as [string, ...string[]]), z.boolean()),
+});
 const idParamSchema = z.object({ id: z.string().uuid() });
 const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional(),
@@ -65,6 +70,44 @@ export async function notificationRoutes(app: FastifyInstance): Promise<void> {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const query = parseBody(listQuerySchema, request.query);
       const result = await getMyNotificationsUseCase.execute(request.user!.sub, query);
+      return reply.send(successResponse(result));
+    },
+  );
+
+  const preferencesUseCases = app.diContainer.resolve<NotificationPreferencesUseCases>(
+    'notificationPreferencesUseCases',
+  );
+
+  app.get(
+    '/preferences',
+    {
+      schema: {
+        description: 'Mes preferences de notification par categorie',
+        tags: ['Notifications'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const result = await preferencesUseCases.get(request.user!.sub);
+      return reply.send(successResponse(result));
+    },
+  );
+
+  app.put(
+    '/preferences',
+    {
+      schema: {
+        description: 'Activer ou desactiver des categories de notification',
+        tags: ['Notifications'],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(preferencesBodySchema),
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { preferences } = parseBody(preferencesBodySchema, request.body);
+      const result = await preferencesUseCases.update(request.user!.sub, preferences);
       return reply.send(successResponse(result));
     },
   );

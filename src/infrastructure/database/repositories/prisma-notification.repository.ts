@@ -54,6 +54,20 @@ export class PrismaNotificationRepository {
     });
   }
 
+  /** Categories explicitement choisies par l'utilisateur ; les autres sont activees par defaut. */
+  async listPreferences(userId: string): Promise<Record<string, boolean>> {
+    const rows = await this.prisma.notificationPreference.findMany({ where: { userId } });
+    return Object.fromEntries(rows.map((r) => [r.category, r.enabled]));
+  }
+
+  async setPreference(userId: string, category: string, enabled: boolean): Promise<void> {
+    await this.prisma.notificationPreference.upsert({
+      where: { userId_category: { userId, category } },
+      create: { userId, category, enabled },
+      update: { enabled },
+    });
+  }
+
   findById(id: string): Promise<NotificationRecord | null> {
     return this.prisma.notification.findUnique({ where: { id } });
   }

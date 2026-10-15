@@ -121,6 +121,7 @@ model User {
   personalLayers          PersonalLayer[]
   analysisReports         AnalysisReport[]
   notifications           Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@map("users")
 }
@@ -900,6 +901,21 @@ model FeedbackSubmission {
 // `type` suit la même convention que les événements WS déjà émis par les workers BullMQ
 // (ex. "export:completed", "location-plan:failed") - un simple string, pas d'enum fermé, pour
 // ne jamais bloquer l'ajout d'un nouveau type de notification par une migration de schéma.
+// Interrupteur par categorie de notification sociale (ecran Parametres). Absence de ligne =
+// categorie activee : seuls les choix explicites sont stockes.
+model NotificationPreference {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  category  String
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@map("notification_preferences")
+}
+
 model Notification {
   id        String    @id @default(uuid()) @db.Uuid
   userId    String    @map("user_id") @db.Uuid

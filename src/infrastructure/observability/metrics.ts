@@ -45,6 +45,14 @@ export const activeWebsocketConnections = new client.Gauge({
   registers: [register],
 });
 
+/** Connexions WebSocket ouvertes par canal (notifications aujourd'hui, messages en phase 3). */
+export const wsConnectionsActive = new client.Gauge({
+  name: 'geosm_ws_connections_active',
+  help: 'Active WebSocket connections per channel',
+  labelNames: ['channel'] as const,
+  registers: [register],
+});
+
 // --- Job Queue Metrics ---
 
 export const jobsProcessedTotal = new client.Counter({

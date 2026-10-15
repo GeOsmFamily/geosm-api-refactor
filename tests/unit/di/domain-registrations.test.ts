@@ -16,6 +16,7 @@ describe('collectDomainRegistrations', () => {
       'getInstanceChildrenUseCase',
       'getInstanceTreeUseCase',
       'getUnreadCountersUseCase',
+      'notificationPreferencesUseCases',
       'resendVerificationUseCase',
       'setPreferredInstanceUseCase',
       'updateInstanceHierarchyUseCase',
