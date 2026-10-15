@@ -3,6 +3,7 @@ import { SetPreferredInstanceUseCase } from '../../../../../src/application/use-
 import { Instance, type InstanceProps } from '../../../../../src/domain/entities/instance.entity.js';
 import { InstanceKind } from '../../../../../src/domain/enums.js';
 import { ConflictError } from '../../../../../src/domain/errors/conflict.error.js';
+import { metricsRegister } from '../../../../../src/infrastructure/observability/metrics.js';
 import { NotFoundError } from '../../../../../src/domain/errors/not-found.error.js';
 
 const now = new Date();
@@ -30,6 +31,12 @@ describe('SetPreferredInstanceUseCase', () => {
     const result = await useCase.execute('u1', 'inst-1');
     expect(result).toEqual({ preferredInstanceId: 'inst-1' });
     expect(userRepo.update).toHaveBeenCalledWith('u1', { preferredInstanceId: 'inst-1' });
+  });
+
+  it('compte le choix dans geosm_social_instance_selections_total', async () => {
+    await useCase.execute('u1', 'inst-1');
+    const text = await metricsRegister.metrics();
+    expect(text).toMatch(/geosm_social_instance_selections_total{instance_id="inst-1"} [1-9]/);
   });
 
   it('efface la preference avec null, sans consulter les instances', async () => {

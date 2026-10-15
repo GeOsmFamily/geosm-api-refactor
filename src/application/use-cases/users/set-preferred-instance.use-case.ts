@@ -4,9 +4,14 @@ import { InstanceKind } from '../../../domain/enums.js';
 import { NotFoundError } from '../../../domain/errors/not-found.error.js';
 import { ConflictError } from '../../../domain/errors/conflict.error.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
-import { logSocialEvent } from '../../../infrastructure/observability/social-telemetry.js';
+import { createSocialCounter, logSocialEvent } from '../../../infrastructure/observability/social-telemetry.js';
 
 const logger = createChildLogger('SetPreferredInstanceUseCase');
+
+const instanceSelections = createSocialCounter(
+  'instance_selections_total',
+  'Pays choisis par les utilisateurs connectes',
+);
 
 /**
  * Memorise le pays choisi par un utilisateur connecte (RG-B-05) pour le restaurer a chaque visite.
@@ -35,6 +40,7 @@ export class SetPreferredInstanceUseCase {
     }
 
     await this.userRepository.update(userId, { preferredInstanceId: instanceId });
+    if (instanceId !== null) instanceSelections.inc({ instance_id: instanceId });
     logSocialEvent(logger, 'info', 'instance.selected', { userId, instanceId });
     return { preferredInstanceId: instanceId };
   }
