@@ -26,8 +26,13 @@ function parseBody<T>(
   return result.data as T;
 }
 
+// Corps partiel : l'enum exhaustif d'un z.record exigerait toutes les categories dans le schema
+// Fastify/JSON Schema ; les cles inconnues sont refusees par le refine ci-dessous.
 const preferencesBodySchema = z.object({
-  preferences: z.record(z.enum(NOTIFICATION_CATEGORIES as [string, ...string[]]), z.boolean()),
+  preferences: z.record(z.string(), z.boolean()).refine(
+    (prefs) => Object.keys(prefs).every((key) => (NOTIFICATION_CATEGORIES as readonly string[]).includes(key)),
+    { message: 'Categorie de notification inconnue' },
+  ),
 });
 const idParamSchema = z.object({ id: z.string().uuid() });
 const listQuerySchema = z.object({
