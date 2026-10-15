@@ -7,6 +7,7 @@ import { zodToSwagger } from '../schemas/swagger.helper.js';
 import { GetMyNotificationsUseCase } from '../../application/use-cases/notifications/get-my-notifications.use-case.js';
 import { MarkNotificationReadUseCase } from '../../application/use-cases/notifications/mark-notification-read.use-case.js';
 import { MarkAllNotificationsReadUseCase } from '../../application/use-cases/notifications/mark-all-notifications-read.use-case.js';
+import { GetUnreadCountersUseCase } from '../../application/use-cases/notifications/get-unread-counters.use-case.js';
 
 function parseBody<T>(
   schema: {
@@ -41,6 +42,8 @@ export async function notificationRoutes(app: FastifyInstance): Promise<void> {
   const getMyNotificationsUseCase = app.diContainer.resolve<GetMyNotificationsUseCase>(
     'getMyNotificationsUseCase',
   );
+  const getUnreadCountersUseCase =
+    app.diContainer.resolve<GetUnreadCountersUseCase>('getUnreadCountersUseCase');
   const markNotificationReadUseCase = app.diContainer.resolve<MarkNotificationReadUseCase>(
     'markNotificationReadUseCase',
   );
@@ -62,6 +65,22 @@ export async function notificationRoutes(app: FastifyInstance): Promise<void> {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const query = parseBody(listQuerySchema, request.query);
       const result = await getMyNotificationsUseCase.execute(request.user!.sub, query);
+      return reply.send(successResponse(result));
+    },
+  );
+
+  app.get(
+    '/counters',
+    {
+      schema: {
+        description: 'Compteurs de non-lus pour la barre de navigation (hors taches de fond)',
+        tags: ['Notifications'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const result = await getUnreadCountersUseCase.execute(request.user!.sub);
       return reply.send(successResponse(result));
     },
   );

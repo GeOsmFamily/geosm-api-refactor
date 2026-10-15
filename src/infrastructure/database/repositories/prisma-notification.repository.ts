@@ -9,6 +9,14 @@ export interface NotificationRecord {
   createdAt: Date;
 }
 
+/**
+ * Evenements de taches de fond (export, import, plan de localisation, rapport d'analyse) : tres
+ * nombreux (plusieurs `:progress` par tache) et deja visibles dans le tiroir de taches. Ils sont
+ * persistes comme les autres notifications mais ne doivent pas alimenter les pastilles de la
+ * barre de navigation.
+ */
+export const JOB_EVENT_PREFIXES = ['export:', 'import:', 'location-plan:', 'analysis-report:'] as const;
+
 export class PrismaNotificationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -33,6 +41,17 @@ export class PrismaNotificationRepository {
     ]);
 
     return { data, total, unreadCount };
+  }
+
+  /** Notifications non lues hors evenements de taches de fond (pastille de la navigation). */
+  countUnreadSocial(userId: string): Promise<number> {
+    return this.prisma.notification.count({
+      where: {
+        userId,
+        readAt: null,
+        NOT: { OR: JOB_EVENT_PREFIXES.map((prefix) => ({ type: { startsWith: prefix } })) },
+      },
+    });
   }
 
   findById(id: string): Promise<NotificationRecord | null> {
