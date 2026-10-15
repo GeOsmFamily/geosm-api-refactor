@@ -32,6 +32,7 @@ export class UpdateProfileUseCase {
       emailVerifiedAt: updated.emailVerifiedAt,
       lastLoginAt: updated.lastLoginAt,
       preferredInstanceId: updated.preferredInstanceId,
+      profileCompletionPending: updated.profileCompletionPending,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     };

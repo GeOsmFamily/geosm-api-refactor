@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import {
   registerSchema,
+  completeProfileSchema,
   loginSchema,
   refreshTokenSchema,
   logoutSchema,
@@ -25,6 +26,8 @@ import { ForgotPasswordUseCase } from '../../application/use-cases/auth/forgot-p
 import { ResetPasswordUseCase } from '../../application/use-cases/auth/reset-password.use-case.js';
 import { GetProfileUseCase } from '../../application/use-cases/auth/get-profile.use-case.js';
 import { UpdateProfileUseCase } from '../../application/use-cases/auth/update-profile.use-case.js';
+import type { ResendVerificationUseCase } from '../../application/use-cases/auth/resend-verification.use-case.js';
+import type { CompleteProfileUseCase } from '../../application/use-cases/auth/complete-profile.use-case.js';
 import { SetPreferredInstanceUseCase } from '../../application/use-cases/users/set-preferred-instance.use-case.js';
 import { ChangePasswordUseCase } from '../../application/use-cases/auth/change-password.use-case.js';
 import { OsmLoginUseCase } from '../../application/use-cases/auth/osm-login.use-case.js';
@@ -58,6 +61,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   const refreshTokenUseCase = app.diContainer.resolve<RefreshTokenUseCase>('refreshTokenUseCase');
   const logoutUseCase = app.diContainer.resolve<LogoutUseCase>('logoutUseCase');
   const verifyEmailUseCase = app.diContainer.resolve<VerifyEmailUseCase>('verifyEmailUseCase');
+  const resendVerificationUseCase =
+    app.diContainer.resolve<ResendVerificationUseCase>('resendVerificationUseCase');
+  const completeProfileUseCase =
+    app.diContainer.resolve<CompleteProfileUseCase>('completeProfileUseCase');
   const forgotPasswordUseCase =
     app.diContainer.resolve<ForgotPasswordUseCase>('forgotPasswordUseCase');
   const resetPasswordUseCase =
@@ -155,6 +162,40 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const dto = parseBody(verifyEmailSchema, request.body);
       await verifyEmailUseCase.execute(dto);
+      return reply.send(successResponse(null));
+    },
+  );
+
+  app.post(
+    '/resend-verification',
+    {
+      schema: {
+        description: "Renvoyer l'email de verification (un envoi toutes les 60 secondes)",
+        tags: ['Authentification'],
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const result = await resendVerificationUseCase.execute(request.user.sub);
+      return reply.send(successResponse(result));
+    },
+  );
+
+  app.post(
+    '/me/complete-profile',
+    {
+      schema: {
+        description: 'Confirmer le profil recupere depuis OpenStreetMap (premiere connexion)',
+        tags: ['Authentification'],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(completeProfileSchema),
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const dto = parseBody(completeProfileSchema, request.body);
+      await completeProfileUseCase.execute(request.user.sub, dto);
       return reply.send(successResponse(null));
     },
   );

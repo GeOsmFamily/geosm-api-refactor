@@ -70,6 +70,7 @@ export class OsmLoginUseCase {
         isActive: true,
         emailVerifiedAt: null,
         lastLoginAt: null,
+        profileCompletionPending: true,
       });
       userId = user.id;
       role = user.role;

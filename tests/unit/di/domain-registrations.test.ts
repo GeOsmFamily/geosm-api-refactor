@@ -9,12 +9,14 @@ import {
 const deps = { prisma: {} as PrismaClient };
 
 describe('collectDomainRegistrations', () => {
-  it('enregistre les domaines Territoire et Notifications', () => {
+  it('enregistre les domaines Territoire, Notifications et Auth', () => {
     expect(domainRegistrations.length).toBeGreaterThan(0);
     expect(Object.keys(collectDomainRegistrations(deps)).sort()).toEqual([
+      'completeProfileUseCase',
       'getInstanceChildrenUseCase',
       'getInstanceTreeUseCase',
       'getUnreadCountersUseCase',
+      'resendVerificationUseCase',
       'setPreferredInstanceUseCase',
       'updateInstanceHierarchyUseCase',
     ]);

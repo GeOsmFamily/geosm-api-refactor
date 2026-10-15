@@ -100,6 +100,11 @@ model User {
   emailVerifiedAt     DateTime? @map("email_verified_at")
   lastLoginAt         DateTime? @map("last_login_at")
   preferredInstanceId String?   @map("preferred_instance_id") @db.Uuid
+  // RG-A-11 : temporisation apres cinq echecs de connexion consecutifs.
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  // RG-A-09 : compte cree via OpenStreetMap qui doit encore confirmer son profil.
+  profileCompletionPending Boolean @default(false) @map("profile_completion_pending")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 

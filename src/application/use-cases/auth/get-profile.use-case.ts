@@ -26,6 +26,7 @@ export class GetProfileUseCase {
       emailVerifiedAt: user.emailVerifiedAt,
       lastLoginAt: user.lastLoginAt,
       preferredInstanceId: user.preferredInstanceId,
+      profileCompletionPending: user.profileCompletionPending,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

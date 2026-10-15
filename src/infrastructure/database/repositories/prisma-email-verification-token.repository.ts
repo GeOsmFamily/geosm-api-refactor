@@ -25,6 +25,14 @@ export class PrismaEmailVerificationTokenRepository {
     return this.prisma.emailVerificationToken.findUnique({ where: { token } });
   }
 
+  /** Dernier token emis pour un utilisateur (sert au delai de renvoi, RG-A-04). */
+  async findLatestByUser(userId: string): Promise<EmailVerificationTokenRecord | null> {
+    return this.prisma.emailVerificationToken.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async markUsed(id: string): Promise<void> {
     await this.prisma.emailVerificationToken.update({
       where: { id },

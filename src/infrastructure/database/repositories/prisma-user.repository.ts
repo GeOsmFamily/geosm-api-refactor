@@ -63,6 +63,7 @@ export class PrismaUserRepository implements IUserRepository {
         isActive: data.isActive,
         emailVerifiedAt: data.emailVerifiedAt,
         lastLoginAt: data.lastLoginAt,
+        profileCompletionPending: data.profileCompletionPending ?? false,
       },
     });
     return this.toDomain(record);
@@ -95,6 +96,9 @@ export class PrismaUserRepository implements IUserRepository {
       emailVerifiedAt: record.emailVerifiedAt,
       lastLoginAt: record.lastLoginAt,
       preferredInstanceId: record.preferredInstanceId,
+      failedLoginAttempts: record.failedLoginAttempts,
+      lockedUntil: record.lockedUntil,
+      profileCompletionPending: record.profileCompletionPending,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     });

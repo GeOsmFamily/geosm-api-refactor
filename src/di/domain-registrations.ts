@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { Resolver } from 'awilix';
 import { territoryRegistrations } from './territory.registrations.js';
 import { notificationsRegistrations } from './notifications.registrations.js';
+import { authRegistrations } from './auth.registrations.js';
 
 /**
  * Registre d'injection par domaine.
@@ -27,7 +28,11 @@ export interface DomainRegistrationDeps {
 export type DomainRegistration = (deps: DomainRegistrationDeps) => Record<string, Resolver<unknown>>;
 
 /** Domaines GeOsm Family enregistres, dans l'ordre. */
-export const domainRegistrations: DomainRegistration[] = [territoryRegistrations, notificationsRegistrations];
+export const domainRegistrations: DomainRegistration[] = [
+  territoryRegistrations,
+  notificationsRegistrations,
+  authRegistrations,
+];
 
 export function collectDomainRegistrations(
   deps: DomainRegistrationDeps,

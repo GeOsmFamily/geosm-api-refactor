@@ -13,6 +13,9 @@ export interface UserProps {
   lastLoginAt: Date | null;
   /** Pays choisi dans le selecteur, restaure a chaque visite (RG-B-05). */
   preferredInstanceId?: string | null;
+  failedLoginAttempts?: number;
+  lockedUntil?: Date | null;
+  profileCompletionPending?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +32,9 @@ export class User {
   readonly emailVerifiedAt: Date | null;
   readonly lastLoginAt: Date | null;
   readonly preferredInstanceId: string | null;
+  readonly failedLoginAttempts: number;
+  readonly lockedUntil: Date | null;
+  readonly profileCompletionPending: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
@@ -44,6 +50,9 @@ export class User {
     this.emailVerifiedAt = props.emailVerifiedAt;
     this.lastLoginAt = props.lastLoginAt;
     this.preferredInstanceId = props.preferredInstanceId ?? null;
+    this.failedLoginAttempts = props.failedLoginAttempts ?? 0;
+    this.lockedUntil = props.lockedUntil ?? null;
+    this.profileCompletionPending = props.profileCompletionPending ?? false;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }

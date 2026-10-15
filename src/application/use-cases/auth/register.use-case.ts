@@ -12,7 +12,8 @@ import { Email } from '../../../domain/value-objects/email.vo.js';
 import { createChildLogger } from '../../../infrastructure/observability/logger.js';
 
 const logger = createChildLogger('RegisterUseCase');
-const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+/** Lien de verification a usage unique, valable 48 heures (RG-A-03). */
+export const VERIFICATION_TOKEN_TTL_MS = 48 * 60 * 60 * 1000;
 
 /**
  * Retourne des tokens (comme LoginUseCase/OsmLoginUseCase) plutôt qu'un simple profil : la

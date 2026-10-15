@@ -60,6 +60,7 @@ export interface UserProfileDTO {
   emailVerifiedAt: Date | null;
   lastLoginAt: Date | null;
   preferredInstanceId: string | null;
+  profileCompletionPending: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
