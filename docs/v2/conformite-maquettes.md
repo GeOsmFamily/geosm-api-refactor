@@ -24,7 +24,7 @@ Légende :
 ### Écarts volontaires (à valider)
 
 1. **Textes en français** : la maquette de connexion affiche « Welcome », « Password » et « At least 8 characters ». J'ai mis « Bienvenue », « Mot de passe » et « Au moins 8 caractères », traduits en/es.
-2. **Bouton OpenStreetMap** sur la connexion : absent des maquettes, mais exigé par RG-A-09. Il n'apparaît que si OSM est configuré.
+2. **Bouton OpenStreetMap** sur la connexion et l'inscription : oublié dans les maquettes, ajouté à la demande (RG-A-09). Toujours visible, au style des boutons secondaires, sous le séparateur « ou ». Si OSM n'est pas configuré sur le serveur, un clic affiche un message.
 3. **« Se souvenir de moi »** retiré, comme sur la maquette : la session est conservée par défaut.
 4. **Indicateur des critères du mot de passe** (RG-A-02), sous le champ, à l'inscription et au changement de mot de passe.
 5. **« Continuer sans vérifier pour le moment »** sous l'écran de vérification d'email : RG-A-05 autorise la consultation sans vérification.
