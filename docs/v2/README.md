@@ -47,3 +47,5 @@ Conventions d'observabilite : voir [observability.md](observability.md).
 | 2 Lot 2 | 9 > 27 nov | carte et outils, fil social geolocalise |
 | 3 Lot 3 | 30 nov > 18 dec | groupes, evenements, messagerie, connexions, profil |
 | 4 Durcissement | 21 > 31 dec | securite, performance, tests, documentation, production |
+
+Refonte des 15 ecrans d'administration (34-38, 41-43, 47-50) : samedis de reserve (7 nov, 28 nov, 19 dec, 26 dec) puis etape 4.3. Detail et conformite ecran par ecran : [conformite-maquettes.md](conformite-maquettes.md).

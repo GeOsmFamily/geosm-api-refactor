@@ -21,7 +21,7 @@ Légende :
 | 69 Notifications | Non lues en carte bleu marine, pastilles d'initiales colorées selon le type. |
 | 70 Notifications vide | |
 
-### Écarts volontaires (à valider)
+### Écarts volontaires (validés le 16 oct, à condition que tout reste traduisible en fr/en/es)
 
 1. **Textes en français** : la maquette de connexion affiche « Welcome », « Password » et « At least 8 characters ». J'ai mis « Bienvenue », « Mot de passe » et « Au moins 8 caractères », traduits en/es.
 2. **Bouton OpenStreetMap** sur la connexion et l'inscription : oublié dans les maquettes, ajouté à la demande (RG-A-09). Toujours visible, au style des boutons secondaires, sous le séparateur « ou ». Si OSM n'est pas configuré sur le serveur, un clic affiche un message.
@@ -48,21 +48,16 @@ Légende :
 | 44 à 46 Instances (formulaire avec parent, type et drapeau) | 3.6 | 18 déc |
 | Tablette et mobile de tous les écrans | 4.3 Qualité | 24-28 déc |
 
-## Non planifiés : à arbitrer
+## Écrans d'administration : décision du 16 oct
 
-Les écrans d'administration suivants ont une maquette mais aucune étape de refonte :
+Quinze écrans d'administration avaient une maquette mais aucune étape de refonte. Décision : on les traite sur les samedis de réserve, puis on les finit à l'étape 4.3.
 
-| Écran | État actuel |
+| Créneau | Écrans |
 |---|---|
-| 34 Accueil admin | Barre latérale claire, autres indicateurs. La maquette a une barre bleu nuit, 4 indicateurs dont « Posts aujourd'hui » et un graphique sur 7 jours. |
-| 35 Analytics, 36 Arbre du catalogue, 37 Fonds de carte, 38 Thèmes par défaut | Pages existantes au style v1 |
-| 41 FAQ, 42 Retours, 43 Infrastructure, 47 Tâches, 48 Observabilité, 49 Données personnelles, 50 Utilisateurs | Pages existantes au style v1 |
+| Sam 7 nov (réserve phase 1) | Coque admin commune (barre latérale bleu nuit, en-tête, cartes d'indicateurs), 34 Accueil (avec correction de l'indicateur « Instances actives », qui compte aujourd'hui les 83 instances au lieu des pays ouverts), 35 Analytics |
+| Sam 28 nov (réserve phase 2) | 36 Arbre du catalogue, 37 Fonds de carte, 38 Thèmes par défaut |
+| Sam 19 déc (réserve phase 3) | 41 FAQ, 42 Retours, 43 Infrastructure, 47 Tâches |
+| Sam 26 déc (réserve phase 4) | 48 Observabilité, 49 Données personnelles, 50 Utilisateurs |
+| 4.3 Qualité (24-28 déc) | Tablette, mobile et thème sombre de ces écrans, comparaison finale |
 
-Remarque relevée au passage : l'indicateur « Instances actives » de l'accueil admin affiche 83. Il compte toutes les instances (continents et pays non ouverts compris), pas seulement les pays actifs.
-
-**Estimation** : une coque admin commune (barre latérale, en-tête, cartes d'indicateurs) puis 15 pages à rhabiller, environ 3 jours.
-
-**Options** :
-- l'intégrer à la réserve et à l'étape 4.3 ;
-- la placer en phase 3 à la place d'une étape de l'ordre de coupe ;
-- la traiter en v2.1.
+Si une réserve est consommée par un retard, l'écran passe au créneau suivant. Il passe en v2.1 seulement si l'ordre de coupe est atteint.
