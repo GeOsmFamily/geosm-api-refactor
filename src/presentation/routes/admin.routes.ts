@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { successResponse } from '../schemas/common.schema.js';
+import { successResponse, idParamSchema } from '../schemas/common.schema.js';
+import { updateInstanceHierarchySchema } from '../schemas/instance.schema.js';
+import type { UpdateInstanceHierarchyUseCase } from '../../application/use-cases/instances/update-instance-hierarchy.use-case.js';
 import { jobIdParamSchema } from '../schemas/admin.schema.js';
 import { ICON_CATALOG } from '../../infrastructure/utils/svg-generator.service.js';
 import { ValidationError } from '../../domain/errors/validation.error.js';
@@ -99,6 +101,9 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   const redisService = app.diContainer.resolve<RedisService>('redisService');
   const generateIconUseCase = app.diContainer.resolve<GenerateIconUseCase>('generateIconUseCase');
   const configDbUseCase = app.diContainer.resolve<ConfigDbUseCase>('configDbUseCase');
+  const updateInstanceHierarchyUseCase = app.diContainer.resolve<UpdateInstanceHierarchyUseCase>(
+    'updateInstanceHierarchyUseCase',
+  );
   const createInstanceTemplateUseCase = app.diContainer.resolve<CreateInstanceTemplateUseCase>(
     'createInstanceTemplateUseCase',
   );
@@ -429,6 +434,27 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       const input = parseBody(createInstanceTemplateSchema, request.body);
       const result = await createInstanceTemplateUseCase.execute(input);
       return reply.status(201).send(successResponse(result));
+    },
+  );
+
+  // PATCH /instances/:id — place d'une instance dans l'arbre territorial (SUPER_ADMIN uniquement :
+  // un changement de hierarchie touche tous les pays, hors du perimetre d'un ADMIN_INSTANCE).
+  app.patch(
+    '/instances/:id',
+    {
+      schema: {
+        description: "Modifier le niveau, le parent et le drapeau d'une instance (hierarchie territoriale)",
+        tags: ['Administration'],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(updateInstanceHierarchySchema),
+      },
+      preHandler: [app.authenticate, requireRole(Role.SUPER_ADMIN)],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = parseBody(idParamSchema, request.params);
+      const input = parseBody(updateInstanceHierarchySchema, request.body);
+      const result = await updateInstanceHierarchyUseCase.execute(id, input);
+      return reply.send(successResponse(result));
     },
   );
 

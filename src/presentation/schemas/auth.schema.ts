@@ -43,3 +43,8 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8).max(128),
 });
+
+// PUT /auth/me/preferred-instance : instanceId null efface la preference.
+export const setPreferredInstanceSchema = z.object({
+  instanceId: z.string().uuid().nullable(),
+});

@@ -23,6 +23,7 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:territories": "tsx scripts/seed-territories.ts",
     "db:studio": "prisma studio",
     "db:backfill-basemaps": "tsx scripts/backfill-default-basemaps.ts"
   },

@@ -31,6 +31,7 @@ export class UpdateProfileUseCase {
       isActive: updated.isActive,
       emailVerifiedAt: updated.emailVerifiedAt,
       lastLoginAt: updated.lastLoginAt,
+      preferredInstanceId: updated.preferredInstanceId,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     };

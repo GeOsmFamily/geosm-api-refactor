@@ -9,9 +9,14 @@ import {
 const deps = { prisma: {} as PrismaClient };
 
 describe('collectDomainRegistrations', () => {
-  it('ne declare aucun domaine tant que les modules sociaux ne sont pas implementes', () => {
-    expect(domainRegistrations).toEqual([]);
-    expect(collectDomainRegistrations(deps)).toEqual({});
+  it('enregistre le domaine Territoire', () => {
+    expect(domainRegistrations.length).toBeGreaterThan(0);
+    expect(Object.keys(collectDomainRegistrations(deps)).sort()).toEqual([
+      'getInstanceChildrenUseCase',
+      'getInstanceTreeUseCase',
+      'setPreferredInstanceUseCase',
+      'updateInstanceHierarchyUseCase',
+    ]);
   });
 
   it('fusionne les resolvers de plusieurs domaines', () => {

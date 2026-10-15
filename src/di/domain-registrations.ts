@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Resolver } from 'awilix';
+import { territoryRegistrations } from './territory.registrations.js';
 
 /**
  * Registre d'injection par domaine.
@@ -24,8 +25,8 @@ export interface DomainRegistrationDeps {
 
 export type DomainRegistration = (deps: DomainRegistrationDeps) => Record<string, Resolver<unknown>>;
 
-/** Domaines sociaux enregistres, dans l'ordre. Vide a l'etape 0.3, alimente des la phase 2. */
-export const domainRegistrations: DomainRegistration[] = [];
+/** Domaines GeOsm Family enregistres, dans l'ordre. */
+export const domainRegistrations: DomainRegistration[] = [territoryRegistrations];
 
 export function collectDomainRegistrations(
   deps: DomainRegistrationDeps,

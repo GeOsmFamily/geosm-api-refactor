@@ -9,7 +9,7 @@ import {
   InstanceUserRecord,
 } from '../../../domain/repositories/instance.repository.js';
 import { Instance } from '../../../domain/entities/instance.entity.js';
-import { Role } from '../../../domain/enums.js';
+import { InstanceKind, Role } from '../../../domain/enums.js';
 
 export class PrismaInstanceRepository implements IInstanceRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -24,11 +24,25 @@ export class PrismaInstanceRepository implements IInstanceRepository {
     return record ? this.toDomain(record) : null;
   }
 
+  async findAllForTree(): Promise<Instance[]> {
+    const records = await this.prisma.instance.findMany({ orderBy: { name: 'asc' } });
+    return records.map((r) => this.toDomain(r));
+  }
+
+  async findChildren(parentId: string): Promise<Instance[]> {
+    const records = await this.prisma.instance.findMany({
+      where: { parentInstanceId: parentId },
+      orderBy: { name: 'asc' },
+    });
+    return records.map((r) => this.toDomain(r));
+  }
+
   async findAll(options?: {
     page?: number;
     limit?: number;
     search?: string;
     isActive?: boolean;
+    kind?: InstanceKind;
   }): Promise<{ data: Instance[]; total: number }> {
     const page = options?.page ?? 1;
     const limit = options?.limit ?? 20;
@@ -42,6 +56,7 @@ export class PrismaInstanceRepository implements IInstanceRepository {
       ];
     }
     if (options?.isActive !== undefined) where.isActive = options.isActive;
+    if (options?.kind !== undefined) where.kind = options.kind;
 
     const [records, total] = await Promise.all([
       this.prisma.instance.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
@@ -68,6 +83,9 @@ export class PrismaInstanceRepository implements IInstanceRepository {
         boundaryGeomCol: data.boundaryGeomCol ?? undefined,
         adminLevel: data.adminLevel,
         parentInstanceId: data.parentInstanceId,
+        kind: data.kind,
+        flagIconUrl: data.flagIconUrl ?? undefined,
+        continentCode: data.continentCode ?? undefined,
         isActive: data.isActive,
       },
     });
@@ -91,7 +109,13 @@ export class PrismaInstanceRepository implements IInstanceRepository {
     if (data.boundaryId !== undefined) updateData.boundaryId = data.boundaryId;
     if (data.boundaryGeomCol !== undefined) updateData.boundaryGeomCol = data.boundaryGeomCol;
     if (data.adminLevel !== undefined) updateData.adminLevel = data.adminLevel;
-    if (data.parentInstanceId !== undefined) updateData.parentInstanceId = data.parentInstanceId;
+    if (data.parentInstanceId !== undefined)
+      updateData.parentInstance = data.parentInstanceId
+        ? { connect: { id: data.parentInstanceId } }
+        : { disconnect: true };
+    if (data.kind !== undefined) updateData.kind = data.kind;
+    if (data.flagIconUrl !== undefined) updateData.flagIconUrl = data.flagIconUrl;
+    if (data.continentCode !== undefined) updateData.continentCode = data.continentCode;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     const record = await this.prisma.instance.update({ where: { id }, data: updateData });
     return this.toDomain(record);
@@ -166,6 +190,9 @@ export class PrismaInstanceRepository implements IInstanceRepository {
       adminLevel: ((record as Record<string, unknown>).adminLevel as number | null) ?? null,
       parentInstanceId:
         ((record as Record<string, unknown>).parentInstanceId as string | null) ?? null,
+      kind: record.kind as InstanceKind,
+      flagIconUrl: record.flagIconUrl,
+      continentCode: record.continentCode,
       isActive: record.isActive,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,

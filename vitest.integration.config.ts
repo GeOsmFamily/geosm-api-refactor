@@ -6,6 +6,9 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/integration-db/**/*.test.ts', 'tests/load/**/*.test.ts'],
     globalSetup: ['tests/integration-db/globalSetup.ts'],
+    // Tous les fichiers partagent une seule base et la vident (cleanDatabase) : en parallele ils
+    // se marchent dessus.
+    fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 60_000,
   },

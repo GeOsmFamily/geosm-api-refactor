@@ -25,6 +25,7 @@ export class GetProfileUseCase {
       isActive: user.isActive,
       emailVerifiedAt: user.emailVerifiedAt,
       lastLoginAt: user.lastLoginAt,
+      preferredInstanceId: user.preferredInstanceId,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

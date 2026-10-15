@@ -94,6 +94,7 @@ export class PrismaUserRepository implements IUserRepository {
       isActive: record.isActive,
       emailVerifiedAt: record.emailVerifiedAt,
       lastLoginAt: record.lastLoginAt,
+      preferredInstanceId: record.preferredInstanceId,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     });

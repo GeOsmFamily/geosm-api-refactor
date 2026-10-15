@@ -9,6 +9,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   updateProfileSchema,
+  setPreferredInstanceSchema,
   changePasswordSchema,
 } from '../schemas/auth.schema.js';
 import { successResponse } from '../schemas/common.schema.js';
@@ -24,6 +25,7 @@ import { ForgotPasswordUseCase } from '../../application/use-cases/auth/forgot-p
 import { ResetPasswordUseCase } from '../../application/use-cases/auth/reset-password.use-case.js';
 import { GetProfileUseCase } from '../../application/use-cases/auth/get-profile.use-case.js';
 import { UpdateProfileUseCase } from '../../application/use-cases/auth/update-profile.use-case.js';
+import { SetPreferredInstanceUseCase } from '../../application/use-cases/users/set-preferred-instance.use-case.js';
 import { ChangePasswordUseCase } from '../../application/use-cases/auth/change-password.use-case.js';
 import { OsmLoginUseCase } from '../../application/use-cases/auth/osm-login.use-case.js';
 import { LinkOsmAccountUseCase } from '../../application/use-cases/auth/link-osm-account.use-case.js';
@@ -63,6 +65,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   const getProfileUseCase = app.diContainer.resolve<GetProfileUseCase>('getProfileUseCase');
   const updateProfileUseCase =
     app.diContainer.resolve<UpdateProfileUseCase>('updateProfileUseCase');
+  const setPreferredInstanceUseCase = app.diContainer.resolve<SetPreferredInstanceUseCase>(
+    'setPreferredInstanceUseCase',
+  );
   const changePasswordUseCase =
     app.diContainer.resolve<ChangePasswordUseCase>('changePasswordUseCase');
   const osmLoginUseCase = app.diContainer.resolve<OsmLoginUseCase>('osmLoginUseCase');
@@ -216,6 +221,24 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const dto = parseBody(updateProfileSchema, request.body);
       const result = await updateProfileUseCase.execute(request.user.sub, dto);
+      return reply.send(successResponse(result));
+    },
+  );
+
+  app.put(
+    '/me/preferred-instance',
+    {
+      schema: {
+        description: "Memoriser le pays choisi (null pour effacer)",
+        tags: ['Authentification'],
+        security: [{ bearerAuth: [] }],
+        body: zodToSwagger(setPreferredInstanceSchema),
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { instanceId } = parseBody(setPreferredInstanceSchema, request.body);
+      const result = await setPreferredInstanceUseCase.execute(request.user.sub, instanceId);
       return reply.send(successResponse(result));
     },
   );

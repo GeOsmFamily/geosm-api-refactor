@@ -1,3 +1,5 @@
+import { InstanceKind } from '../enums.js';
+
 export interface InstanceProps {
   id: string;
   name: string;
@@ -13,6 +15,11 @@ export interface InstanceProps {
   boundaryGeomCol: string | null;
   adminLevel: number | null;
   parentInstanceId: string | null;
+  /** Niveau territorial ; COUNTRY par defaut (instances anterieures a la v2). */
+  kind?: InstanceKind;
+  flagIconUrl?: string | null;
+  /** Code continent (ex. AF). Porte par les continents, herite par leurs descendants. */
+  continentCode?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -33,6 +40,9 @@ export class Instance {
   readonly boundaryGeomCol: string | null;
   readonly adminLevel: number | null;
   readonly parentInstanceId: string | null;
+  readonly kind: InstanceKind;
+  readonly flagIconUrl: string | null;
+  readonly continentCode: string | null;
   readonly isActive: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -52,6 +62,9 @@ export class Instance {
     this.boundaryGeomCol = props.boundaryGeomCol;
     this.adminLevel = props.adminLevel;
     this.parentInstanceId = props.parentInstanceId;
+    this.kind = props.kind ?? InstanceKind.COUNTRY;
+    this.flagIconUrl = props.flagIconUrl ?? null;
+    this.continentCode = props.continentCode ?? null;
     this.isActive = props.isActive;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;

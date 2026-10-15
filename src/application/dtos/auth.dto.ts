@@ -59,6 +59,7 @@ export interface UserProfileDTO {
   isActive: boolean;
   emailVerifiedAt: Date | null;
   lastLoginAt: Date | null;
+  preferredInstanceId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

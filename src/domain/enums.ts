@@ -65,3 +65,10 @@ export enum PlanOrientation {
   PORTRAIT = 'PORTRAIT',
   LANDSCAPE = 'LANDSCAPE',
 }
+
+/** Niveau territorial d'une instance : Monde (implicite) > Continent > Pays > Region. */
+export enum InstanceKind {
+  CONTINENT = 'CONTINENT',
+  COUNTRY = 'COUNTRY',
+  REGION = 'REGION',
+}

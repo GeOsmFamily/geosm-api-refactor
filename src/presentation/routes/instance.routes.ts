@@ -29,6 +29,8 @@ import { DeleteInstanceUseCase } from '../../application/use-cases/instances/del
 import { GetInstanceUsersUseCase } from '../../application/use-cases/instances/get-instance-users.use-case.js';
 import { AddInstanceUserUseCase } from '../../application/use-cases/instances/add-instance-user.use-case.js';
 import { RemoveInstanceUserUseCase } from '../../application/use-cases/instances/remove-instance-user.use-case.js';
+import { GetInstanceTreeUseCase } from '../../application/use-cases/instances/get-instance-tree.use-case.js';
+import { GetInstanceChildrenUseCase } from '../../application/use-cases/instances/get-instance-children.use-case.js';
 import { ChangeInstanceUserRoleUseCase } from '../../application/use-cases/instances/change-instance-user-role.use-case.js';
 
 function parseBody<T>(
@@ -69,6 +71,11 @@ export async function instanceRoutes(app: FastifyInstance): Promise<void> {
   const changeInstanceUserRoleUseCase = app.diContainer.resolve<ChangeInstanceUserRoleUseCase>(
     'changeInstanceUserRoleUseCase',
   );
+  const getInstanceTreeUseCase =
+    app.diContainer.resolve<GetInstanceTreeUseCase>('getInstanceTreeUseCase');
+  const getInstanceChildrenUseCase = app.diContainer.resolve<GetInstanceChildrenUseCase>(
+    'getInstanceChildrenUseCase',
+  );
 
   // Public, comme GET /slug/:slug et le catalogue (catalog.routes.ts) : un visiteur anonyme doit
   // pouvoir découvrir les instances disponibles pour consulter le géoportail sans compte. Aucune
@@ -95,6 +102,39 @@ export async function instanceRoutes(app: FastifyInstance): Promise<void> {
           totalPages,
         }),
       );
+    },
+  );
+
+  // Public : le selecteur Monde > Continent > Pays s'affiche avant toute connexion. L'arbre change
+  // rarement : cache HTTP court cote navigateur/CDN (pas d'invalidation active possible).
+  app.get(
+    '/tree',
+    {
+      schema: {
+        description: 'Arbre territorial Continent > Pays > Region (pays inactifs inclus)',
+        tags: ['Instances'],
+      },
+    },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const tree = await getInstanceTreeUseCase.execute();
+      return reply
+        .header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
+        .send(successResponse(tree));
+    },
+  );
+
+  app.get(
+    '/:id/children',
+    {
+      schema: {
+        description: "Enfants directs d'une instance (pays d'un continent, regions d'un pays)",
+        tags: ['Instances'],
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = parseBody(idParamSchema, request.params);
+      const children = await getInstanceChildrenUseCase.execute(id);
+      return reply.send(successResponse(localizeEntities(children, resolveLang(request))));
     },
   );
 

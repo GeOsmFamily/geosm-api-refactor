@@ -11,6 +11,8 @@ export interface UserProps {
   isActive: boolean;
   emailVerifiedAt: Date | null;
   lastLoginAt: Date | null;
+  /** Pays choisi dans le selecteur, restaure a chaque visite (RG-B-05). */
+  preferredInstanceId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +28,7 @@ export class User {
   readonly isActive: boolean;
   readonly emailVerifiedAt: Date | null;
   readonly lastLoginAt: Date | null;
+  readonly preferredInstanceId: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
@@ -40,6 +43,7 @@ export class User {
     this.isActive = props.isActive;
     this.emailVerifiedAt = props.emailVerifiedAt;
     this.lastLoginAt = props.lastLoginAt;
+    this.preferredInstanceId = props.preferredInstanceId ?? null;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }

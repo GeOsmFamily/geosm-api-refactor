@@ -1,5 +1,5 @@
 import { Instance, type InstanceProps } from '../entities/instance.entity.js';
-import { Role } from '../enums.js';
+import { InstanceKind, Role } from '../enums.js';
 
 export interface InstanceUserRecord {
   id: string;
@@ -14,11 +14,16 @@ export interface InstanceUserRecord {
 export interface IInstanceRepository {
   findById(id: string): Promise<Instance | null>;
   findBySlug(slug: string): Promise<Instance | null>;
+  /** Toutes les instances (actives ou non), pour construire l'arbre territorial. */
+  findAllForTree(): Promise<Instance[]>;
+  /** Enfants directs d'une instance. */
+  findChildren(parentId: string): Promise<Instance[]>;
   findAll(options?: {
     page?: number;
     limit?: number;
     search?: string;
     isActive?: boolean;
+    kind?: InstanceKind;
   }): Promise<{ data: Instance[]; total: number }>;
   create(data: Omit<InstanceProps, 'createdAt' | 'updatedAt'>): Promise<Instance>;
   update(

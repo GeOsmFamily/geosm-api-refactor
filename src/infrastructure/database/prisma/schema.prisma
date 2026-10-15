@@ -89,19 +89,21 @@ enum BaseMapType {
 }
 
 model User {
-  id              String    @id @default(uuid()) @db.Uuid
-  email           String    @unique
-  passwordHash    String    @map("password_hash")
-  firstName       String    @map("first_name")
-  lastName        String    @map("last_name")
-  avatar          String?
-  role            Role      @default(VIEWER)
-  isActive        Boolean   @default(true) @map("is_active")
-  emailVerifiedAt DateTime? @map("email_verified_at")
-  lastLoginAt     DateTime? @map("last_login_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id                  String    @id @default(uuid()) @db.Uuid
+  email               String    @unique
+  passwordHash        String    @map("password_hash")
+  firstName           String    @map("first_name")
+  lastName            String    @map("last_name")
+  avatar              String?
+  role                Role      @default(VIEWER)
+  isActive            Boolean   @default(true) @map("is_active")
+  emailVerifiedAt     DateTime? @map("email_verified_at")
+  lastLoginAt         DateTime? @map("last_login_at")
+  preferredInstanceId String?   @map("preferred_instance_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
+  preferredInstance       Instance?                @relation("UserPreferredInstance", fields: [preferredInstanceId], references: [id], onDelete: SetNull)
   refreshTokens           RefreshToken[]
   exports                 Export[]
   locationPlans           LocationPlan[]
@@ -205,23 +207,30 @@ model RefreshToken {
 }
 
 model Instance {
-  id               String   @id @default(uuid()) @db.Uuid
+  id               String       @id @default(uuid()) @db.Uuid
   name             String
-  slug             String   @unique
+  slug             String       @unique
   description      String?
   logo             String?
   bbox             Float[]
-  centerLat        Float?   @map("center_lat")
-  centerLon        Float?   @map("center_lon")
-  defaultZoom      Int      @default(6) @map("default_zoom")
-  boundaryTable    String?  @map("boundary_table")
-  boundaryId       Int?     @map("boundary_id")
-  boundaryGeomCol  String?  @default("geom") @map("boundary_geom_col")
-  adminLevel       Int?     @map("admin_level")
-  parentInstanceId String?  @map("parent_instance_id") @db.Uuid
-  isActive         Boolean  @default(true) @map("is_active")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  centerLat        Float?       @map("center_lat")
+  centerLon        Float?       @map("center_lon")
+  defaultZoom      Int          @default(6) @map("default_zoom")
+  boundaryTable    String?      @map("boundary_table")
+  boundaryId       Int?         @map("boundary_id")
+  boundaryGeomCol  String?      @default("geom") @map("boundary_geom_col")
+  adminLevel       Int?         @map("admin_level")
+  parentInstanceId String?      @map("parent_instance_id") @db.Uuid
+  kind             InstanceKind @default(COUNTRY)
+  flagIconUrl      String?      @map("flag_icon_url")
+  continentCode    String?      @map("continent_code")
+  isActive         Boolean      @default(true) @map("is_active")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  parentInstance   Instance?  @relation("InstanceHierarchy", fields: [parentInstanceId], references: [id], onDelete: SetNull)
+  children         Instance[] @relation("InstanceHierarchy")
+  preferredByUsers User[]     @relation("UserPreferredInstance")
 
   layerGroups    LayerGroup[]
   layers         Layer[]
@@ -231,7 +240,17 @@ model Instance {
   personalLayers PersonalLayer[]
   faqs           InstanceFaq[]
 
+  @@index([parentInstanceId])
+  @@index([kind])
   @@map("instances")
+}
+
+// Niveau territorial d'une instance (GeOsm Family, chantier B) : Monde > Continent > Pays > Region.
+// Le Monde n'est pas materialise. Defaut COUNTRY : les instances existantes restent valides.
+enum InstanceKind {
+  CONTINENT
+  COUNTRY
+  REGION
 }
 
 model InstanceUser {
@@ -312,9 +331,9 @@ model Layer {
   createdAt     DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @updatedAt @map("updated_at")
 
-  subGroup    LayerSubGroup @relation(fields: [subGroupId], references: [id], onDelete: Cascade)
-  instance    Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  qgisProject QgisProject?  @relation(fields: [qgisProjectId], references: [id], onDelete: SetNull)
+  subGroup              LayerSubGroup          @relation(fields: [subGroupId], references: [id], onDelete: Cascade)
+  instance              Instance               @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  qgisProject           QgisProject?           @relation(fields: [qgisProjectId], references: [id], onDelete: SetNull)
   styles                LayerStyle[]
   actions               LayerAction[]
   exports               Export[]
@@ -498,47 +517,47 @@ enum PlanOrientation {
 }
 
 model LocationPlan {
-  id                String          @id @default(uuid()) @db.Uuid
-  userId            String          @map("user_id") @db.Uuid
-  instanceId        String          @map("instance_id") @db.Uuid
-  status            JobStatus       @default(PENDING)
-  title             String
-  description       String?
-  landmark          String?
-  lon               Float
-  lat               Float
-  scale             Int?
-  paperSize         PaperSize       @default(A4) @map("paper_size")
-  orientation       PlanOrientation @default(PORTRAIT)
+  id                 String          @id @default(uuid()) @db.Uuid
+  userId             String          @map("user_id") @db.Uuid
+  instanceId         String          @map("instance_id") @db.Uuid
+  status             JobStatus       @default(PENDING)
+  title              String
+  description        String?
+  landmark           String?
+  lon                Float
+  lat                Float
+  scale              Int?
+  paperSize          PaperSize       @default(A4) @map("paper_size")
+  orientation        PlanOrientation @default(PORTRAIT)
   // Éléments de mise en page optionnels (constructeur de mise en page personnalisée) -
   // tous à true par défaut pour ne pas changer le rendu des plans déjà existants/en cours.
-  includeLegend     Boolean         @default(true) @map("include_legend")
-  includeScale      Boolean         @default(true) @map("include_scale")
-  includeGrid       Boolean         @default(true) @map("include_grid")
-  includeNorthArrow Boolean         @default(true) @map("include_north_arrow")
+  includeLegend      Boolean         @default(true) @map("include_legend")
+  includeScale       Boolean         @default(true) @map("include_scale")
+  includeGrid        Boolean         @default(true) @map("include_grid")
+  includeNorthArrow  Boolean         @default(true) @map("include_north_arrow")
   // Itinéraire d'accès optionnel (voir plan "Plan de localisation + OSRM + altimétrie" du
   // 2026-08-07) : origin{Lon,Lat} est le point de départ choisi par l'utilisateur, tout le
   // reste est calculé par CreateLocationPlanUseCase (OSRM + drapage altimétrique + IA) avant
   // l'enfilage du job, jamais saisi directement par le client.
-  originLon         Float?          @map("origin_lon")
-  originLat         Float?          @map("origin_lat")
+  originLon          Float?          @map("origin_lon")
+  originLat          Float?          @map("origin_lat")
   // Texte rédigé par l'IA (avec repli déterministe si Gemini indisponible, même esprit que
   // draftWithAI) décrivant l'itinéraire d'accès en une phrase ou deux.
-  accessInstructions String?        @map("access_instructions")
+  accessInstructions String?         @map("access_instructions")
   // Array<{mode:'driving'|'walking', distanceMeters, durationSeconds, geometry: GeoJSON}> -
   // un élément par tronçon (véhicule puis, si la destination n'est pas directement sur une
   // route carrossable, un tronçon à pied jusqu'au point exact).
-  routeLegs         Json?           @map("route_legs")
+  routeLegs          Json?           @map("route_legs")
   // {ascentMeters, descentMeters, maxAltitudeMeters, terrainClass} calculé par drapage SRTM
   // sur la géométrie combinée des tronçons - voir PostGISService.drapeElevationProfile().
-  elevationSummary  Json?           @map("elevation_summary")
-  filePath          String?         @map("file_path")
-  fileSize          Int?            @map("file_size")
-  errorMessage      String?         @map("error_message")
-  startedAt         DateTime?       @map("started_at")
-  completedAt       DateTime?       @map("completed_at")
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @updatedAt @map("updated_at")
+  elevationSummary   Json?           @map("elevation_summary")
+  filePath           String?         @map("file_path")
+  fileSize           Int?            @map("file_size")
+  errorMessage       String?         @map("error_message")
+  startedAt          DateTime?       @map("started_at")
+  completedAt        DateTime?       @map("completed_at")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -552,24 +571,24 @@ model LocationPlan {
 // l'assistant. `resultJson` conserve les données chiffrées ayant servi au rapport (même forme
 // que ViewportSummary.perLayer) pour un éventuel réaffichage sans reparser le PDF.
 model AnalysisReport {
-  id           String    @id @default(uuid()) @db.Uuid
-  userId       String    @map("user_id") @db.Uuid
-  instanceId   String    @map("instance_id") @db.Uuid
-  topic        String
-  layerIds     String[]  @map("layer_ids")
-  status       JobStatus @default(PENDING)
-  resultJson   Json?     @map("result_json")
-  filePath     String?   @map("file_path")
-  fileSize     Int?      @map("file_size")
-  errorMessage String?   @map("error_message")
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  instanceId    String    @map("instance_id") @db.Uuid
+  topic         String
+  layerIds      String[]  @map("layer_ids")
+  status        JobStatus @default(PENDING)
+  resultJson    Json?     @map("result_json")
+  filePath      String?   @map("file_path")
+  fileSize      Int?      @map("file_size")
+  errorMessage  String?   @map("error_message")
   // Retour qualité (voir plan "Gouvernance citoyenne & qualité IA" du 2026-08-06) - rating
   // +1/-1 (pas d'échelle plus large, un simple pouce haut/bas suffit pour ce cas d'usage),
   // ratedAt distinct de updatedAt (qui bouge aussi sur d'autres changements, ex. statut du job).
   rating        Int?      @db.SmallInt
   ratingComment String?   @map("rating_comment")
   ratedAt       DateTime? @map("rated_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -637,14 +656,14 @@ model AnalyticsEvent {
 }
 
 model AssistantConversation {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  instanceId String   @map("instance_id") @db.Uuid
-  title      String   @default("Nouvelle conversation")
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  instanceId    String   @map("instance_id") @db.Uuid
+  title         String   @default("Nouvelle conversation")
   // Tableau de tours {role: 'user'|'model', text: string, createdAt: string} - pas de table
   // séparée : le volume par conversation reste faible (quelques dizaines de messages max),
   // même pattern que MapComposition.layers/SharedMap.mapState pour ce type de données.
-  messages   Json
+  messages      Json
   // Géométries nommées calculées par compute_geometry (voir assistant-chat.use-case.ts),
   // {[label]: {geometry, summary}} - persistées ici pour survivre d'un message à l'autre : sans
   // ça, "dessine un cercle" puis, dans un message SÉPARÉ, "analyse cette zone" ne retrouvait pas
@@ -653,8 +672,8 @@ model AssistantConversation {
   // intersection) s'est arrêté après le premier outil, sans persistance ce premier résultat
   // aurait aussi été perdu au message suivant.
   geometryCache Json?
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@index([userId, instanceId])
   @@map("assistant_conversations")
@@ -673,20 +692,20 @@ enum InstanceFaqStatus {
 }
 
 model InstanceFaq {
-  id           String             @id @default(uuid()) @db.Uuid
-  instanceId   String             @map("instance_id") @db.Uuid
-  question     String
-  answer       String             @db.Text
+  id          String            @id @default(uuid()) @db.Uuid
+  instanceId  String            @map("instance_id") @db.Uuid
+  question    String
+  answer      String            @db.Text
   // Nombre de conversations distinctes ayant contribué à cette question lors du regroupement
   // Gemini - donne à l'admin qui relit un signal de fréquence réelle avant publication.
-  sourceCount  Int                @default(1) @map("source_count")
-  status       InstanceFaqStatus  @default(DRAFT)
-  reviewedBy   String?            @map("reviewed_by") @db.Uuid
-  reviewedAt   DateTime?          @map("reviewed_at")
-  generatedAt  DateTime           @default(now()) @map("generated_at")
-  publishedAt  DateTime?          @map("published_at")
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
+  sourceCount Int               @default(1) @map("source_count")
+  status      InstanceFaqStatus @default(DRAFT)
+  reviewedBy  String?           @map("reviewed_by") @db.Uuid
+  reviewedAt  DateTime?         @map("reviewed_at")
+  generatedAt DateTime          @default(now()) @map("generated_at")
+  publishedAt DateTime?         @map("published_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
 
   instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
 
@@ -770,23 +789,23 @@ enum CommentReportType {
 }
 
 model Comment {
-  id         String    @id @default(uuid()) @db.Uuid
-  userId     String    @map("user_id") @db.Uuid
-  instanceId String    @map("instance_id") @db.Uuid
+  id         String             @id @default(uuid()) @db.Uuid
+  userId     String             @map("user_id") @db.Uuid
+  instanceId String             @map("instance_id") @db.Uuid
   text       String
   lat        Float
   lon        Float
   // parentId non nul = réponse dans le fil de discussion d'un commentaire racine (pas un
   // nouveau pin sur la carte). "resolved" ne s'applique en pratique qu'aux commentaires
   // racines (marquer un fil comme traité), mais le champ est générique.
-  parentId   String?   @map("parent_id") @db.Uuid
-  resolved   Boolean   @default(false)
+  parentId   String?            @map("parent_id") @db.Uuid
+  resolved   Boolean            @default(false)
   // Modération (Lot A4 admin) : un modérateur signale un commentaire problématique pour le
   // retrouver dans la file de modération, sans le supprimer immédiatement (garde une trace pour
   // décider en connaissance de cause). flaggedAt sert de tri chronologique dans la file.
-  flagged    Boolean   @default(false)
-  flagReason String?   @map("flag_reason")
-  flaggedAt  DateTime? @map("flagged_at")
+  flagged    Boolean            @default(false)
+  flagReason String?            @map("flag_reason")
+  flaggedAt  DateTime?          @map("flagged_at")
   // Signalement structuré sur une entité précise (voir plan "Gouvernance citoyenne & qualité
   // IA" du 2026-08-06) - tous nullable : un commentaire "libre" (pin sur la carte, pas de
   // rattachement à une couche/feature) reste possible, comportement historique inchangé.
@@ -801,11 +820,11 @@ model Comment {
   // Triplet de revue (calqué sur PersonalLayer.reviewedBy/reviewedAt/reviewNote, le seul autre
   // vrai workflow de revue humaine déjà dans le code) - distinct de flagged/flaggedAt, qui ne
   // fait que repérer un commentaire pour la file de modération sans trancher.
-  reviewedBy String?   @map("reviewed_by") @db.Uuid
-  reviewedAt DateTime? @map("reviewed_at")
-  reviewNote String?   @map("review_note")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  reviewedBy String?            @map("reviewed_by") @db.Uuid
+  reviewedAt DateTime?          @map("reviewed_at")
+  reviewNote String?            @map("review_note")
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
 
   parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies Comment[] @relation("CommentReplies")

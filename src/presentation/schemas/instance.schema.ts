@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Role } from '../../domain/enums.js';
+import { InstanceKind, Role } from '../../domain/enums.js';
 
 export const listInstancesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -9,6 +9,7 @@ export const listInstancesQuerySchema = z.object({
     (v) => (v === 'true' ? true : v === 'false' ? false : v),
     z.boolean().optional(),
   ),
+  kind: z.nativeEnum(InstanceKind).optional(),
 });
 
 // "schema.table" ou "table" - identifiants SQL simples uniquement. Ces valeurs sont ensuite
@@ -63,3 +64,18 @@ export const addInstanceUserSchema = z.object({
 export const changeInstanceUserRoleSchema = z.object({
   role: z.nativeEnum(Role),
 });
+
+// PATCH /admin/instances/:id (SUPER_ADMIN) : place d'une instance dans l'arbre territorial.
+// parentInstanceId: null detache l'instance de son parent.
+export const updateInstanceHierarchySchema = z
+  .object({
+    kind: z.nativeEnum(InstanceKind).optional(),
+    parentInstanceId: z.string().uuid().nullable().optional(),
+    flagIconUrl: z.string().url().max(2048).nullable().optional(),
+    continentCode: z
+      .string()
+      .regex(/^[A-Z]{2,3}$/, 'Code continent: 2 ou 3 lettres majuscules')
+      .nullable()
+      .optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: 'Au moins un champ est requis' });
