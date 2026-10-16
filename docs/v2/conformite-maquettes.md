@@ -75,11 +75,54 @@ Décision du 16 oct : tous les outils, y compris ceux sans maquette, suivent le 
 14. **Plus proche** : les catégories sont les couches actives, pas une liste fixe. Trois résultats au lieu d'un, avec Zoomer et Itinéraire.
 15. **Analyse spatiale** : choix de la géométrie à tracer et boutons « Tracer la géométrie A / B », nécessaires au calcul.
 
+## Conformes (étape 2.1c, 16 oct)
+
+| Écran | Remarques |
+|---|---|
+| 20 Profil altimétrique | Altitudes min et max en cartes, courbe verte, phrase de synthèse (distance totale, dénivelé). |
+| 21 Statistiques & analyse | Synthèse en encadré, chiffres en barres, « Générer un rapport PDF », « Mes rapports ». |
+| 22 Comparaison | Balayage sur la carte : ligne, poignée « ‹ › », une pastille au nom de chaque fond. |
+| 23 Mapillary « Vue de rue » | Visionneuse centrée, Précédent / Suivant dans la séquence, Télécharger, date et séquence. |
+| 24 Importer mes données | Formats en sous-titre, zone de dépôt, « Imports précédents » avec pastille d'état. |
+| 25 Mes géosignets | Nombre de positions, épingle verte, coordonnées, « Aller à ». |
+| 26 Mes cartes | Grille de cartes avec vignette, « Modifiée le … », « Ouvrir ». |
+| 29 Assistant GeOsm | Volet pleine hauteur, « En ligne », bulles, champ et bouton d'envoi ronds. |
+| 30 Tâches en cours | Carte en bas à droite, pastille et barre de progression par tâche. |
+| 32 Recherche d'adresse | Pastille de recherche, liste avec glyphe gris au trait. |
+| 33 Plan de localisation | Aperçu qui suit les éléments cochés, cases Légende / Échelle / Grille / Flèche du nord, « Générer le PDF ». |
+
+**Outils sans maquette, au même design** (décision du 16 oct) : téléchargement de données, à propos de la carte, commentaires de la carte, mise en page d'impression, informations sur un lieu, mon compte, métadonnées d'une couche, options avancées de l'itinéraire, carte de limite administrative de la recherche. Briques communes : `src/styles/_v2-tools.scss` (dépôt frontend).
+
+Vérifié en desktop clair, desktop sombre, mobile clair et mobile sombre. Parcours navigateur : 20 outils sur 20, listes à cocher 20 sur 20 (`scripts/e2e-live/checks.mjs`), parcours complet 35 sur 35. Services absents du serveur de test, simulés pour juger les écrans : GDAL (import), modèle numérique de terrain (altitudes à 0), Mapillary, IA, OSRM, Nominatim, Meilisearch.
+
+### Écarts de l'étape 2.1c (validés le 16 oct, tous traduits en fr/en/es)
+
+1. **Placement** : les maquettes 20 à 33 viennent d'une autre génération (panneaux à gauche, à droite ou centrés, croix grise). Le panneau reste à droite avec l'en-tête des écrans 10 à 19 ; seules la comparaison (balayage), Mapillary (visionneuse centrée), l'assistant (volet pleine hauteur) et les tâches (carte bas-droite) suivent leur maquette.
+2. **Maquettes 27 et 28 non reproduites** : la bulle d'information (27) doublonne la fiche descriptive 08, la carte agrandie (28) doublonne le plein écran.
+3. **« Aller aux coordonnées »** (ancienne fenêtre de l'écran 28) : la recherche accepte maintenant des coordonnées (« 3.87, 11.51 », « 3.8667° N 11.5167° E ») et propose « Aller à … ».
+4. **Altimétrie** : bouton « Tracer une ligne » au-dessus des cartes d'altitude ; dénivelé ajouté à la phrase de synthèse.
+5. **Statistiques** : choix « Une couche / Les N couches actives », analyse raster, par zone, choroplèthe et carroyage conservés dans le même style ; le sujet du rapport est saisi avant « Générer un rapport PDF ».
+6. **Comparaison** : réglage dans le panneau avant le balayage, et pastille « Terminer la comparaison » en bas de carte pour en sortir.
+7. **Mapillary** : pas de mini-carte en incrustation (le repère rouge sur la carte montre la position) ; lecture automatique, vitesse et vue interactive sous la photo.
+8. **Import** : confirmation (nom, rangement, couleur, forme), style, QML, publication et suppression conservés ; « Mode d'emploi » replié.
+9. **Géosignets et Mes cartes** : champ pour enregistrer la vue ou la carte courante en haut ; partage et suppression conservés.
+10. **Assistant** : onglets des conversations sous l'en-tête, croix de fermeture (le volet couvre la barre de droite comme sur la maquette).
+11. **Tâches en cours** : ouvertes par l'icône de l'en-tête (écart 7 de la phase 1) et automatiquement quand une tâche démarre ; barre animée faute de pourcentage connu.
+12. **Plan de localisation** : choix du lieu au-dessus de l'aperçu ; titre, repère, IA, échelle, format, orientation et itinéraire d'accès dans « Contenu et format ».
+
+### Corrections faites pendant la 2.1c
+
+- Cases cochées invisibles (règle globale v1 sur les `input`) : catalogue de données et toutes les cases stylées.
+- Panneau Outils et Paramètres : le nom bascule aussi l'interrupteur.
+- Dates au format de la langue (« 10 oct. 2026 »), locales fr/en/es enregistrées.
+- Retour de liaison OpenStreetMap : le panneau Mon compte s'ouvre enfin.
+- Barre de droite défilante quand beaucoup d'outils sont épinglés (boutons inaccessibles sur mobile).
+- Composants v1 inutilisés supprimés (ancienne fiche descriptive, fenêtre de coordonnées, ancien panneau d'outils, ancien panneau de couches).
+
 ## Planifiés
 
 | Écrans | Étape | Date |
 |---|---|---|
-| 20 à 30, 32, 33 (altimétrie, statistiques, comparaison, Mapillary, import, géosignets, mes cartes, fiche, zoom, assistant, tâches, recherche d'adresse, plan de localisation) | 2.1c Outils secondaires | 12 nov |
 | 51 à 57 Fil social | 2.4 Frontend fil | 20-25 nov |
 | 39, 40 Modération | 2.5 | 27 nov |
 | 58 à 61 Groupes | 3.1 | 30 nov - 2 déc |
