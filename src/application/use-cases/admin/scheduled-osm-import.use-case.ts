@@ -20,6 +20,15 @@ export interface ScheduledOsmImportResult {
  * Ne télécharge PAS le fichier .osm.pbf lui-même : ce chemin doit être déposé sur le disque
  * (ou monté en volume) par un mécanisme externe - voir OSM_IMPORT_PBF_PATH.
  */
+/** Parametres d'un import declenche a la main (POST /admin/osm/import), prioritaires sur la config. */
+export interface OsmImportOverrides {
+  pbfPath?: string;
+  append?: boolean;
+  slim?: boolean;
+  cache?: number;
+  styleFile?: string;
+}
+
 export class ScheduledOsmImportUseCase {
   constructor(
     private readonly instanceRepository: PrismaInstanceRepository,
@@ -29,7 +38,7 @@ export class ScheduledOsmImportUseCase {
     private readonly pbfPath: string | undefined,
   ) {}
 
-  async execute(): Promise<ScheduledOsmImportResult> {
+  async execute(overrides: OsmImportOverrides = {}): Promise<ScheduledOsmImportResult> {
     const result: ScheduledOsmImportResult = {
       imported: false,
       instancesProcessed: 0,
@@ -38,13 +47,21 @@ export class ScheduledOsmImportUseCase {
       layersFailed: 0,
     };
 
-    if (!this.pbfPath) {
+    const pbfPath = overrides.pbfPath || this.pbfPath;
+    if (!pbfPath) {
       logger.info('Import OSM programmé ignoré : OSM_IMPORT_PBF_PATH non configuré.');
       return result;
     }
 
-    logger.info('Import OSM programmé démarré', { pbfPath: this.pbfPath });
-    await this.importOsmDataUseCase.execute({ pbfPath: this.pbfPath, append: true });
+    logger.info('Import OSM programmé démarré', { pbfPath });
+    // Le job mensuel met a jour (append) ; un import manuel peut demander une creation complete.
+    await this.importOsmDataUseCase.execute({
+      pbfPath,
+      append: overrides.append ?? true,
+      slim: overrides.slim,
+      cache: overrides.cache,
+      styleFile: overrides.styleFile,
+    });
     result.imported = true;
 
     const { data: instances } = await this.instanceRepository.findAll({

@@ -94,16 +94,26 @@ export class ImportOsmDataUseCase {
       message: 'Importation des données spatiales dans PostGIS via osm2pgsql...',
     });
 
+    // Une mise a jour (--append) exige un import osm2pgsql precedent : sur une base neuve, elle
+    // echoue (« Did not find table 'osm2pgsql_properties' »). On bascule alors en import complet.
+    let append = input.append ?? false;
+    if (append && !(await this.hasPreviousImport())) {
+      logger.warn('No previous osm2pgsql import found, running a full import instead of an update', {
+        pbfPath: localPbfPath,
+      });
+      append = false;
+    }
+
     const options: Osm2pgsqlOptions = {
       slim: input.slim ?? true,
-      append: input.append ?? false,
+      append,
       styleFile: input.styleFile,
       cache: input.cache ?? 800,
     };
 
     let result: { success: boolean; message: string };
 
-    if (input.append) {
+    if (append) {
       logger.info('OSM data update starting', { pbfPath: localPbfPath, slim: options.slim });
       result = await this.osm2pgsqlService.updateData(localPbfPath, options);
     } else {
@@ -235,6 +245,19 @@ export class ImportOsmDataUseCase {
     } catch (err) {
       logger.warn('Failed to extract boundaries from OSM polygons', { error: err });
       return 0;
+    }
+  }
+
+  /** Vrai si un import osm2pgsql a deja eu lieu (table de proprietes presente dans « osm »). */
+  private async hasPreviousImport(): Promise<boolean> {
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<{ found: boolean }[]>(
+        `SELECT to_regclass('osm.osm2pgsql_properties') IS NOT NULL AS found`,
+      );
+      return rows[0]?.found === true;
+    } catch {
+      // Verification impossible : on garde le mode demande plutot que d'ecraser des donnees.
+      return true;
     }
   }
 }

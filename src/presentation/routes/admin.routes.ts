@@ -242,6 +242,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
             'scheduled-osm-import',
             'manual-osm-import',
             body as Record<string, unknown>,
+            // Import lourd : une relance automatique repartirait de zero pour la meme cause.
+            { attempts: 1 },
           );
         } catch (err) {
           request.log.warn({ error: err }, 'Could not enqueue BullMQ job for OSM import');
@@ -250,16 +252,15 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 
       const jobId = job?.id ?? `osm-import-${Date.now()}`;
 
-      // Lancement asynchrone en arrière-plan avec rapport de progression
-      importOsmDataUseCase
-        .execute(body, async (progress) => {
-          if (job) {
-            await job.updateProgress(progress);
-          }
-        })
-        .catch((err) => {
+      // Le worker « scheduled-osm-import » traite la tache mise en file (avec ses parametres,
+      // puis resynchronise les couches). Le lancement direct ne sert que si la file est
+      // indisponible : auparavant les deux tournaient, soit deux osm2pgsql concurrents sur les
+      // memes tables (constate en recette le 16 oct 2026).
+      if (!job) {
+        importOsmDataUseCase.execute(body).catch((err) => {
           request.log.error(err, "Erreur lors de l'import OSM en arrière-plan");
         });
+      }
 
       return reply.send(
         successResponse({

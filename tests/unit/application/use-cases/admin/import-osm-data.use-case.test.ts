@@ -4,7 +4,10 @@ import { ImportOsmDataUseCase } from '../../../../../src/application/use-cases/a
 describe('ImportOsmDataUseCase', () => {
   let useCase: ImportOsmDataUseCase;
   let osm2pgsqlService: { importFile: ReturnType<typeof vi.fn>; updateData: ReturnType<typeof vi.fn> };
-  let prisma: { $executeRawUnsafe: ReturnType<typeof vi.fn> };
+  let prisma: {
+    $executeRawUnsafe: ReturnType<typeof vi.fn>;
+    $queryRawUnsafe: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     osm2pgsqlService = {
@@ -13,6 +16,8 @@ describe('ImportOsmDataUseCase', () => {
     };
     prisma = {
       $executeRawUnsafe: vi.fn().mockResolvedValue(undefined),
+      // Un import osm2pgsql precedent existe (table osm.osm2pgsql_properties presente).
+      $queryRawUnsafe: vi.fn().mockResolvedValue([{ found: true }]),
     };
     useCase = new ImportOsmDataUseCase(osm2pgsqlService as any, prisma as any);
   });
@@ -37,6 +42,24 @@ describe('ImportOsmDataUseCase', () => {
     const result = await useCase.execute({ pbfPath: '/data/file.pbf', append: true });
     expect(result.success).toBe(true);
     expect(osm2pgsqlService.updateData).toHaveBeenCalled();
+  });
+
+  it('falls back to a full import when an update is asked on a database never imported', async () => {
+    prisma.$queryRawUnsafe.mockResolvedValue([{ found: false }]);
+    const result = await useCase.execute({ pbfPath: '/data/file.pbf', append: true });
+    expect(result.success).toBe(true);
+    expect(osm2pgsqlService.updateData).not.toHaveBeenCalled();
+    expect(osm2pgsqlService.importFile).toHaveBeenCalledWith(
+      '/data/file.pbf',
+      expect.objectContaining({ append: false }),
+    );
+  });
+
+  it('keeps the update mode when the previous import cannot be checked', async () => {
+    prisma.$queryRawUnsafe.mockRejectedValue(new Error('connection lost'));
+    await useCase.execute({ pbfPath: '/data/file.pbf', append: true });
+    expect(osm2pgsqlService.updateData).toHaveBeenCalled();
+    expect(osm2pgsqlService.importFile).not.toHaveBeenCalled();
   });
 
   it('should throw if pbfPath is empty', async () => {

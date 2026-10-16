@@ -113,10 +113,12 @@ if [ "$table_exists" = "t" ]; then
   fi
 
   echo "Table 'srtm' existante : ajout de ${#to_import[@]} tuile(s) manquante(s) en base (mode append)..."
-  raster2pgsql -a -s 4326 -t 200x200 -F "${to_import[@]}" srtm | psql "$PSQL_URL" -v ON_ERROR_STOP=1 > /dev/null
+  # -Y : COPY au lieu d'INSERT ligne par ligne, environ 8 fois plus rapide (mesure en recette sur
+  # le Cameroun, 117 tuiles SRTM : environ 5 h en INSERT, environ 40 min en COPY).
+  raster2pgsql -a -Y -s 4326 -t 200x200 -F "${to_import[@]}" srtm | psql "$PSQL_URL" -v ON_ERROR_STOP=1 > /dev/null
 else
   echo "Premier import : création de la table 'srtm' avec ${#all_tiles[@]} tuile(s)..."
-  raster2pgsql -c -s 4326 -t 200x200 -I -C -M -F "${all_tiles[@]}" srtm | psql "$PSQL_URL" -v ON_ERROR_STOP=1 > /dev/null
+  raster2pgsql -c -Y -s 4326 -t 200x200 -I -C -M -F "${all_tiles[@]}" srtm | psql "$PSQL_URL" -v ON_ERROR_STOP=1 > /dev/null
   # La contrainte d'emprise max ("enforce_max_extent_rast") générée par -C est bornée à
   # l'emprise de CE premier import. Le géoportail est multi-instances (chaque instance peut
   # couvrir un pays/une région différente) et cette même table "srtm" est destinée à accueillir

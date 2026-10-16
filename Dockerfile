@@ -30,7 +30,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gdal-bin \
     python3 \
     python3-qgis \
-    osm2pgsql \
     osmium-tool \
     wget \
     unzip \
@@ -41,9 +40,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && install -d /usr/share/postgresql-common/pgdg \
   && wget --quiet -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
   && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+  # osm2pgsql depuis bookworm-backports (2.x) : la 1.8 de bookworm ne connait pas --schema, que
+  # Osm2pgsqlService passe toujours (--schema=osm). L'import OSM echouait et le seed se repliait
+  # sans bruit sur des donnees de demonstration (constate en recette le 16 oct 2026).
+  && echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list \
   && apt-get update && apt-get install -y --no-install-recommends \
     postgis \
     postgresql-client-16 \
+  && apt-get install -y --no-install-recommends -t bookworm-backports osm2pgsql \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
