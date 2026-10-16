@@ -54,12 +54,15 @@ Légende :
 
 Vérifié en desktop clair, desktop sombre et mobile (clair ou sombre selon l'écran). Les 20 outils s'ouvrent sans erreur JS (`scripts/e2e-live/tools.mjs`) et le parcours navigateur passe à 35/35. Dans l'environnement de test, OSRM et Nominatim sont absents : l'écran de résultat d'itinéraire a été contrôlé avec une réponse simulée, et le plus proche donne la distance à vol d'oiseau.
 
-### Écarts de l'étape 2.1b (à valider, tous traduits en fr/en/es)
+### Écarts de l'étape 2.1b (tous traduits en fr/en/es)
+
+Décision du 16 oct : tous les outils, y compris ceux sans maquette, suivent le nouveau design (étape 2.1c).
+
 
 1. **Panneau blanc à gauche** des maquettes 09 à 19 ignoré : ces maquettes sont d'une génération antérieure, la carte reste plein écran comme sur 04 à 08.
 2. **Position des panneaux** : en haut, à gauche de la barre de droite, sans la recouvrir. Les maquettes les placent plus bas, à hauteur variable.
 3. **« Autres outils »** dans le panneau Outils, pour les outils sans maquette (téléchargement de données, altimétrie, statistiques, comparaison, Mapillary, plan de localisation, mes données, géosignets, mes cartes, assistant, à propos, commentaires de la carte, mise en page d'impression).
-4. **Boutons retirés de la carte** : annuler/rétablir la vue, emprise de l'instance, géolocalisation et fenêtre de zoom. La géolocalisation n'a plus d'accès : **à arbitrer** (bouton rond supplémentaire en bas à droite ?).
+4. **Boutons retirés de la carte** : annuler/rétablir la vue, emprise de l'instance et fenêtre de zoom. **Géolocalisation conservée** (décision du 16 oct) : bouton rond au-dessus du zoom, un second clic efface la position.
 5. **Couches actives** : carte de chaleur, partage, resynchronisation (admins), suggestions et « Tout retirer » conservés. « Style » ouvre la légende.
 6. **Fiche descriptive** : actions Zoomer, Itinéraire et Télécharger conservées sous les liens.
 7. **Menu contextuel** : sous un filet, les actions existantes (informations sur le lieu, itinéraire depuis ou vers ici, copier les coordonnées, centrer, zoomer).
