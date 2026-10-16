@@ -21,7 +21,7 @@ export class ForgotPasswordUseCase {
     private readonly passwordResetTokenRepository: PrismaPasswordResetTokenRepository,
   ) {}
 
-  async execute(dto: ForgotPasswordDTO): Promise<void> {
+  async execute(dto: ForgotPasswordDTO, lang?: string): Promise<void> {
     const user = await this.userRepository.findByEmail(dto.email);
     // Toujours renvoyer un succès (silencieux si l'utilisateur n'existe pas) pour éviter
     // l'énumération d'emails.
@@ -41,7 +41,7 @@ export class ForgotPasswordUseCase {
       expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
     });
 
-    await this.emailService.sendPasswordResetEmail(user.email, resetToken);
+    await this.emailService.sendPasswordResetEmail(user.email, resetToken, lang);
     logger.info('Password reset requested', { userId: user.id });
   }
 }

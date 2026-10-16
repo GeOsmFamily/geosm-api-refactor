@@ -28,7 +28,7 @@ export class CompleteProfileUseCase {
     private readonly tokenRepository: PrismaEmailVerificationTokenRepository,
   ) {}
 
-  async execute(userId: string, dto: CompleteProfileDTO): Promise<void> {
+  async execute(userId: string, dto: CompleteProfileDTO, lang?: string): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundError('User', userId);
 
@@ -61,7 +61,7 @@ export class CompleteProfileUseCase {
         userId,
         expiresAt: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
       });
-      await this.emailService.sendVerificationEmail(emailChange.email, token);
+      await this.emailService.sendVerificationEmail(emailChange.email, token, lang);
     }
     logger.info('Profile completed', { userId, emailChanged: emailChange !== null });
   }

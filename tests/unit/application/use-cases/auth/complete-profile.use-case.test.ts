@@ -34,12 +34,12 @@ describe('CompleteProfileUseCase (RG-A-09)', () => {
   });
 
   it('un nouvel email est non verifie et declenche la verification', async () => {
-    await useCase.execute('u1', { firstName: 'A', lastName: 'B', email: 'Ada@Example.com' });
+    await useCase.execute('u1', { firstName: 'A', lastName: 'B', email: 'Ada@Example.com' }, 'es');
     expect(users.update).toHaveBeenCalledWith(
       'u1',
       expect.objectContaining({ email: 'ada@example.com', emailVerifiedAt: null }),
     );
-    expect(email.sendVerificationEmail).toHaveBeenCalledWith('ada@example.com', expect.any(String));
+    expect(email.sendVerificationEmail).toHaveBeenCalledWith('ada@example.com', expect.any(String), 'es');
   });
 
   it('refuse un email deja utilise par un autre compte (RG-A-01)', async () => {

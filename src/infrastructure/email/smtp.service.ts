@@ -4,6 +4,7 @@ import type { IEmailService } from '../../application/services/email.service.js'
 import { config } from '../../config/env.config.js';
 import { logger } from '../observability/logger.js';
 import { emailSentTotal, emailFailedTotal } from '../observability/metrics.js';
+import { USER_EMAILS, emailLang, escapeHtml, userEmailHtml } from './user-email-templates.js';
 
 export class SmtpEmailService implements IEmailService {
   private transporter: Transporter | null = null;
@@ -18,15 +19,15 @@ export class SmtpEmailService implements IEmailService {
     // vers l'API qui ne sert aucune page pour ces routes.
     this.appUrl = config.CORS_ORIGIN;
 
-    if (config.SMTP_HOST && config.SMTP_USER) {
+    // Un relais sans authentification (postfix interne, Mailpit en recette) est un SMTP valide :
+    // exiger SMTP_USER faisait tout partir dans les logs (constate en recette le 17 oct 2026).
+    // Seul le "localhost" par defaut, sans identifiant, reste en mode logs.
+    if (config.SMTP_HOST && (config.SMTP_USER || config.SMTP_HOST !== 'localhost')) {
       this.transporter = nodemailer.createTransport({
         host: config.SMTP_HOST,
         port: config.SMTP_PORT,
         secure: config.SMTP_PORT === 465,
-        auth: {
-          user: config.SMTP_USER,
-          pass: config.SMTP_PASS,
-        },
+        ...(config.SMTP_USER ? { auth: { user: config.SMTP_USER, pass: config.SMTP_PASS } } : {}),
       });
       logger.info('SMTP email service initialized', {
         host: config.SMTP_HOST,
@@ -60,30 +61,21 @@ export class SmtpEmailService implements IEmailService {
     await this.send(email, subject, html);
   }
 
-  async sendVerificationEmail(email: string, token: string): Promise<void> {
+  async sendVerificationEmail(email: string, token: string, lang?: string): Promise<void> {
     const link = `${this.appUrl}/verify-email?token=${token}`;
-    await this.send(
-      email,
-      'Verify your email - GeOsm',
-      `<h2>Email Verification</h2><p>Click the link below to verify your email address:</p><p><a href="${link}">${link}</a></p><p>This link expires in 24 hours.</p>`,
-    );
+    const t = USER_EMAILS[emailLang(lang)].verification;
+    await this.send(email, t.subject, userEmailHtml(t.title, t.body, link, t.expiry));
   }
 
-  async sendPasswordResetEmail(email: string, token: string): Promise<void> {
+  async sendPasswordResetEmail(email: string, token: string, lang?: string): Promise<void> {
     const link = `${this.appUrl}/reset-password?token=${token}`;
-    await this.send(
-      email,
-      'Reset your password - GeOsm',
-      `<h2>Password Reset</h2><p>Click the link below to reset your password:</p><p><a href="${link}">${link}</a></p><p>This link expires in 1 hour.</p>`,
-    );
+    const t = USER_EMAILS[emailLang(lang)].reset;
+    await this.send(email, t.subject, userEmailHtml(t.title, t.body, link, t.expiry));
   }
 
-  async sendWelcomeEmail(email: string, firstName: string): Promise<void> {
-    await this.send(
-      email,
-      'Welcome to GeOsm',
-      `<h2>Welcome, ${firstName}!</h2><p>Your account has been created successfully. You can now log in at <a href="${this.appUrl}">${this.appUrl}</a>.</p>`,
-    );
+  async sendWelcomeEmail(email: string, firstName: string, lang?: string): Promise<void> {
+    const t = USER_EMAILS[emailLang(lang)].welcome;
+    await this.send(email, t.subject, userEmailHtml(t.title(escapeHtml(firstName)), t.body, this.appUrl));
   }
 
   async sendOsmImportReportEmail(

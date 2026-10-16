@@ -31,7 +31,7 @@ export class RegisterUseCase {
     private readonly emailVerificationTokenRepository: PrismaEmailVerificationTokenRepository,
   ) {}
 
-  async execute(dto: RegisterDTO): Promise<AuthTokensDTO> {
+  async execute(dto: RegisterDTO, lang?: string): Promise<AuthTokensDTO> {
     const email = Email.create(dto.email);
 
     const existingUser = await this.userRepository.existsByEmail(email.value);
@@ -62,7 +62,7 @@ export class RegisterUseCase {
       userId: user.id,
       expiresAt: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
     });
-    await this.emailService.sendVerificationEmail(user.email, verificationToken);
+    await this.emailService.sendVerificationEmail(user.email, verificationToken, lang);
     logger.info('User registered', { userId: user.id });
 
     const payload: JwtPayload = { sub: user.id, email: user.email, role: user.role };

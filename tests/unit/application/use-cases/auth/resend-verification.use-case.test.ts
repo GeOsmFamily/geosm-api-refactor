@@ -32,12 +32,12 @@ describe('ResendVerificationUseCase (RG-A-03, RG-A-04)', () => {
   });
 
   it('envoie un nouveau lien et invalide les anciens', async () => {
-    await useCase.execute('u1');
+    await useCase.execute('u1', 'en');
     expect(tokens.invalidateAllForUser).toHaveBeenCalledWith('u1');
     expect(tokens.create).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'u1', expiresAt: new Date(NOW + VERIFICATION_TOKEN_TTL_MS) }),
     );
-    expect(email.sendVerificationEmail).toHaveBeenCalledWith('a@b.com', expect.any(String));
+    expect(email.sendVerificationEmail).toHaveBeenCalledWith('a@b.com', expect.any(String), 'en');
   });
 
   it('refuse avant 60 secondes en indiquant le delai restant', async () => {

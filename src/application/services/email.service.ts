@@ -44,9 +44,10 @@ export interface ActivityReportData {
 }
 
 export interface IEmailService {
-  sendVerificationEmail(email: string, token: string): Promise<void>;
-  sendPasswordResetEmail(email: string, token: string): Promise<void>;
-  sendWelcomeEmail(email: string, firstName: string): Promise<void>;
+  /** `lang` : langue de l'utilisateur (Accept-Language de la requete), francais par defaut. */
+  sendVerificationEmail(email: string, token: string, lang?: string): Promise<void>;
+  sendPasswordResetEmail(email: string, token: string, lang?: string): Promise<void>;
+  sendWelcomeEmail(email: string, firstName: string, lang?: string): Promise<void>;
   sendOsmImportReportEmail(email: string, report: OsmImportReportData): Promise<void>;
   sendBackupReportEmail(email: string, report: BackupReportData): Promise<void>;
   sendRoleAssignmentEmail(email: string, data: RoleAssignmentData): Promise<void>;

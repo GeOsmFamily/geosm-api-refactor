@@ -22,7 +22,7 @@ export class ResendVerificationUseCase {
     private readonly now: () => number = Date.now,
   ) {}
 
-  async execute(userId: string): Promise<{ retryAfterSeconds: number }> {
+  async execute(userId: string, lang?: string): Promise<{ retryAfterSeconds: number }> {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundError('User', userId);
     if (user.emailVerifiedAt) throw new ValidationError('Email is already verified');
@@ -49,7 +49,7 @@ export class ResendVerificationUseCase {
       userId,
       expiresAt: new Date(this.now() + VERIFICATION_TOKEN_TTL_MS),
     });
-    await this.emailService.sendVerificationEmail(user.email, token);
+    await this.emailService.sendVerificationEmail(user.email, token, lang);
     logger.info('Verification email re-sent', { userId });
     return { retryAfterSeconds: RESEND_COOLDOWN_SECONDS };
   }

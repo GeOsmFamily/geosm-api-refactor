@@ -38,6 +38,7 @@ import { OsmOAuthService } from '../../infrastructure/external-apis/osm-oauth.se
 import { signOAuthState, verifyOAuthState } from '../../infrastructure/utils/oauth-state.util.js';
 import { config } from '../../config/env.config.js';
 import { logger } from '../../infrastructure/observability/logger.js';
+import { resolveLang } from '../utils/lang.util.js';
 
 function parseBody<T>(
   schema: {
@@ -97,7 +98,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const dto = parseBody(registerSchema, request.body);
-      const result = await registerUseCase.execute(dto);
+      const result = await registerUseCase.execute(dto, resolveLang(request));
       return reply.status(201).send(successResponse(result));
     },
   );
@@ -177,7 +178,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       preHandler: [app.authenticate],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const result = await resendVerificationUseCase.execute(request.user.sub);
+      const result = await resendVerificationUseCase.execute(request.user.sub, resolveLang(request));
       return reply.send(successResponse(result));
     },
   );
@@ -195,7 +196,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const dto = parseBody(completeProfileSchema, request.body);
-      await completeProfileUseCase.execute(request.user.sub, dto);
+      await completeProfileUseCase.execute(request.user.sub, dto, resolveLang(request));
       return reply.send(successResponse(null));
     },
   );
@@ -211,7 +212,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const dto = parseBody(forgotPasswordSchema, request.body);
-      await forgotPasswordUseCase.execute(dto);
+      await forgotPasswordUseCase.execute(dto, resolveLang(request));
       return reply.send(successResponse(null));
     },
   );
