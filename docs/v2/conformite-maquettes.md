@@ -32,11 +32,50 @@ Légende :
 7. **Icône du tiroir de tâches** (exports, imports) dans l'en-tête, à côté de l'avatar : absente des maquettes, fonction existante conservée.
 8. **Changement de mot de passe** (écran 03-new-password, avec ancien mot de passe) : accessible depuis le menu du compte, entrée « Mot de passe ».
 
+## Conformes (étape 2.1b, 16 oct)
+
+| Écran | Remarques |
+|---|---|
+| 04 Carte | Carte plein écran, recherche en pastille blanche, barre de droite (catalogue, couches avec compteur, outils, outils épinglés), commandes rondes en bas à droite (légende, plein écran, zoom). |
+| 05 Catalogue, fonds de carte | Onglets, recherche, groupes en accordéon, cases à cocher ; fonds en liste avec vignette, choix mémorisé. |
+| 06 Couches actives, opacité | Vignette (poignée de tri), corbeille, œil, détail avec curseur d'opacité et liens Infos, Style, Noir et blanc. |
+| 07 Légende | Pastilles plates par géométrie, image de légende WMS. |
+| 08 Fiche descriptive | Panneau à droite, repère rouge sur le point cliqué, étiquettes, attributs, liens Wikipedia, Wikidata, OpenStreetMap. |
+| 09 Outils | Interrupteurs qui épinglent l'outil dans la barre ; un seul panneau d'outil ouvert à la fois. |
+| 10 Annoter la carte | Création et Édition en boutons carrés. |
+| 11 Itinéraire (formulaire, résultat) | Départ, Arrivée, Passage avec bouton cible, Réinitialiser, mode de transport, Calculer ; trajet vert et étiquette de distance sur la carte. |
+| 12 Mesures | Pas de panneau, résultat en étiquette blanche sur la carte. |
+| 13 Menu contextuel | Quatre actions, « Ajouter un commentaire » mis en avant. |
+| 14 Ajouter un commentaire | Liste des commentaires prédéfinis de l'instance (étape 2.1a), bouton Commenter. |
+| 15 Partager | Lien à copier, Facebook, WhatsApp, e-mail. |
+| 16 Imprimer, 17 Exporter | Choix PDF ou PNG. |
+| 18 Rechercher le plus proche | Liste Catégorie avec coche, carte de résultat avec épingle, pointillés vers le résultat. |
+| 19 Analyse spatiale | Opérations en grille 2 x 2, Distance (m), Calculer. |
+
+Vérifié en desktop clair, desktop sombre et mobile (clair ou sombre selon l'écran). Les 20 outils s'ouvrent sans erreur JS (`scripts/e2e-live/tools.mjs`) et le parcours navigateur passe à 35/35. Dans l'environnement de test, OSRM et Nominatim sont absents : l'écran de résultat d'itinéraire a été contrôlé avec une réponse simulée, et le plus proche donne la distance à vol d'oiseau.
+
+### Écarts de l'étape 2.1b (à valider, tous traduits en fr/en/es)
+
+1. **Panneau blanc à gauche** des maquettes 09 à 19 ignoré : ces maquettes sont d'une génération antérieure, la carte reste plein écran comme sur 04 à 08.
+2. **Position des panneaux** : en haut, à gauche de la barre de droite, sans la recouvrir. Les maquettes les placent plus bas, à hauteur variable.
+3. **« Autres outils »** dans le panneau Outils, pour les outils sans maquette (téléchargement de données, altimétrie, statistiques, comparaison, Mapillary, plan de localisation, mes données, géosignets, mes cartes, assistant, à propos, commentaires de la carte, mise en page d'impression).
+4. **Boutons retirés de la carte** : annuler/rétablir la vue, emprise de l'instance, géolocalisation et fenêtre de zoom. La géolocalisation n'a plus d'accès : **à arbitrer** (bouton rond supplémentaire en bas à droite ?).
+5. **Couches actives** : carte de chaleur, partage, resynchronisation (admins), suggestions et « Tout retirer » conservés. « Style » ouvre la légende.
+6. **Fiche descriptive** : actions Zoomer, Itinéraire et Télécharger conservées sous les liens.
+7. **Menu contextuel** : sous un filet, les actions existantes (informations sur le lieu, itinéraire depuis ou vers ici, copier les coordonnées, centrer, zoomer).
+8. **Commentaire** : champ de texte modifiable sous la liste (le choix prédéfini le pré-remplit). Un visiteur voit une invitation à se connecter. Le serveur exige une adresse email vérifiée.
+9. **Partager** : la maquette contient un texte de remplissage (« This blog post has been published… »), remplacé par une phrase sur le lien.
+10. **Imprimer / Exporter** : Imprimer ouvre la boîte d'impression du navigateur, Exporter télécharge le fichier. La mise en page détaillée (titre, format, orientation, légende) reste dans « Autres outils ».
+11. **Annoter** : bouton Cercle en plus. En Édition, le 3e bouton (sans icône sur la maquette) sert à modifier les sommets. « Mes annotations » garde Sauvegarder, Charger et Tout effacer.
+12. **Itinéraire** : mode Vélo en plus, lien « + Ajouter une étape », adresse saisie géocodée, multimodal et isochrone sous « Options avancées », distance, durée et profil altimétrique dans le panneau.
+13. **Mesures** : petite barre en bas de carte (geste à faire, Tout effacer, Terminer), sinon rien n'indique comment finir ou effacer.
+14. **Plus proche** : les catégories sont les couches actives, pas une liste fixe. Trois résultats au lieu d'un, avec Zoomer et Itinéraire.
+15. **Analyse spatiale** : choix de la géométrie à tracer et boutons « Tracer la géométrie A / B », nécessaires au calcul.
+
 ## Planifiés
 
 | Écrans | Étape | Date |
 |---|---|---|
-| 04 Carte (OSM, satellite, IGN, N&B), 05 à 19 (catalogue, couches, légende, fiche, outils, annotation, itinéraire, mesures, menu contextuel, commentaire, partage, impression, export, plus proche, analyse) | 2.1b Panneaux carte | 10-11 nov |
 | 20 à 30, 32, 33 (altimétrie, statistiques, comparaison, Mapillary, import, géosignets, mes cartes, fiche, zoom, assistant, tâches, recherche d'adresse, plan de localisation) | 2.1c Outils secondaires | 12 nov |
 | 51 à 57 Fil social | 2.4 Frontend fil | 20-25 nov |
 | 39, 40 Modération | 2.5 | 27 nov |
