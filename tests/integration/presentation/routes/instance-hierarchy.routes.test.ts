@@ -31,7 +31,11 @@ function fakeRepo(): IInstanceRepository {
   const store = new Map<string, Instance>(
     [
       make(AFRICA, 'Afrique', { kind: InstanceKind.CONTINENT, continentCode: 'AF', isActive: false }),
-      make(CAMEROON, 'Cameroun', { parentInstanceId: AFRICA, continentCode: 'AF' }),
+      make(CAMEROON, '{"fr":"Cameroun","en":"Cameroon"}', {
+        slug: 'cameroun',
+        parentInstanceId: AFRICA,
+        continentCode: 'AF',
+      }),
       make(CHAD, 'Tchad', { parentInstanceId: AFRICA, continentCode: 'AF', isActive: false }),
     ].map((i) => [i.id, i]),
   );
@@ -98,6 +102,20 @@ describe('Territoire : routes', () => {
       expect(body.data[0]).toMatchObject({ slug: 'afrique', kind: 'CONTINENT', continentCode: 'AF' });
       expect(body.data[0].children.map((c: any) => c.slug)).toEqual(['cameroun', 'tchad']);
       expect(body.data[0].children[1].isActive).toBe(false);
+    });
+
+    // Constate en recette (16 oct) : le nom multilingue arrivait en JSON brut sur l'accueil.
+    it('traduit les noms des pays imbriques selon Accept-Language', async () => {
+      const fr = await app.inject({ method: 'GET', url: '/instances/tree' });
+      const en = await app.inject({
+        method: 'GET',
+        url: '/instances/tree',
+        headers: { 'accept-language': 'en-US,en;q=0.9' },
+      });
+
+      expect(fr.json().data[0].children[0].name).toBe('Cameroun');
+      expect(en.json().data[0].children[0].name).toBe('Cameroon');
+      expect(en.headers['vary']).toContain('Accept-Language');
     });
   });
 

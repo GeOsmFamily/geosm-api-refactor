@@ -115,11 +115,21 @@ export async function instanceRoutes(app: FastifyInstance): Promise<void> {
         tags: ['Instances'],
       },
     },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       const tree = await getInstanceTreeUseCase.execute();
+      // Noms et descriptions traduits comme sur les autres routes d'instance : une instance creee
+      // avec un nom multilingue renvoyait sinon {"fr":…,"en":…} brut (constate en recette).
+      const lang = resolveLang(request);
+      type Node = { children?: Node[] } & Record<string, unknown>;
+      const localizeTree = (nodes: Node[]): Node[] =>
+        nodes.map((node) => ({
+          ...localizeEntity(node, lang),
+          children: localizeTree(node.children ?? []),
+        }));
       return reply
         .header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
-        .send(successResponse(tree));
+        .header('Vary', 'Accept-Language')
+        .send(successResponse(localizeTree(tree as unknown as Node[])));
     },
   );
 
