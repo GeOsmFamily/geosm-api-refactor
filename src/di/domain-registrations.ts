@@ -3,6 +3,7 @@ import type { Resolver } from 'awilix';
 import { territoryRegistrations } from './territory.registrations.js';
 import { notificationsRegistrations } from './notifications.registrations.js';
 import { authRegistrations } from './auth.registrations.js';
+import { commentsRegistrations } from './comments.registrations.js';
 
 /**
  * Registre d'injection par domaine.
@@ -32,6 +33,7 @@ export const domainRegistrations: DomainRegistration[] = [
   territoryRegistrations,
   notificationsRegistrations,
   authRegistrations,
+  commentsRegistrations,
 ];
 
 export function collectDomainRegistrations(

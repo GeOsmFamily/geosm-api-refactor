@@ -3,15 +3,18 @@
 //   npm run db:seed:territories
 import { PrismaClient } from '@prisma/client';
 import { seedTerritories } from '../prisma/territories.js';
+import { seedPredefinedComments } from '../prisma/predefined-comments.js';
 
 const prisma = new PrismaClient();
 
 seedTerritories(prisma)
-  .then((r) => {
+  .then(async (r) => {
     console.log(
       `Territoires : ${r.continentsCreated} continent(s) cree(s), ` +
         `${r.countriesCreated} pays cree(s), ${r.countriesUpdated} pays mis a jour`,
     );
+    const seeded = await seedPredefinedComments(prisma);
+    console.log(`Commentaires predefinis : ${seeded} pays initialise(s)`);
   })
   .catch((e) => {
     console.error('Seed des territoires en echec :', e);

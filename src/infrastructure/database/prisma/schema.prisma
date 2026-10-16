@@ -89,24 +89,24 @@ enum BaseMapType {
 }
 
 model User {
-  id                  String    @id @default(uuid()) @db.Uuid
-  email               String    @unique
-  passwordHash        String    @map("password_hash")
-  firstName           String    @map("first_name")
-  lastName            String    @map("last_name")
-  avatar              String?
-  role                Role      @default(VIEWER)
-  isActive            Boolean   @default(true) @map("is_active")
-  emailVerifiedAt     DateTime? @map("email_verified_at")
-  lastLoginAt         DateTime? @map("last_login_at")
-  preferredInstanceId String?   @map("preferred_instance_id") @db.Uuid
+  id                       String    @id @default(uuid()) @db.Uuid
+  email                    String    @unique
+  passwordHash             String    @map("password_hash")
+  firstName                String    @map("first_name")
+  lastName                 String    @map("last_name")
+  avatar                   String?
+  role                     Role      @default(VIEWER)
+  isActive                 Boolean   @default(true) @map("is_active")
+  emailVerifiedAt          DateTime? @map("email_verified_at")
+  lastLoginAt              DateTime? @map("last_login_at")
+  preferredInstanceId      String?   @map("preferred_instance_id") @db.Uuid
   // RG-A-11 : temporisation apres cinq echecs de connexion consecutifs.
-  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
-  lockedUntil         DateTime? @map("locked_until")
+  failedLoginAttempts      Int       @default(0) @map("failed_login_attempts")
+  lockedUntil              DateTime? @map("locked_until")
   // RG-A-09 : compte cree via OpenStreetMap qui doit encore confirmer son profil.
-  profileCompletionPending Boolean @default(false) @map("profile_completion_pending")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  profileCompletionPending Boolean   @default(false) @map("profile_completion_pending")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
 
   preferredInstance       Instance?                @relation("UserPreferredInstance", fields: [preferredInstanceId], references: [id], onDelete: SetNull)
   refreshTokens           RefreshToken[]
@@ -238,13 +238,14 @@ model Instance {
   children         Instance[] @relation("InstanceHierarchy")
   preferredByUsers User[]     @relation("UserPreferredInstance")
 
-  layerGroups    LayerGroup[]
-  layers         Layer[]
-  baseMaps       BaseMap[]
-  qgisProjects   QgisProject[]
-  instanceUsers  InstanceUser[]
-  personalLayers PersonalLayer[]
-  faqs           InstanceFaq[]
+  layerGroups        LayerGroup[]
+  layers             Layer[]
+  baseMaps           BaseMap[]
+  qgisProjects       QgisProject[]
+  instanceUsers      InstanceUser[]
+  personalLayers     PersonalLayer[]
+  faqs               InstanceFaq[]
+  predefinedComments PredefinedComment[]
 
   @@index([parentInstanceId])
   @@index([kind])
@@ -794,6 +795,22 @@ enum CommentReportType {
   OTHER
 }
 
+// Commentaires predefinis proposes dans l'outil « Ajouter un commentaire » (maquette 14),
+// configurables par instance. Simple point de depart : le commentaire envoye reste un texte libre.
+model PredefinedComment {
+  id         String   @id @default(uuid()) @db.Uuid
+  instanceId String   @map("instance_id") @db.Uuid
+  label      String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId, order])
+  @@map("predefined_comments")
+}
+
 model Comment {
   id         String             @id @default(uuid()) @db.Uuid
   userId     String             @map("user_id") @db.Uuid
@@ -829,6 +846,8 @@ model Comment {
   reviewedBy String?            @map("reviewed_by") @db.Uuid
   reviewedAt DateTime?          @map("reviewed_at")
   reviewNote String?            @map("review_note")
+  // Photo jointe au commentaire (URL publique MinIO), facultative.
+  photoUrl   String?            @map("photo_url")
   createdAt  DateTime           @default(now()) @map("created_at")
   updatedAt  DateTime           @updatedAt @map("updated_at")
 

@@ -19,6 +19,8 @@ export interface SaveCommentDTO {
   reportType?: CommentReportType;
   layerId?: string;
   featureId?: string;
+  /** Photo deja envoyee sur le stockage objet (URL publique). */
+  photoUrl?: string;
 }
 
 export class SaveCommentUseCase {
@@ -35,6 +37,7 @@ export class SaveCommentUseCase {
       reportType: dto.reportType ?? null,
       layerId: dto.layerId ?? null,
       featureId: dto.featureId ?? null,
+      photoUrl: dto.photoUrl ?? null,
     });
     logger.info('Comment created', { userId, commentId: comment.id, instanceId: dto.instanceId });
     return comment;

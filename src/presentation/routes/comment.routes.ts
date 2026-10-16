@@ -26,6 +26,7 @@ const createCommentSchema = z.object({
     .optional(),
   layerId: z.string().uuid().optional(),
   featureId: z.string().optional(),
+  photoUrl: z.string().url().max(2048).optional(),
 });
 
 const replyCommentSchema = z.object({

@@ -15,6 +15,7 @@ export interface CommentRecord {
   reportType: CommentReportType | null;
   layerId: string | null;
   featureId: string | null;
+  photoUrl: string | null;
   reviewedBy: string | null;
   reviewedAt: Date | null;
   reviewNote: string | null;
@@ -56,6 +57,7 @@ export class PrismaCommentRepository {
     reportType?: CommentReportType | null;
     layerId?: string | null;
     featureId?: string | null;
+    photoUrl?: string | null;
   }): Promise<CommentRecord> {
     const record = await this.prisma.comment.create({ data, include: authorSelect });
     return withAuthorName(record) as CommentRecord;

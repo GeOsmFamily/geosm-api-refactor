@@ -42,6 +42,7 @@ import { wmsProxyRoutes, wfsProxyRoutes } from './presentation/routes/wms-proxy.
 import { defaultThemeRoutes } from './presentation/routes/default-theme.routes.js';
 import { adminRoutes } from './presentation/routes/admin.routes.js';
 import { adminCommentRoutes } from './presentation/routes/admin-comment.routes.js';
+import { predefinedCommentRoutes } from './presentation/routes/predefined-comment.routes.js';
 import { adminFeedbackRoutes } from './presentation/routes/admin-feedback.routes.js';
 import { adminDockerRoutes } from './presentation/routes/admin-docker.routes.js';
 import { osmRoutes } from './presentation/routes/osm.routes.js';
@@ -394,6 +395,7 @@ async function bootstrap(): Promise<void> {
   await app.register(defaultThemeRoutes, { prefix: `${appConfig.apiPrefix}/default-themes` });
   await app.register(adminRoutes, { prefix: `${appConfig.apiPrefix}/admin` });
   await app.register(adminCommentRoutes, { prefix: `${appConfig.apiPrefix}/admin/comments` });
+  await app.register(predefinedCommentRoutes, { prefix: appConfig.apiPrefix });
   await app.register(adminFeedbackRoutes, { prefix: `${appConfig.apiPrefix}/admin/feedback` });
   await app.register(adminDockerRoutes, { prefix: `${appConfig.apiPrefix}/admin/docker` });
   await app.register(osmRoutes, { prefix: `${appConfig.apiPrefix}/osm` });
