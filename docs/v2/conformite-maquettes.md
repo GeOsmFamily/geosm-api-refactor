@@ -119,6 +119,12 @@ Vérifié en desktop clair, desktop sombre, mobile clair et mobile sombre. Parco
 - Barre de droite défilante quand beaucoup d'outils sont épinglés (boutons inaccessibles sur mobile).
 - Composants v1 inutilisés supprimés (ancienne fiche descriptive, fenêtre de coordonnées, ancien panneau d'outils, ancien panneau de couches).
 
+### Recette réelle du 17 oct
+
+- Écart demandé : dans le catalogue (maquette 05), l'icône de chaque thématique prend la couleur de la thématique au lieu de la couleur primaire ; icône foncée sur les couleurs claires.
+- Boutons rétablis hors maquettes : « Vue générale » (emprise de l'instance) et « Effacer le repère » (liens partagés avec coordonnées), dans la colonne du bas à droite, placée au-dessus de l'attribution OSM.
+- Corrigés : panneau « Tâches en cours » qui restait ouvert sur les outils, fiche descriptive superposée aux panneaux, boutons de la barre de droite écrasés, boussole OpenLayers visible sans rotation, sous-titre « Limite administrative » sur un simple lieu, statistiques sans couche présélectionnée, accents manquants.
+
 ## Planifiés
 
 | Écrans | Étape | Date |
