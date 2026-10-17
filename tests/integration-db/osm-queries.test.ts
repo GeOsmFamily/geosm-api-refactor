@@ -65,6 +65,7 @@ describe.skipIf(!DB_AVAILABLE)('OSM raw SQL queries', () => {
         "name" TEXT,
         "building" TEXT,
         "landuse" TEXT,
+        "amenity" TEXT,
         way geometry(Polygon, 3857)
       )
     `);
@@ -91,6 +92,18 @@ describe.skipIf(!DB_AVAILABLE)('OSM raw SQL queries', () => {
       INSERT INTO osm.planet_osm_polygon (osm_id, "name", "building", way)
       VALUES (3001, 'Test Building', 'yes',
         ST_Transform(ST_SetSRID(ST_GeomFromText('POLYGON((11.5 3.85, 11.501 3.85, 11.501 3.851, 11.5 3.851, 11.5 3.85))'), 4326), 3857))
+    `);
+    // Ecole dessinee en surface : doit aussi entrer dans une couche de points.
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO osm.planet_osm_polygon (osm_id, "name", "amenity", way)
+      VALUES (3002, 'Area School', 'school',
+        ST_Transform(ST_SetSRID(ST_GeomFromText('POLYGON((11.52 3.86, 11.522 3.86, 11.522 3.862, 11.52 3.862, 11.52 3.86))'), 4326), 3857))
+    `);
+    // Enceinte de "Test School", deja presente en point : ne doit pas faire de doublon.
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO osm.planet_osm_polygon (osm_id, "name", "amenity", way)
+      VALUES (3003, 'Test School grounds', 'school',
+        ST_Transform(ST_SetSRID(ST_GeomFromText('POLYGON((11.499 3.849, 11.501 3.849, 11.501 3.851, 11.499 3.851, 11.499 3.849))'), 4326), 3857))
     `);
   });
 
@@ -168,6 +181,20 @@ describe.skipIf(!DB_AVAILABLE)('OSM raw SQL queries', () => {
       `SELECT COUNT(*)::integer AS cnt FROM "${TEST_SCHEMA}"."schools"`,
     );
     expect(Number(rows[0].cnt)).toBeGreaterThanOrEqual(1);
+  });
+
+  it('createTable: une couche de points reprend les surfaces (point interieur)', async () => {
+    await service.createTable({
+      schema: TEST_SCHEMA,
+      table: 'schools_all',
+      sourceTable: 'planet_osm_point',
+      conditions: [{ key: 'amenity', value: 'school' }],
+    });
+    const rows = await getPrisma().$queryRawUnsafe<{ name: string; type: string }[]>(
+      `SELECT "name", GeometryType(geom) AS type FROM "${TEST_SCHEMA}"."schools_all" ORDER BY "name"`,
+    );
+    expect(rows.map((r) => r.name)).toEqual(['Area School', 'Test School']);
+    expect(rows.every((r) => r.type === 'POINT')).toBe(true);
   });
 
   it('createTable: from planet_osm_polygon', async () => {

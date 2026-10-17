@@ -137,16 +137,25 @@ export class OsmQueryService {
     const schema = this.sanitizeIdentifier(options.schema);
     const table = this.sanitizeIdentifier(options.table);
 
-    // Get existing columns of source table to prevent querying missing columns
-    const existingColumns = await this.getTableColumns(options.sourceTable);
-    const whereInline = this.buildWhereInline(options.conditions, existingColumns);
+    // Une couche de points (hopitaux, ecoles, marches...) reprend aussi les lieux dessines en
+    // surface dans OSM, ramenes a un point interieur : en recette sur le Cameroun (17 oct 2026),
+    // 393 hopitaux sur 554 etaient des surfaces, dont Laquintinie, et manquaient a la couche.
+    const sources: Array<{ table: CreateOsmTableOptions['sourceTable']; geom: string }> = [
+      { table: options.sourceTable, geom: 'ST_Transform(A.way, 4326)' },
+    ];
+    if (options.sourceTable === 'planet_osm_point') {
+      sources.push({
+        table: 'planet_osm_polygon',
+        geom: 'ST_Transform(ST_PointOnSurface(A.way), 4326)',
+      });
+    }
 
-    // Determine geometry expression based on source table
-    const geomExpr = 'ST_Transform(A.way, 4326) AS geometry';
+    const columnsBySource = await Promise.all(sources.map((s) => this.getTableColumns(s.table)));
+    // Colonnes communes a toutes les sources (necessaire pour UNION ALL).
+    const has = (col: string) => columnsBySource.every((cols) => cols.has(col));
     // Inclure les tags OSM bruts (hstore -> json) quand la table source en dispose,
     // pour permettre l'enrichissement des fiches descriptives (horaires, contacts...).
-    const sourceColumns = await this.getTableColumns(options.sourceTable);
-    const tagsCol = sourceColumns.has('tags') ? 'hstore_to_json(A.tags)::jsonb AS tags, ' : '';
+    const tagsCol = has('tags') ? 'hstore_to_json(A.tags)::jsonb AS tags, ' : '';
     // Colonnes dédiées ajoutées via le style osm2pgsql personnalisé (voir
     // scripts d'import) - sélectionnées seulement si présentes sur la source,
     // pour rester compatible avec des tables important via le style par défaut.
@@ -161,33 +170,43 @@ export class OsmQueryService {
       'addr:housenumber',
       'addr:street',
       'addr:city',
-    ].filter((c) => sourceColumns.has(c));
+    ].filter(has);
     const enrichmentCols = enrichmentColumns.length
       ? enrichmentColumns.map((c) => `A."${c}"`).join(', ') + ', '
       : '';
-    const selectCols = `A.osm_id, A."name", ${tagsCol}${enrichmentCols}${geomExpr}`;
 
-    let fromClause = `osm.${options.sourceTable} AS A`;
-    let spatialFilter = '';
+    const selects = sources.map((source, i) => {
+      const whereInline = this.buildWhereInline(options.conditions, columnsBySource[i]);
+      const selectCols = `A.osm_id, A."name", ${tagsCol}${enrichmentCols}${source.geom} AS geometry`;
+      let fromClause = `osm.${source.table} AS A`;
+      let spatialFilter = '';
 
-    if (options.boundaryTable && options.boundaryId != null) {
-      const boundaryTable = this.sanitizeIdentifier(options.boundaryTable);
-      const geomCol = this.sanitizeIdentifier(options.boundaryGeomColumn ?? 'geom');
-      fromClause += `, ${boundaryTable} AS B`;
+      if (options.boundaryTable && options.boundaryId != null) {
+        const boundaryTable = this.sanitizeIdentifier(options.boundaryTable);
+        const geomCol = this.sanitizeIdentifier(options.boundaryGeomColumn ?? 'geom');
+        fromClause += `, ${boundaryTable} AS B`;
 
-      if (options.sourceTable === 'planet_osm_polygon') {
-        spatialFilter = ` AND B.id = ${Number(options.boundaryId)} AND ST_Contains(ST_Transform(B."${geomCol}", 4326), ST_Transform(A.way, 4326))`;
-      } else {
-        spatialFilter = ` AND B.id = ${Number(options.boundaryId)} AND ST_Intersects(ST_Transform(A.way, 4326), ST_Transform(B."${geomCol}", 4326))`;
+        if (options.sourceTable === 'planet_osm_polygon') {
+          spatialFilter = ` AND B.id = ${Number(options.boundaryId)} AND ST_Contains(ST_Transform(B."${geomCol}", 4326), ST_Transform(A.way, 4326))`;
+        } else {
+          spatialFilter = ` AND B.id = ${Number(options.boundaryId)} AND ST_Intersects(${source.geom}, ST_Transform(B."${geomCol}", 4326))`;
+        }
       }
-    }
 
-    if (options.bbox) {
-      const [minLon, minLat, maxLon, maxLat] = options.bbox;
-      spatialFilter += ` AND A.way && ST_Transform(ST_MakeEnvelope(${minLon}, ${minLat}, ${maxLon}, ${maxLat}, 4326), 3857)`;
-    }
+      if (options.bbox) {
+        const [minLon, minLat, maxLon, maxLat] = options.bbox;
+        spatialFilter += ` AND A.way && ST_Transform(ST_MakeEnvelope(${minLon}, ${minLat}, ${maxLon}, ${maxLat}, 4326), 3857)`;
+      }
 
-    const selectSql = `SELECT ${selectCols} FROM ${fromClause} WHERE (${whereInline})${spatialFilter}`;
+      // Surface qui contient deja un point de la meme couche (lieu dessine deux fois) : ecartee.
+      if (i > 0) {
+        const pointWhere = this.buildWhereInline(options.conditions, columnsBySource[0], 'P');
+        spatialFilter += ` AND NOT EXISTS (SELECT 1 FROM osm.${sources[0].table} AS P WHERE P.way && A.way AND ST_Contains(A.way, P.way) AND (${pointWhere}))`;
+      }
+
+      return `SELECT ${selectCols} FROM ${fromClause} WHERE (${whereInline})${spatialFilter}`;
+    });
+    const selectSql = selects.join(' UNION ALL ');
 
     // Create schema if not exists
     await this.prisma.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
@@ -291,23 +310,36 @@ export class OsmQueryService {
   /**
    * Build inline WHERE (escaping values to prevent SQL injection).
    */
-  private buildWhereInline(conditions: OsmKeyValue[], existingColumns?: Set<string>): string {
+  private buildWhereInline(
+    conditions: OsmKeyValue[],
+    existingColumns?: Set<string>,
+    alias?: string,
+  ): string {
     if (conditions.length === 0) return 'TRUE';
+    const prefix = alias ? `${alias}.` : '';
 
     return conditions
       .map((cond) => {
         const col = this.sanitizeIdentifier(cond.key);
+        const safeValue = cond.value.replace(/'/g, "''");
         if (existingColumns && !existingColumns.has(col)) {
+          // Cle sans colonne dediee (government, healthcare, finance...) : osm2pgsql la garde
+          // dans la colonne hstore "tags". La traiter comme FALSE vidait des couches pourtant
+          // alimentees dans OSM (Services des impots, recette du 17 oct 2026).
+          if (existingColumns.has('tags')) {
+            return cond.value === '*'
+              ? `${prefix}tags ? '${col}'`
+              : `${prefix}tags -> '${col}' = '${safeValue}'`;
+          }
           logger.warn(
             `Column "${col}" does not exist in the source OSM table. Treating condition as FALSE.`,
           );
           return 'FALSE';
         }
         if (cond.value === '*') {
-          return `"${col}" IS NOT NULL`;
+          return `${prefix}"${col}" IS NOT NULL`;
         }
-        const safeValue = cond.value.replace(/'/g, "''");
-        return `"${col}" = '${safeValue}'`;
+        return `${prefix}"${col}" = '${safeValue}'`;
       })
       .join(' AND ');
   }
