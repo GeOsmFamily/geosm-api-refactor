@@ -112,11 +112,33 @@ describe('PostMediaUseCase', () => {
     expect(detectMediaFormat(Buffer.from('<svg onload=alert(1)>'))).toBeNull();
   });
 
+  const makeStore = (files: Array<{ key: string; lastModified: Date }> = []) => ({
+    uploadFile: vi.fn(async (k: string) => k),
+    getPresignedUrl: vi.fn(async (k: string) => `u/${k}`),
+    listFiles: vi.fn(async () => files),
+    deleteFile: vi.fn(async () => undefined),
+  });
+
   it("range le fichier sous le dossier de l'auteur et refuse les formats inconnus", async () => {
-    const store = { uploadFile: vi.fn(async (k: string) => k), getPresignedUrl: vi.fn(async (k: string) => `u/${k}`) };
-    const result = await new PostMediaUseCase(store).upload(AUTHOR, jpeg);
+    const store = makeStore();
+    const refs = { referencedMediaKeys: vi.fn() };
+    const result = await new PostMediaUseCase(store, refs).upload(AUTHOR, jpeg);
     expect(result.key).toMatch(new RegExp(`^posts/${AUTHOR}/[0-9a-f-]+\\.jpg$`));
     expect(store.uploadFile).toHaveBeenCalledWith(result.key, jpeg, 'image/jpeg', jpeg.length);
-    await expect(new PostMediaUseCase(store).upload(AUTHOR, Buffer.from('hello'))).rejects.toBeInstanceOf(ValidationError);
+    await expect(new PostMediaUseCase(store, refs).upload(AUTHOR, Buffer.from('hello'))).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("efface les medias jamais publies de plus de 24 h, pas les recents ni les publies", async () => {
+    const now = new Date('2026-10-17T12:00:00Z');
+    const old = new Date('2026-10-16T08:00:00Z');
+    const store = makeStore([
+      { key: 'posts/u/publie.jpg', lastModified: old },
+      { key: 'posts/u/abandonne.jpg', lastModified: old },
+      { key: 'posts/u/en-cours.jpg', lastModified: new Date('2026-10-17T11:00:00Z') },
+    ]);
+    const refs = { referencedMediaKeys: vi.fn(async () => new Set(['posts/u/publie.jpg'])) };
+    expect(await new PostMediaUseCase(store, refs).cleanupOrphans(now)).toEqual({ scanned: 2, deleted: 1 });
+    expect(store.deleteFile).toHaveBeenCalledTimes(1);
+    expect(store.deleteFile).toHaveBeenCalledWith('posts/u/abandonne.jpg');
   });
 });

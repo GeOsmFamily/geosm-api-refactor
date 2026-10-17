@@ -302,6 +302,18 @@ async function bootstrap(): Promise<void> {
   await queueService.addRepeatableJob('activity-reports', 'weekly-report', {}, '0 8 * * 1');
   await queueService.addRepeatableJob('activity-reports', 'monthly-report', {}, '0 8 1 * *');
 
+  // Medias de publications televerses puis jamais publies (publication abandonnee) : efface
+  // chaque nuit ceux de plus de 24 h, sans quoi le stockage MinIO gonfle indefiniment.
+  queueService.createQueue('post-media-cleanup');
+  queueService.registerWorker('post-media-cleanup', async () => {
+    const postMediaUseCase = app.diContainer.resolve(
+      'postMediaUseCase',
+    ) as import('./application/use-cases/posts/post-media.use-case.js').PostMediaUseCase;
+    const result = await postMediaUseCase.cleanupOrphans();
+    app.log.info({ ...result }, 'Nettoyage des medias de publication orphelins');
+  });
+  await queueService.addRepeatableJob('post-media-cleanup', 'daily-cleanup', {}, '30 3 * * *');
+
   // Register FAQ generation worker + job récurrent (génération hebdomadaire de FAQ en DRAFT à
   // partir des questions posées à l'assistant IA sur les 30 derniers jours, voir plan "FAQ
   // dynamique par instance" du 2026-08-06) - jamais publiée automatiquement, un admin doit

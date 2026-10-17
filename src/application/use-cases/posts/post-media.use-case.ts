@@ -6,7 +6,16 @@ import { mediaKeyPrefix } from './posts.use-cases.js';
 export interface MediaUploadStore {
   uploadFile(key: string, data: Buffer, contentType?: string, size?: number): Promise<string>;
   getPresignedUrl(key: string, expirySeconds?: number): Promise<string>;
+  listFiles(prefix: string): Promise<Array<{ key: string; lastModified: Date }>>;
+  deleteFile(key: string): Promise<void>;
 }
+
+export interface MediaReferences {
+  referencedMediaKeys(keys: string[]): Promise<Set<string>>;
+}
+
+/** Delai laisse pour finir une publication avant qu'un media non rattache soit efface. */
+export const ORPHAN_MEDIA_TTL_MS = 24 * 3600 * 1000;
 
 interface DetectedFormat {
   type: MediaType;
@@ -38,7 +47,10 @@ export function detectMediaFormat(buf: Buffer): DetectedFormat | null {
  * l'auteur (prefixe posts/<userId>/).
  */
 export class PostMediaUseCase {
-  constructor(private readonly store: MediaUploadStore) {}
+  constructor(
+    private readonly store: MediaUploadStore,
+    private readonly references: MediaReferences,
+  ) {}
 
   async upload(userId: string, data: Buffer): Promise<{ key: string; type: MediaType; url: string }> {
     const format = detectMediaFormat(data);
@@ -53,5 +65,20 @@ export class PostMediaUseCase {
     const key = `${mediaKeyPrefix(userId)}${randomUUID()}.${format.ext}`;
     await this.store.uploadFile(key, data, format.mime, data.length);
     return { key, type: format.type, url: await this.store.getPresignedUrl(key, 6 * 3600) };
+  }
+
+  /**
+   * Efface les medias televerses puis jamais publies (publication abandonnee), plus vieux que
+   * ORPHAN_MEDIA_TTL_MS. Tache quotidienne "post-media-cleanup" (server.ts).
+   */
+  async cleanupOrphans(now = new Date()): Promise<{ scanned: number; deleted: number }> {
+    const files = (await this.store.listFiles('posts/')).filter(
+      (f) => now.getTime() - f.lastModified.getTime() > ORPHAN_MEDIA_TTL_MS,
+    );
+    if (!files.length) return { scanned: 0, deleted: 0 };
+    const used = await this.references.referencedMediaKeys(files.map((f) => f.key));
+    const orphans = files.filter((f) => !used.has(f.key));
+    for (const f of orphans) await this.store.deleteFile(f.key);
+    return { scanned: files.length, deleted: orphans.length };
   }
 }

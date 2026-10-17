@@ -329,6 +329,12 @@ export class PrismaPostRepository {
     return this.prisma.tag.findMany({ where: { slug: { in: slugs } } });
   }
 
+  async referencedMediaKeys(keys: string[]): Promise<Set<string>> {
+    if (!keys.length) return new Set();
+    const rows = await this.prisma.postMedia.findMany({ where: { key: { in: keys } }, select: { key: true } });
+    return new Set(rows.map((r) => r.key));
+  }
+
   findAuthor(userId: string) {
     return this.prisma.user.findUnique({ where: { id: userId }, select: AUTHOR_SELECT });
   }

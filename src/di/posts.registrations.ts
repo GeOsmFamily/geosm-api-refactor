@@ -44,7 +44,7 @@ export const postsRegistrations: DomainRegistration = ({ prisma }) => ({
       ),
     { lifetime: Lifetime.SINGLETON },
   ),
-  postMediaUseCase: asFunction((c: PostsCradle) => new PostMediaUseCase(c.storageService), {
+  postMediaUseCase: asFunction((c: PostsCradle) => new PostMediaUseCase(c.storageService, c.postRepository), {
     lifetime: Lifetime.SINGLETON,
   }),
 });
