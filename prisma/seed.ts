@@ -18,6 +18,7 @@ import { PrismaQgisProjectRepository } from '../src/infrastructure/database/repo
 import { PrismaBaseMapRepository } from '../src/infrastructure/database/repositories/prisma-base-map.repository.js';
 import { seedTerritories } from './territories.js';
 import { seedPredefinedComments } from './predefined-comments.js';
+import { seedPostTags } from './post-tags.js';
 
 const prisma = new PrismaClient();
 const execAsync = promisify(exec);
@@ -359,6 +360,7 @@ async function main(): Promise<void> {
   // Arbre territorial (continents + pays) : rattache l'instance cameroon a l'Afrique.
   const territories = await seedTerritories(prisma);
   await seedPredefinedComments(prisma);
+  await seedPostTags(prisma);
   console.log(`Territories seeded (${territories.countriesCreated} countries created)`);
 
   console.log('Seed completed successfully');

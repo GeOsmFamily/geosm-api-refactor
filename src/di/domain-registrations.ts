@@ -4,6 +4,7 @@ import { territoryRegistrations } from './territory.registrations.js';
 import { notificationsRegistrations } from './notifications.registrations.js';
 import { authRegistrations } from './auth.registrations.js';
 import { commentsRegistrations } from './comments.registrations.js';
+import { postsRegistrations } from './posts.registrations.js';
 
 /**
  * Registre d'injection par domaine.
@@ -34,6 +35,7 @@ export const domainRegistrations: DomainRegistration[] = [
   notificationsRegistrations,
   authRegistrations,
   commentsRegistrations,
+  postsRegistrations,
 ];
 
 export function collectDomainRegistrations(

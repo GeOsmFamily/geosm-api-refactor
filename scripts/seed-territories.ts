@@ -4,6 +4,7 @@
 import { PrismaClient } from '@prisma/client';
 import { seedTerritories } from '../prisma/territories.js';
 import { seedPredefinedComments } from '../prisma/predefined-comments.js';
+import { seedPostTags } from '../prisma/post-tags.js';
 
 const prisma = new PrismaClient();
 
@@ -15,6 +16,8 @@ seedTerritories(prisma)
     );
     const seeded = await seedPredefinedComments(prisma);
     console.log(`Commentaires predefinis : ${seeded} pays initialise(s)`);
+    const tags = await seedPostTags(prisma);
+    console.log(`Etiquettes : ${tags.sdg} ODD, etiquettes libres pour ${tags.custom} pays`);
   })
   .catch((e) => {
     console.error('Seed des territoires en echec :', e);

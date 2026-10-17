@@ -122,6 +122,11 @@ model User {
   analysisReports         AnalysisReport[]
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
+  posts                   Post[]
+  postReactions           PostReaction[]
+  postComments            PostComment[]
+  postCommentLikes        PostCommentLike[]
+  contentReports          ContentReport[]
 
   @@map("users")
 }
@@ -246,6 +251,8 @@ model Instance {
   personalLayers     PersonalLayer[]
   faqs               InstanceFaq[]
   predefinedComments PredefinedComment[]
+  posts              Post[]
+  tags               Tag[]
 
   @@index([parentInstanceId])
   @@index([kind])
@@ -985,3 +992,214 @@ model admin_boundaries {
 // "prisma db push" les voit alors et refuse de démarrer ("data loss" sur un DROP implicite).
 // Toujours passer par POST /admin/osm/import (ou relancer manuellement le déplacement de schéma
 // après un import direct) plutôt que d'appeler osm2pgsql en dehors de ce use-case.
+
+// ============================================================================================
+// Fil social geolocalise (chantier E, etape 2.2) - cahier technique 4.4, ADR 0007 point 5.
+// Conventions du depot plutot que celles du cahier (uuid au lieu de cuid, tables en snake_case).
+// ============================================================================================
+
+enum TagCategory {
+  SDG
+  CUSTOM
+}
+
+enum PostVisibility {
+  PUBLIC
+  GROUP
+  PRIVATE
+}
+
+// FLAGGED = masque du fil en attente de moderation (3 signalements distincts, RG-E-06) ;
+// REMOVED = rejete par un moderateur (conserve pour audit, jamais renvoye au fil).
+enum PostStatus {
+  PUBLISHED
+  FLAGGED
+  REMOVED
+}
+
+enum MediaType {
+  IMAGE
+  GIF
+  VIDEO
+}
+
+enum ReactionType {
+  LIKE
+}
+
+enum ReportTargetType {
+  POST
+  POST_COMMENT
+  GROUP
+  EVENT
+}
+
+enum ReportReason {
+  INAPPROPRIATE
+  WRONG_INFORMATION
+  SPAM
+  OTHER
+}
+
+// Les 17 ODD (category SDG, instanceId null) sont semes une fois pour toutes ; les tags libres
+// (CUSTOM) sont geres centralement par instance (RG-E-10). label : JSON {fr,en,es} localise a
+// la lecture, comme les noms d'instances et de couches.
+model Tag {
+  id         String      @id @default(uuid()) @db.Uuid
+  slug       String      @unique
+  label      String
+  category   TagCategory
+  sdgNumber  Int?        @map("sdg_number")
+  icon       String?
+  color      String?
+  instanceId String?     @map("instance_id") @db.Uuid
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  instance Instance? @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  posts    PostTag[]
+
+  @@index([category])
+  @@index([instanceId])
+  @@map("tags")
+}
+
+model PostTag {
+  postId String @map("post_id") @db.Uuid
+  tagId  String @map("tag_id") @db.Uuid
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+  @@map("post_tags")
+}
+
+model Post {
+  id           String         @id @default(uuid()) @db.Uuid
+  // Null = auteur supprime : la publication reste visible (« Utilisateur supprime », 4.5.6).
+  authorId     String?        @map("author_id") @db.Uuid
+  instanceId   String         @map("instance_id") @db.Uuid
+  // Groupe social (phase 3) : pas encore de relation, le modele Group n'existe pas.
+  groupId      String?        @map("group_id") @db.Uuid
+  content      String
+  lat          Float
+  lon          Float
+  // Point geographique indexe pour le fil (ST_DWithin), renseigne par le depot a chaque
+  // ecriture depuis lat/lon. Declare ici pour que « prisma db push » ne le supprime pas.
+  geom         Unsupported("geography(Point, 4326)")?
+  radiusMeters Int            @default(1500) @map("radius_meters")
+  // Libelle du lieu affiche sous l'auteur (« Carrefour Nkoabang », maquette 51).
+  placeLabel   String?        @map("place_label")
+  visibility   PostVisibility @default(PUBLIC)
+  status       PostStatus     @default(PUBLISHED)
+  likeCount    Int            @default(0) @map("like_count")
+  commentCount Int            @default(0) @map("comment_count")
+  shareCount   Int            @default(0) @map("share_count")
+  // Mention « modifie » (RG-E-07) : renseigne quand le texte change apres publication.
+  editedAt     DateTime?      @map("edited_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  author    User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  instance  Instance       @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  tags      PostTag[]
+  media     PostMedia[]
+  reactions PostReaction[]
+  comments  PostComment[]
+
+  @@index([geom], type: Gist)
+  @@index([instanceId, status, createdAt(sort: Desc)])
+  @@index([authorId])
+  @@index([groupId])
+  @@map("posts")
+}
+
+// key : chemin d'objet MinIO, resolu en URL presignee a la lecture.
+model PostMedia {
+  id     String    @id @default(uuid()) @db.Uuid
+  postId String    @map("post_id") @db.Uuid
+  key    String
+  type   MediaType
+  order  Int       @default(0)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_media")
+}
+
+model PostReaction {
+  id        String       @id @default(uuid()) @db.Uuid
+  postId    String       @map("post_id") @db.Uuid
+  userId    String       @map("user_id") @db.Uuid
+  type      ReactionType @default(LIKE)
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@map("post_reactions")
+}
+
+// Un seul niveau de reponses (RG-E-05) : parentId pointe toujours vers un commentaire racine.
+model PostComment {
+  id        String    @id @default(uuid()) @db.Uuid
+  postId    String    @map("post_id") @db.Uuid
+  authorId  String?   @map("author_id") @db.Uuid
+  parentId  String?   @map("parent_id") @db.Uuid
+  content   String
+  likeCount Int       @default(0) @map("like_count")
+  // Masque au 3e signalement distinct, comme les publications (ADR 0007).
+  hidden    Boolean   @default(false)
+  editedAt  DateTime? @map("edited_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  post    Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  User?             @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  parent  PostComment?      @relation("PostCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies PostComment[]     @relation("PostCommentReplies")
+  likes   PostCommentLike[]
+
+  @@index([postId, createdAt])
+  @@index([parentId])
+  @@map("post_comments")
+}
+
+model PostCommentLike {
+  commentId String   @map("comment_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  comment PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@map("post_comment_likes")
+}
+
+// Signalements generiques (publications, commentaires, puis groupes et evenements en phase 3).
+// Un utilisateur ne signale qu'une fois un meme contenu ; au 3e signalement distinct, le contenu
+// est masque en attente de moderation (RG-E-06). resolvedAt : traite par un moderateur.
+model ContentReport {
+  id         String           @id @default(uuid()) @db.Uuid
+  targetType ReportTargetType @map("target_type")
+  targetId   String           @map("target_id") @db.Uuid
+  instanceId String           @map("instance_id") @db.Uuid
+  reporterId String           @map("reporter_id") @db.Uuid
+  reason     ReportReason
+  details    String?
+  resolvedAt DateTime?        @map("resolved_at")
+  resolvedBy String?          @map("resolved_by") @db.Uuid
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  reporter User @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@unique([targetType, targetId, reporterId])
+  @@index([targetType, targetId])
+  @@index([instanceId, resolvedAt])
+  @@map("content_reports")
+}

@@ -13,10 +13,16 @@ describe('collectDomainRegistrations', () => {
     expect(domainRegistrations.length).toBeGreaterThan(0);
     expect(Object.keys(collectDomainRegistrations(deps)).sort()).toEqual([
       'completeProfileUseCase',
+      'contentReportRepository',
       'getInstanceChildrenUseCase',
       'getInstanceTreeUseCase',
       'getUnreadCountersUseCase',
       'notificationPreferencesUseCases',
+      'postCommentsUseCases',
+      'postMediaUseCase',
+      'postModerationUseCases',
+      'postRepository',
+      'postsUseCases',
       'predefinedCommentRepository',
       'predefinedCommentsUseCases',
       'resendVerificationUseCase',
